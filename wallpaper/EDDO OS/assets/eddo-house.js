@@ -414,6 +414,7 @@
         add(new T.LineSegments(segs(pts), lmat()), "both", 0.8);                                                 // a view cone
         add(new T.Mesh(new T.SphereGeometry(0.035, 10, 8), mat()), "both", 1);
         faceCentre(); core.rotation.x = 0.4;
+        if (d.u < 0 || d.u > 1 || d.v < 0 || d.v > 1 || d.faceOut) core.rotation.y += Math.PI;   // outdoor cameras (doorbell, garden) look away from the house
       } else if (k === "tv") {
         add(new T.Mesh(new T.PlaneGeometry(0.36, 0.21), mat()), "on", 0.55);                                    // a screen that lights up
         add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(0.36, 0.21)), lmat()), "both", 0.9);
