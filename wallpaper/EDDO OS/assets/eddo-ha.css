@@ -374,3 +374,23 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 /* no divider between DAILY TERMINAL and the first panel under it */
 :is(.wb-time+.eddo-srv,.wb-time+.wb-today+.eddo-srv)>.eddo-srv-head{border-top:0;padding-top:0}
 :is(.wb-time+.eddo-srv,.wb-time+.wb-today+.eddo-srv){margin-top:18px}
+
+/* House tab: holographic 3D model */
+.eddo-house-canvas,.eddo-house-labels{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
+#stage[data-eddo-house] :is(.eddo-house-canvas,.eddo-house-labels){display:block}
+#stage[data-eddo-house] #three-scene{visibility:hidden}
+.eddo-house-label{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:2px;margin:-34px 0 0 0;translate:-50% 0;white-space:nowrap;font:10px/1.2 MiSans,system-ui,sans-serif;letter-spacing:1.4px;color:var(--theme-muted,#8f8c84);transition:opacity .3s}
+.eddo-house-label b{font-weight:500;color:var(--theme-ink,#ece9e2);letter-spacing:1.8px}
+.eddo-house-label span{font-size:9px;font-variant-numeric:tabular-nums}
+.eddo-house-label[data-on=true] span{color:#ffb36b}
+.eddo-house-label[data-active=true] b{color:#ffd2a0}
+.eddo-house-label[data-hidden=true]{opacity:0}
+.eddo-house-list{display:flex;flex-direction:column;gap:14px;margin-top:4px}
+.eddo-house-floor>p{margin:0 0 6px;font-size:10px;letter-spacing:1.8px;color:var(--theme-muted,#77756d)}
+.eddo-house-row{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;width:100%;padding:7px 0;border-top:1px solid var(--theme-line,#bdb8ad);text-align:left;color:inherit;font-size:13px}
+.eddo-house-row i{width:8px;height:8px;border:1px solid currentColor;opacity:.5}
+.eddo-house-row[data-on=true] i{background:var(--c);border-color:var(--c);opacity:1;box-shadow:0 0 8px var(--c)}
+.eddo-house-row em{font-style:normal;font-size:10px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
+.eddo-house-row[aria-pressed=true] span{color:#ffd2a0}
+.eddo-house-row:hover span{color:#9b7247}
+.eddo-house-tip{margin:4px 0 0;font-size:11px}

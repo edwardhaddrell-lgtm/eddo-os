@@ -627,7 +627,7 @@
   (function watchIndex() {
     const stage = document.querySelector("#stage");
     if (!stage) return setTimeout(watchIndex, 500);
-    new MutationObserver((muts) => { if (muts.some((m) => (m.target.nodeType === 3 ? m.target.parentNode : m.target)?.closest?.(".wb-index") || [...m.addedNodes].some((n) => n.nodeType === 1 && (n.matches(".wb-index") || n.querySelector?.(".wb-index"))))) fixIndex(); })
+    new MutationObserver((muts) => { try { if (muts.some((m) => (m.target.nodeType === 3 ? m.target.parentNode : m.target)?.closest?.(".wb-index") || [...m.addedNodes].some((n) => n.nodeType === 1 && (n.matches(".wb-index") || n.querySelector?.(".wb-index"))))) fixIndex(); } catch (_) {} })
       .observe(stage, { subtree: true, childList: true, characterData: true });
   })();
 

@@ -16,6 +16,7 @@ Edward's interactive desktop: a Wallpaper Engine web wallpaper (rebuilt from *Rh
   - **02 Today's tasks** (Google Tasks "Top 3")
   - **03 Upcoming event** (haddrellwood calendar)
   - **04 Cameras** (Ring front door and garden, Nanit Fox's room, Bambu printer)
+  - **05 House**: holographic 3D model of the house and garden office; rooms glow from their lights. The model is in `assets/eddo-house-data.js`.
   - **Game mode**
   - **Jarvis**
 - **Left column:**
