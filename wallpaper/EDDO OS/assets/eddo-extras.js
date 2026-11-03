@@ -801,7 +801,26 @@
     const media = overlay.querySelector(".eddo-cam-slot .eddo-cam-media"), card = document.querySelector(`#stage .wb-content [data-cam="${expandedKey}"]`);
     if (media && card) { card.querySelector(".eddo-cam-head").after(media); media.querySelector("video")?.play().catch(() => {}); }
     overlay.dataset.open = "false"; expandedKey = null;
+    if (holderMode) { holderMode = false; stopLive(); document.querySelectorAll("#stage .eddo-cam-holder").forEach((h) => h.remove()); }
   }
+  // Open a camera's big view from elsewhere (the House tab): its card lives in a
+  // hidden holder inside the current tab so the usual big-view code can use it.
+  let holderMode = false;
+  window.eddoCams = {
+    async open(key) {
+      if (!CAMS.loaded) await loadCameras();
+      const c = CAMS.list.find((x) => x.key === key); const content = document.querySelector("#stage .wb-content");
+      if (!c || !content) return false;
+      collapseCam();
+      let holder = content.querySelector(".eddo-cam-holder");
+      if (!holder) { holder = document.createElement("div"); holder.className = "eddo-cam-holder"; holder.hidden = true; content.append(holder); }
+      holder.innerHTML = camCard(c);
+      const img = holder.querySelector("img"); if (img) loadStill(c, img);
+      expandCam(key); holderMode = true;
+      return true;
+    },
+    keys: () => CAMS.list.map((c) => c.key),
+  };
   // keep the big view's labels in step with the card
   setInterval(() => {
     if (!overlay || !expandedKey) return;

@@ -54,7 +54,17 @@
       }
       d.ids.forEach((id) => used.add(id));
       d.ids.filter((id) => /^(light|switch)\./.test(id) && /light|lamp/.test(d.kind)).forEach((id) => d.roomRef.ents.add(id));
+      d.ids.filter((id) => /^climate\./.test(id)).forEach((id) => d.roomRef.ents.add(id));
     }
+    // scenes: listed in the model, plus any HA scene assigned to the room's area
+    rooms.forEach((r) => { r.sceneList = (r.scenes || []).filter((id) => stMap.has(id)); });
+    for (const x of ents) {
+      if (!x.entity_id.startsWith("scene.") || x.disabled_by) continue;
+      const an = areaName.get(x.area_id || devArea.get(x.device_id)); if (!an) continue;
+      const room = rooms.find((r) => (r.areas || []).some((a) => a.toLowerCase() === an));
+      if (room && !room.sceneList.includes(x.entity_id)) room.sceneList.push(x.entity_id);
+    }
+    rooms.forEach((r) => { r.sceneNames = r.sceneList.map((id) => [id, (stMap.get(id)?.attributes.friendly_name || id.split(".")[1].replace(/_/g, " "))]); });
     const ids = [...new Set([...rooms.flatMap((r) => [...r.ents]), ...devices.flatMap((d) => d.ids)])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); states.set(id, { s: s.state, a: s.attributes }); });
@@ -131,6 +141,12 @@
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   const view = { theta: -0.75, phi: 0.72, dist: 52, target: null, goal: null, t0: performance.now() };
   let focused = null, hovered = null, hoveredDev = null, drag = null, lastFrame = 0;
+  let floorSel = null, heatMode = false, whatsOn = false, dayK = 1, sunInfo = null;
+  const isQuietDev = (d) => d.kind === "camera" || d.kind === "pc";
+  const devActive = (d) => !!(d.st && d.st.active && !isQuietDev(d));
+  const roomActive = (r) => r.on > 0 || devices.some((d) => d.roomRef === r && devActive(d));
+  const hiddenFloor = (fl) => (focused && focused.floor !== fl) || (!focused && floorSel && floorSel !== fl);
+  const isDim = (r) => hiddenFloor(r.floor) || (whatsOn && !focused && !roomActive(r));
 
   async function ensure3D() {
     if (renderer) return true;
@@ -194,6 +210,15 @@
       }
       r.mesh = { g, plate, glow, faces, edges, warm: 0 };
     }
+    // daylight objects live in the model's own coordinates (so plan north works)
+    sunGroup = new T.Group(); sunGroup.userData = { cx: maxX / 2, cz: maxZ / 2 }; root.add(sunGroup);
+    shadowGroup = new T.Group(); root.add(shadowGroup);
+    sunMarker = new T.Mesh(new T.CircleGeometry(0.55, 24), new T.MeshBasicMaterial({ color: 0xffd08a, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
+    sunGroup.add(sunMarker);
+    sunPath = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: 0xffd08a, transparent: true, opacity: 0.15 }));
+    sunGroup.add(sunPath);
+    updateSun(true);
+
     // furniture: edge outlines only, so the model stays light
     const FUR = { color: 0x9cc2c9 };
     const furMat = () => new T.LineBasicMaterial({ color: FUR.color, transparent: true, opacity: 0.32 });
@@ -263,6 +288,73 @@
     });
   }
 
+  // ---- daylight: sun position for the site, soft ground shadows, a sun marker on its path
+  const SITE = H.site || { lat: 51.4057, lon: 0.0158, northDeg: 45 };
+  function sunPos(date) {
+    const rad = Math.PI / 180, d = (date.getTime() - 946728000000) / 864e5;
+    const g = (357.529 + 0.98560028 * d) * rad, q = 280.459 + 0.98564736 * d;
+    const L = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * rad, e = (23.439 - 0.00000036 * d) * rad;
+    const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+    const gmst = ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24;
+    const hA = (gmst * 15 + SITE.lon) * rad - ra, lat = SITE.lat * rad;
+    const el = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(hA));
+    const az = Math.atan2(Math.sin(hA), Math.cos(hA) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)) + Math.PI;   // from north, clockwise
+    return { el, az };
+  }
+  // compass bearing -> direction in the model's own (plan) coordinates: x right, z towards the garden
+  const planDir = (bearing) => { const b = bearing + SITE.northDeg * Math.PI / 180; return [Math.sin(b), Math.cos(b)]; };
+  function sunTimes(now) {
+    const day = new Date(now); day.setHours(0, 0, 0, 0);
+    let rise = null, set = null, prev = sunPos(day).el;
+    for (let m = 5; m <= 1440; m += 5) {
+      const t = new Date(day.getTime() + m * 60e3), el = sunPos(t).el, lim = -0.833 * Math.PI / 180;
+      if (prev < lim && el >= lim && !rise) rise = t; if (prev >= lim && el < lim) set = t; prev = el;
+    }
+    const f = (t) => t ? t.toTimeString().slice(0, 5) : "—";
+    return { rise: f(rise), set: f(set) };
+  }
+  let sunGroup = null, shadowGroup = null, sunMarker = null, sunPath = null, lastSun = 0;
+  function hull(pts) {
+    pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (const p of pts.slice().reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  }
+  function updateSun(force) {
+    const now = Date.now(); if (!force && now - lastSun < 60e3) return; lastSun = now;
+    const { el, az } = sunPos(new Date(now));
+    const deg = el * 180 / Math.PI;
+    dayK = Math.max(0, Math.min(1, (deg + 4) / 14));
+    const tt = sunTimes(now); sunInfo = { ...tt, up: deg > -0.833 };
+    // shadows: each ground footprint, cast by the tallest part of the building above it
+    shadowGroup.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); }); shadowGroup.clear();
+    if (deg > 2) {
+      const [dx, dz] = planDir(az), len = Math.min(30, 1 / Math.tan(el));
+      const house = rooms.filter((r) => r.floor !== "garden");
+      const bases = rooms.filter((r) => r.floor === "ground" || r.floor === "garden");
+      for (const r of bases) {
+        const top = r.floor === "garden" ? r.h : Math.max(...house.filter((o) => o.x < r.x + r.w - 0.01 && o.x + o.w > r.x + 0.01 && o.z < r.z + r.d - 0.01 && o.z + o.d > r.z + 0.01).map((o) => o.y + o.h));
+        const ox = -dx * len * top, oz = -dz * len * top;
+        const c = [[r.x, r.z], [r.x + r.w, r.z], [r.x + r.w, r.z + r.d], [r.x, r.z + r.d]];
+        const hl = hull(c.concat(c.map(([x, z]) => [x + ox, z + oz])));
+        const shape = new T.Shape(hl.map(([x, z]) => new T.Vector2(x, z)));
+        const geo = new T.ShapeGeometry(shape); geo.rotateX(Math.PI / 2);
+        const m = new T.Mesh(geo, new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.16 * Math.min(1, deg / 12), depthWrite: false, side: T.DoubleSide }));
+        m.position.y = 0.004; shadowGroup.add(m);
+      }
+    }
+    // sun marker + today's path, on a dome around the site
+    const R = 26, cx = sunGroup.userData.cx, cz = sunGroup.userData.cz;
+    const at = (a, e) => { const [x, z] = planDir(a); return new T.Vector3(cx + x * R * Math.cos(e), Math.max(0, R * Math.sin(e)), cz + z * R * Math.cos(e)); };
+    sunMarker.position.copy(at(az, el)); sunMarker.visible = deg > -2;
+    sunMarker.material.opacity = 0.35 + 0.5 * dayK;
+    const day = new Date(now); day.setHours(0, 0, 0, 0); const pts = [];
+    for (let m = 0; m <= 1440; m += 15) { const sp = sunPos(new Date(day.getTime() + m * 60e3)); if (sp.el > 0) pts.push(at(sp.az, sp.el)); }
+    sunPath.geometry.dispose(); sunPath.geometry = new T.BufferGeometry().setFromPoints(pts);
+    sunPath.material.opacity = 0.08 + 0.12 * dayK;
+  }
   const tmpC = () => new T.Color();
   function tempColour(t) {   // 16° blue → 21° neutral → 26° amber
     const cold = new T.Color(0x6fa8ff), mid = new T.Color(C.edge), hot = new T.Color(0xffa24a);
@@ -277,13 +369,17 @@
       const lc = new T.Color(r.color[0], r.color[1], r.color[2]);
       m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow;
       m.plate.material.color.copy(new T.Color(C.plate).lerp(lc, r.glow * 0.7));
-      const isFocus = focused === r, isHover = hovered === r, dim = focused && focused.floor !== r.floor;
+      const isFocus = focused === r, isHover = hovered === r, dim = isDim(r);
+      const night = 0.6 + 0.4 * dayK;                         // the model darkens after sunset; lit rooms keep glowing
+      const base = new T.Color(0x101517).lerp(new T.Color(C.plate), 0.4 + 0.6 * dayK);
+      if (heatMode && r.temp != null && !r.quiet) m.plate.material.color.copy(tempColour(r.temp).multiplyScalar(0.55));
+      else m.plate.material.color.copy(base.lerp(lc, r.glow * 0.7));
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
-      m.edges.material.opacity = dim ? 0.08 : isHover || isFocus ? 0.95 : r.quiet ? 0.22 : 0.42 + r.glow * 0.4;
+      m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
       m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.08 : 0.03;
-      m.plate.material.opacity = dim ? 0.15 : 0.62;
-      for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.04 : isFocus ? 0.6 : isHover ? 0.45 : 0.28;
+      m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
+      for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
     }
   }
 
@@ -295,11 +391,11 @@
       m.glow += (want - m.glow) * Math.min(1, dt * 4);
       const col = st.active ? new T.Color(...(st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : [1, 0.64, 0.29]))) : new T.Color(st.linked ? 0x6f878c : 0x3c4648);
       m.core.material.color.copy(col);
-      const dim = focused && focused.floor !== d.roomRef.floor;
+      const dim = hiddenFloor(d.roomRef.floor) || (whatsOn && !focused && !devActive(d));
       const pulse = d.kind === "camera" && st.active ? 0.55 + 0.45 * Math.sin(now / 400) : 1;
       m.core.material.opacity = (dim ? 0.15 : 0.95) * pulse;
       const sc = hoveredDev === d ? 1.6 : 1; m.core.scale.setScalar(sc);
-      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22); }
+      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * (heatMode ? 0.3 : 1); }
     }
   }
   function placeLabels() {
@@ -309,19 +405,19 @@
       const p = new T.Vector3(r.x + r.w / 2, r.y + r.h + 0.15, r.z + r.d / 2);
       r.mesh.g.parent.localToWorld(p);
       p.project(camera);
-      const vis = p.z < 1 && !(focused && focused.floor !== r.floor);
+      const vis = p.z < 1 && !hiddenFloor(r.floor) && !(whatsOn && !focused && !roomActive(r));
       const x = (p.x * 0.5 + 0.5) * w, y = (-p.y * 0.5 + 0.5) * h;
       const tf = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       if (r.label.style.transform !== tf) r.label.style.transform = tf;
       r.label.dataset.hidden = String(!vis);
       r.label.dataset.on = String(r.on > 0);
       r.label.dataset.active = String(hovered === r || focused === r);
-      const s = r.label.querySelector("span"), txt = (r.on || r.temp != null || hovered === r || focused === r) ? roomStatus(r) : "";
+      const s = r.label.querySelector("span"), txt = heatMode ? (r.temp != null ? `${r.temp.toFixed(1)}°` : "") : (r.on || hovered === r || focused === r) ? roomStatus(r) : "";
       if (s.textContent !== txt) s.textContent = txt;
     }
     for (const d of devices) {
       if (!d.label || !d.mesh) continue;
-      const show = hoveredDev === d || focused === d.roomRef;
+      const show = hoveredDev === d || focused === d.roomRef || (whatsOn && !focused && devActive(d));
       d.label.dataset.hidden = String(!show);
       if (!show) continue;
       const p = d.mesh.core.getWorldPosition(new T.Vector3()); p.project(camera);
@@ -361,6 +457,8 @@
     const sp = Math.sin(view.phi), cp = Math.cos(view.phi);
     camera.position.set(view.target.x + view.dist * cp * Math.sin(view.theta), view.target.y + view.dist * sp, view.target.z + view.dist * cp * Math.cos(view.theta));
     camera.lookAt(view.target);
+    updateSun(false);
+    if (sunMarker) sunMarker.lookAt(camera.position);
     updateVisuals(dt);
     updateDevices(dt, now);
     renderer.render(scene, camera);
@@ -370,16 +468,26 @@
   function roomCentre(r) { const p = new T.Vector3(r.x + r.w / 2, r.y + r.h / 2, r.z + r.d / 2); r.mesh.g.parent.localToWorld(p); return p; }
   function focus(r) {
     focused = r || null;
+    if (r) whatsOn = false;
     if (!T) return;
+    if (!r && floorSel) return setFloor(floorSel);
     view.goal = r ? { target: roomCentre(r), dist: r.floor === "garden" ? 16 : 20, phi: 0.85 } : { target: new T.Vector3(0, 3.2, 0), dist: 52, phi: 0.72 };
     refreshList();
   }
 
+  function setFloor(fl) {
+    floorSel = fl || null; focused = null;
+    if (!T) return;
+    const rs = rooms.filter((r) => !floorSel || r.floor === floorSel);
+    const c = rs.map(roomCentre).reduce((a, b) => a.add(b), new T.Vector3()).multiplyScalar(1 / Math.max(1, rs.length));
+    view.goal = floorSel ? { target: c, dist: floorSel === "garden" ? 18 : 30, phi: 0.95 } : { target: new T.Vector3(0, 3.2, 0), dist: 52, phi: 0.72 };
+    refreshList();
+  }
   function pick(ev) {
     const rect = canvas.getBoundingClientRect();
     const ray = new T.Raycaster(), v = new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     ray.setFromCamera(v, camera);
-    const hits = ray.intersectObjects(rooms.filter((r) => r.mesh && !(focused && focused.floor !== r.floor)).map((r) => r.mesh.faces), false);
+    const hits = ray.intersectObjects(rooms.filter((r) => r.mesh && !hiddenFloor(r.floor)).map((r) => r.mesh.faces), false);
     // prefer real rooms over halls/landings
     const hit = hits.find((h) => !h.object.userData.room.quiet) || hits[0];
     return hit ? hit.object.userData.room : null;
@@ -388,7 +496,7 @@
     const rect = canvas.getBoundingClientRect();
     const ray = new T.Raycaster(), v = new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     ray.setFromCamera(v, camera);
-    const hits = ray.intersectObjects(devices.filter((d) => d.mesh && !(focused && focused.floor !== d.roomRef.floor)).map((d) => d.mesh.hit), false);
+    const hits = ray.intersectObjects(devices.filter((d) => d.mesh && !hiddenFloor(d.roomRef.floor)).map((d) => d.mesh.hit), false);
     return hits.length ? hits[0].object.userData.device : null;
   }
   function toggleDevice(d) {
@@ -396,6 +504,30 @@
       const [domain] = id.split(".");
       HA().send({ type: "call_service", domain, service: "toggle", target: { entity_id: id } }).catch(() => {});
     }
+  }
+  const call = (domain, service, data) => HA().send({ type: "call_service", domain, service, service_data: data.service_data, target: data.target }).catch(() => {});
+  const lightOf = (d) => d.ids.find((id) => id.startsWith("light.") && states.get(id)?.a?.supported_color_modes?.some?.((m) => m !== "onoff"));
+  const pendingBri = new Map(); const briTimers = new Map();
+  function briPct(id) { if (pendingBri.has(id)) return pendingBri.get(id); const st = states.get(id); return st && st.s === "on" && st.a.brightness != null ? Math.round(st.a.brightness / 2.55) : 0; }
+  function setBri(id, pct, now) {
+    pct = Math.max(0, Math.min(100, Math.round(pct))); pendingBri.set(id, pct);
+    clearTimeout(briTimers.get(id));
+    briTimers.set(id, setTimeout(() => {
+      pct > 0 ? call("light", "turn_on", { target: { entity_id: id }, service_data: { brightness_pct: pct } }) : call("light", "turn_off", { target: { entity_id: id } });
+      setTimeout(() => pendingBri.delete(id), 1500);
+    }, now ? 0 : 350));
+    refreshList();
+  }
+  function roomOff(rs) {
+    for (const d of devices.filter((x) => rs.includes(x.roomRef) && /light|lamp|fan/.test(x.kind)))
+      for (const id of d.ids) { const [dom] = id.split("."); if (/^(light|switch|fan)$/.test(dom) && states.get(id)?.s === "on") call(dom, "turn_off", { target: { entity_id: id } }); }
+  }
+  function climate(d, delta, power) {
+    const id = d.ids.find((x) => x.startsWith("climate.")); if (!id) return;
+    const st = states.get(id); if (!st) return;
+    if (power) return call("climate", st.s === "off" ? "turn_on" : "turn_off", { target: { entity_id: id } });
+    const t = (+st.a.temperature || +st.a.current_temperature || 20) + delta;
+    call("climate", "set_temperature", { target: { entity_id: id }, service_data: { temperature: Math.round(t * 2) / 2 } });
   }
   const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, button, a"));
   function hookInput() {
@@ -419,6 +551,7 @@
       const moved = drag.moved; drag = null;
       if (!moved && !overUi(e.target)) {
         const d = pickDevice(e);
+        if (d && focused === d.roomRef && d.cam && window.eddoCams) { window.eddoCams.open(d.cam); return; }
         if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
         const r = d ? d.roomRef : pick(e);
         focus(r && r !== focused ? r : null);
@@ -426,6 +559,8 @@
     });
     stage.addEventListener("wheel", (e) => {
       if (!running || overUi(e.target)) return;
+      const lid = hoveredDev && lightOf(hoveredDev);
+      if (lid) { setBri(lid, briPct(lid) + (e.deltaY < 0 ? 5 : -5)); return; }
       view.goal.dist = Math.max(8, Math.min(60, view.goal.dist * (e.deltaY > 0 ? 1.1 : 0.9)));
     }, { passive: true });
   }
@@ -442,34 +577,81 @@
   }
 
   // ------------------------------------------------------------ tab
-  let listEl = null;
+  let listEl = null, sliding = null;
+  const FLOORS = [["", "ALL"], ["ground", "G"], ["first", "1"], ["second", "2"], ["garden", "OFFICE"]];
+  function toolbar() {
+    const sun = sunInfo ? `<span class="eddo-house-sun" title="Sunrise / sunset">${sunInfo.up ? "☀" : "☾"} ${sunInfo.rise} – ${sunInfo.set}</span>` : "";
+    return `<div class="eddo-house-bar"><span class="eddo-house-seg">${FLOORS.map(([id, l]) => `<button data-house-floor="${id}" aria-pressed="${(floorSel || "") === id && !focused}">${l}</button>`).join("")}</span>` +
+      `<span class="eddo-house-seg"><button data-house-mode="heat" aria-pressed="${heatMode}">HEAT</button><button data-house-mode="on" aria-pressed="${whatsOn}">WHAT'S ON</button></span></div>` + (sun ? `<p class="eddo-house-sunline">${sun}</p>` : "");
+  }
+  function devRow(d) {
+    const st = d.st || devState(d), i = devices.indexOf(d), lid = lightOf(d), hasClim = d.ids.some((x) => x.startsWith("climate."));
+    const action = d.cam ? ` data-house-cam="${d.cam}"` : canToggle(d) ? ` data-house-dev="${i}"` : " data-static";
+    let row = `<div class="eddo-house-item" data-on="${st.active}" data-linked="${st.linked}"><button class="eddo-house-row"${action}><i style="--c:${st.active ? "#ffb36b" : "transparent"}"></i><span>${esc(d.name)}</span><em>${esc(d.cam ? "OPEN CAMERA ↗" : st.text)}</em></button>`;
+    if (lid) { const pct = briPct(lid); row += `<div class="eddo-house-slider" data-bri="${esc(lid)}" style="--pct:${pct}%"><i></i></div>`; }
+    if (hasClim) row += `<div class="eddo-house-clim"><button data-house-clim="${i}:-0.5" aria-label="Lower">−</button><button data-house-clim="${i}:0.5" aria-label="Raise">+</button><button data-house-clim="${i}:power">${st.active ? "TURN OFF" : "TURN ON"}</button></div>`;
+    return row + `</div>`;
+  }
   function refreshList() {
-    if (!listEl || !listEl.isConnected) return;
+    if (!listEl || !listEl.isConnected || sliding) return;
+    let body;
     if (focused) {
       const ds = devices.filter((d) => d.roomRef === focused);
-      const html = `<div class="eddo-house-floor"><p>${esc(focused.floorName.toUpperCase())} · <button class="eddo-house-back" data-house-back>ALL ROOMS ↩</button></p>` +
-        `<h3 class="eddo-house-room">${esc(focused.name)}</h3><p class="wb-muted eddo-house-sub">${esc(roomStatus(focused))}</p>` +
-        (ds.length ? ds.map((d) => { const st = d.st || devState(d); return `<button class="eddo-house-row" data-house-dev="${devices.indexOf(d)}" data-on="${st.active}" data-linked="${st.linked}"${canToggle(d) ? "" : " data-static"}><i style="--c:${st.active ? "#ffb36b" : "transparent"}"></i><span>${esc(d.name)}</span><em>${esc(st.text)}</em></button>`; }).join("") : `<p class="wb-muted">No devices placed in this room.</p>`) +
-        `</div><p class="wb-muted eddo-house-tip">Click a light to switch it · click empty space to zoom out</p>`;
-      if (listEl.innerHTML !== html) listEl.innerHTML = html;
-      return;
+      const scenes = (focused.sceneNames || []).map(([id, n]) => `<button data-house-scene="${esc(id)}">${esc(n)}</button>`).join("");
+      body = `<div class="eddo-house-floor"><p>${esc(focused.floorName.toUpperCase())} · <button class="eddo-house-back" data-house-back>ALL ROOMS ↩</button></p>` +
+        `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(focused.name)}</h3><button class="eddo-house-off" data-house-off="${focused.id}">ALL OFF</button></div>` +
+        `<p class="wb-muted eddo-house-sub">${esc(roomStatus(focused))}</p>` + (scenes ? `<div class="eddo-house-scenes">${scenes}</div>` : "") +
+        (ds.length ? ds.map(devRow).join("") : `<p class="wb-muted">No devices placed in this room.</p>`) + `</div>` +
+        `<p class="wb-muted eddo-house-tip">Drag a slider or scroll on a light to dim it · click empty space to zoom out</p>`;
+    } else if (whatsOn) {
+      const live = rooms.filter(roomActive);
+      body = `<div class="eddo-house-head"><h3 class="eddo-house-room">What's on</h3>${live.length ? `<button class="eddo-house-off" data-house-off="*">ALL LIGHTS OFF</button>` : ""}</div>` +
+        (live.length ? live.map((r) => `<div class="eddo-house-floor"><p>${esc(r.name.toUpperCase())} · <button class="eddo-house-back" data-house-off="${r.id}">ALL OFF</button></p>` +
+          devices.filter((d) => d.roomRef === r && devActive(d)).map(devRow).join("") + `</div>`).join("") : `<p class="wb-muted">Everything's off.</p>`);
+    } else {
+      const groups = [...new Set(rooms.filter((r) => !floorSel || r.floor === floorSel).map((r) => r.floorName))];
+      body = groups.map((gname) => `<div class="eddo-house-floor"><p>${esc(gname.toUpperCase())}</p>` +
+        rooms.filter((r) => r.floorName === gname && !r.quiet).map((r) =>
+          `<div class="eddo-house-item" data-on="${r.on > 0}"><button class="eddo-house-row" data-house-room="${r.id}"><i style="--c:rgb(${r.color.map((v) => Math.round(v * 255)).join(",")})"></i><span>${esc(r.name)}</span><em>${esc(heatMode ? (r.temp != null ? r.temp.toFixed(1) + "°" : "—") : roomStatus(r))}</em></button></div>`).join("") + `</div>`).join("") +
+        `<p class="wb-muted eddo-house-tip">Drag to turn · scroll to zoom · click a room to control it</p>`;
     }
-    const groups = [...new Set(rooms.map((r) => r.floorName))];
-    const html = groups.map((gname) => `<div class="eddo-house-floor"><p>${esc(gname.toUpperCase())}</p>` +
-      rooms.filter((r) => r.floorName === gname && !r.quiet).map((r) =>
-        `<button class="eddo-house-row" data-house-room="${r.id}" data-on="${r.on > 0}" aria-pressed="${focused === r}"><i style="--c:rgb(${r.color.map((v) => Math.round(v * 255)).join(",")})"></i><span>${esc(r.name)}</span><em>${esc(roomStatus(r))}</em></button>`).join("") + `</div>`).join("") +
-      `<p class="wb-muted eddo-house-tip">Drag to turn · scroll to zoom · click a room to focus it</p>`;
+    const html = toolbar() + body;
     if (listEl.innerHTML !== html) listEl.innerHTML = html;
   }
   document.addEventListener("click", (e) => {
-    if (!e.target.closest) return;
-    if (e.target.closest("[data-house-back]")) { focus(null); return; }
-    const db = e.target.closest("[data-house-dev]");
-    if (db) { const d = devices[+db.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
-    const b = e.target.closest("[data-house-room]"); if (!b) return;
-    const r = rooms.find((x) => x.id === b.dataset.houseRoom);
-    if (r && renderer) focus(focused === r ? null : r);
+    if (!e.target.closest || !running) return;
+    const q = (sel) => e.target.closest(sel);
+    let b;
+    if ((b = q("[data-house-floor]"))) { whatsOn = false; return setFloor(b.dataset.houseFloor); }
+    if ((b = q("[data-house-mode]"))) {
+      if (b.dataset.houseMode === "heat") heatMode = !heatMode;
+      else { whatsOn = !whatsOn; if (whatsOn) { focused = null; floorSel = null; setFloor(null); } }
+      return refreshList();
+    }
+    if (q("[data-house-back]") && !q("[data-house-off]")) return focus(null);
+    if ((b = q("[data-house-off]"))) { const id = b.dataset.houseOff; roomOff(id === "*" ? rooms : rooms.filter((r) => r.id === id)); return; }
+    if ((b = q("[data-house-scene]"))) return call("scene", "turn_on", { target: { entity_id: b.dataset.houseScene } });
+    if ((b = q("[data-house-cam]"))) { window.eddoCams && window.eddoCams.open(b.dataset.houseCam); return; }
+    if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
+    if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
+    if ((b = q("[data-house-room]"))) { const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }
   });
+  // brightness sliders in the panel (drag), and scroll over any light row
+  document.addEventListener("mousedown", (e) => {
+    const sl = e.target.closest && e.target.closest(".eddo-house-slider"); if (!sl || !running) return;
+    e.preventDefault(); sliding = sl; slideTo(e);
+  }, true);
+  function slideTo(e) {
+    const r = sliding.getBoundingClientRect(), pct = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
+    sliding.style.setProperty("--pct", pct.toFixed(0) + "%"); sliding.dataset.pct = pct.toFixed(0);
+  }
+  window.addEventListener("mousemove", (e) => { if (sliding) slideTo(e); });
+  window.addEventListener("mouseup", () => { if (!sliding) return; const sl = sliding; sliding = null; setBri(sl.dataset.bri, +sl.dataset.pct, true); });
+  document.addEventListener("wheel", (e) => {
+    const it = e.target.closest && e.target.closest(".eddo-house-item"); if (!it || !running) return;
+    const sl = it.querySelector(".eddo-house-slider"); if (!sl) return;
+    e.preventDefault(); setBri(sl.dataset.bri, briPct(sl.dataset.bri) + (e.deltaY < 0 ? 5 : -5));
+  }, { passive: false });
   setInterval(() => { if (running) refreshList(); }, 1000);
 
   window.eddoTabs.register({

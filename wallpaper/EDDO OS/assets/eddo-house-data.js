@@ -6,6 +6,7 @@
 // Edit freely: sizes, the garden gap, names, area names.
 window.EDDO_HOUSE = {
   name: "Shortland Gardens",
+  site: { lat: 51.4057, lon: 0.0158, northDeg: 45 },   // plan north points up-right (45° clockwise from the plan's "up")
   floorHeight: 2.6,
   floorGap: 1.3,                 // extra space between floors so each level reads clearly
   floors: [
@@ -14,7 +15,7 @@ window.EDDO_HOUSE = {
       rooms: [
         { id: "living", name: "Living Room", x: 0, z: 0, w: 3.4, d: 4.04, bay: true,
           areas: ["living room", "lounge", "reception"],
-          entities: ["light.living_room", "light.living_room_light", "light.candle", "light.dougnut_lamp"] },
+          entities: ["light.living_room", "light.living_room_light", "light.candle", "light.dougnut_lamp"], scenes: ["scene.movie_time"] },
         { id: "dining", name: "Dining Room", x: 0, z: 4.04, w: 3.4, d: 3.37, areas: ["dining room", "dining"] },
         { id: "hall", name: "Hallway", x: 3.4, z: 0, w: 1.2, d: 7.41, areas: ["hallway", "hall", "entrance"], quiet: true },
         { id: "kitchen", name: "Kitchen", x: 2.08, z: 7.41, w: 2.52, d: 4.59, areas: ["kitchen"],
@@ -68,7 +69,9 @@ window.EDDO_HOUSE = {
     { room: "living", name: "Nest heating", kind: "climate", u: 0.88, v: 0.14, match: ["nest", "heating", "thermostat"], not: ["garden", "office", "kitchen"], domains: ["climate"] },
     // fox's room
     { room: "fox", name: "Star projector", kind: "lamp", u: 0.13, v: 0.89, match: ["star", "projector"] },
-    { room: "fox", name: "Nanit", kind: "camera", u: 0.84, v: 0.57, entity: "camera.nanit_nursery" },
+    { room: "fox", name: "Nanit", kind: "camera", u: 0.84, v: 0.57, entity: "camera.nanit_nursery", cam: "fox_s_room" },
+    { room: "hall", name: "Front door (Ring)", kind: "camera", u: 0.5, v: -0.04, match: ["front door"], domains: ["camera"], cam: "front_door" },
+    { room: "kitchen", name: "Garden (Ring)", kind: "camera", u: 0.5, v: 1.03, match: ["garden"], domains: ["camera"], not: ["office"], cam: "garden" },
     { room: "fox", name: "Fox's room lights", kind: "light", u: 0.47, v: 0.45, match: ["fox"], domains: ["light", "switch"] },
     // bathroom / spare / master
     { room: "bath", name: "Bathroom lights", kind: "light", u: 0.4, v: 0.43, match: ["bathroom"], domains: ["light", "switch"] },
@@ -78,7 +81,7 @@ window.EDDO_HOUSE = {
     { room: "master", name: "Bed light", kind: "lamp", u: 0.19, v: 0.07, match: ["bed light", "bedside"] },
     { room: "master", name: "Bed light", kind: "lamp", u: 0.84, v: 0.07, match: ["bed light", "bedside"], nth: 1 },
     // garden office
-    { room: "office", name: "3D printer", kind: "printer", u: 0.16, v: 0.9, match: ["print status", "print_status"], domains: ["sensor"] },
+    { room: "office", name: "3D printer", kind: "printer", u: 0.16, v: 0.9, match: ["print status", "print_status"], domains: ["sensor"], cam: "eddo_print" },
     { room: "office", name: "Desk Hue · Ed Skadi · monitor", kind: "lamp", u: 0.55, v: 0.9, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
     { room: "office", name: "Ed PC · Unraid", kind: "pc", u: 0.85, v: 0.87 },
     { room: "office", name: "Office lights", kind: "light", u: 0.53, v: 0.49, entity: "light.garden_office_lights" },
@@ -117,6 +120,6 @@ window.EDDO_HOUSE = {
     { id: "office", name: "Garden Office", x: 0.9, z: 16.5, w: 2.75, d: 3.48, h: 2.4,
       areas: ["office", "garden office", "gym"],
       entities: ["light.garden_office_lights", "light.deskhue", "light.hue_play_gradient_lightstrip_1", "switch.office_lamps", "switch.office_lamp_2"],
-      climate: "climate.garden_office" },
+      climate: "climate.garden_office", scenes: ["scene.startup", "scene.shutdown"] },
   ],
 };

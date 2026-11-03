@@ -407,3 +407,25 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 
 /* 05 House: just the model and the room list */
 #stage[data-eddo-house] :is(.brand,.wb-overview,.eddo-ha){opacity:0!important;pointer-events:none!important;transition:opacity .4s}
+.eddo-house-bar{display:flex;justify-content:space-between;gap:10px;margin:0 0 6px}
+.eddo-house-seg{display:inline-flex;border:1px solid var(--theme-line,#bdb8ad)}
+.eddo-house-seg button{padding:6px 10px;font-size:10px;letter-spacing:1.6px;color:var(--theme-muted,#8f8c84)}
+.eddo-house-seg button+button{border-left:1px solid var(--theme-line,#bdb8ad)}
+.eddo-house-seg button:hover{color:#9b7247}
+.eddo-house-seg button[aria-pressed=true]{background:var(--theme-ink,#ece9e2);color:var(--theme-paper,#151816)}
+.eddo-house-sunline{margin:0 0 10px;font-size:10px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
+.eddo-house-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.eddo-house-off{padding:5px 10px;border:1px solid var(--theme-line,#bdb8ad);font-size:10px;letter-spacing:1.6px;color:inherit}
+.eddo-house-off:hover{border-color:#d23c2c;color:#d23c2c}
+.eddo-house-scenes{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.eddo-house-scenes button{padding:5px 10px;border:1px solid var(--theme-line,#bdb8ad);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:inherit}
+.eddo-house-scenes button:hover{border-color:#9b7247;color:#9b7247}
+.eddo-house-item{border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-house-item>.eddo-house-row{border-top:0}
+.eddo-house-slider{position:relative;height:14px;margin:-2px 0 6px 20px;cursor:ew-resize}
+.eddo-house-slider::before{content:"";position:absolute;left:0;right:0;top:6px;height:2px;background:var(--theme-line,#3a3d3a)}
+.eddo-house-slider i{position:absolute;left:0;top:6px;height:2px;width:var(--pct);background:#ffb36b}
+.eddo-house-slider i::after{content:"";position:absolute;right:-4px;top:-4px;width:8px;height:10px;background:var(--theme-ink,#ece9e2)}
+.eddo-house-clim{display:flex;gap:6px;margin:-2px 0 8px 20px}
+.eddo-house-clim button{min-width:28px;padding:4px 8px;border:1px solid var(--theme-line,#bdb8ad);font-size:11px;letter-spacing:1.2px;color:inherit}
+.eddo-house-clim button:hover{border-color:#9b7247;color:#9b7247}
