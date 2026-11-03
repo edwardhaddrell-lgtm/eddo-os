@@ -404,3 +404,6 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-house-sub{margin:0 0 6px;font-size:11px;letter-spacing:1.2px}
 .eddo-house-row[data-static] {cursor:default}.eddo-house-row[data-static]:hover span{color:inherit}
 .eddo-house-row[data-linked=false] em{opacity:.55}
+
+/* 05 House: just the model and the room list */
+#stage[data-eddo-house] :is(.brand,.wb-overview,.eddo-ha){opacity:0!important;pointer-events:none!important;transition:opacity .4s}

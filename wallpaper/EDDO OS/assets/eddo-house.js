@@ -342,7 +342,7 @@
     if (sz.x !== w || sz.y !== h) renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // draw the model left of centre, clear of the workspace column on the right
-    camera.setViewOffset(w * 1.06, h, w * 0.06, 0, w, h);
+    camera.setViewOffset(w * 1.24, h, w * 0.24, 0, w, h);   // centre the model in the free space left of the room list
     camera.updateProjectionMatrix();
   }
 
