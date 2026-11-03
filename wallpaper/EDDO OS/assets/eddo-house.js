@@ -255,35 +255,85 @@
       }
       r.mesh = { g, plate, glow, faces, edges, warm: 0 };
     }
-    // faint outline of the whole building
+    // outline of the whole building: walls, roof, chimneys, windows, porch (detail lines are fainter)
     if (H.shell) {
-      const S = H.shell, seg = [];
-      const L = (a, b) => seg.push(...a, ...b);
-      const box = (x0, x1, z0, z1, y0, y1) => {
+      const S = H.shell, seg = [], det = [];
+      const L = (a, b, out = seg) => out.push(...a, ...b);
+      const box = (x0, x1, z0, z1, y0, y1, out = seg) => {
         const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
-        c.forEach(([x, z], i) => { const [nx, nz] = c[(i + 1) % 4]; L([x, y0, z], [nx, y0, nz]); L([x, y1, z], [nx, y1, nz]); L([x, y0, z], [x, y1, z]); });
+        c.forEach(([x, z], i) => { const [nx, nz] = c[(i + 1) % 4]; L([x, y0, z], [nx, y0, nz], out); L([x, y1, z], [nx, y1, nz], out); L([x, y0, z], [x, y1, z], out); });
       };
+      const rect = (pts, out = seg) => pts.forEach((p, i) => L(p, pts[(i + 1) % pts.length], out));
       const m = S.main;
       if (m) {
         box(m.x0, m.x1, m.z0, m.z1, 0, m.eaves);
-        L([m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ]);                              // ridge
-        for (const x of [m.x0, m.x1]) { L([x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ]); }       // front slope at both gables
-        const rearTop = S.dormer ? S.dormer.top : m.eaves;
+        L([m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ]);                                  // ridge
+        const ov = 0.28;                                                                          // eaves overhang + fascia
+        L([m.x0, m.eaves, m.z0 - ov], [m.x1, m.eaves, m.z0 - ov]); L([m.x0, m.eaves - 0.22, m.z0 - ov], [m.x1, m.eaves - 0.22, m.z0 - ov]);
+        for (const x of [m.x0, m.x1]) { L([x, m.eaves, m.z0 - ov], [x, m.ridge, m.ridgeZ]); L([x, m.eaves - 0.22, m.z0 - ov], [x, m.eaves, m.z0 - ov]); }
         if (!S.dormer) for (const x of [m.x0, m.x1]) L([x, m.ridge, m.ridgeZ], [x, m.eaves, m.z1]);
+        // tile courses on the front slope
+        const slope = (x, t) => [x, m.eaves + (m.ridge - m.eaves) * t, (m.z0 - ov) + (m.ridgeZ - m.z0 + ov) * t];
+        for (let t = 0.14; t < 0.97; t += 0.14) L(slope(m.x0, t), slope(m.x1, t), det);
+        for (const r of S.rooflights || []) rect([slope(r.x0, r.t0), slope(r.x1, r.t0), slope(r.x1, r.t1), slope(r.x0, r.t1)]);
       }
       if (S.dormer) { const d = S.dormer; box(d.x0, d.x1, d.z0, d.z1, m ? m.eaves : 0, d.top); }
-      for (const c of S.chimneys || []) box(c.x0, c.x1, c.z0, c.z1, (m ? m.ridge : 8) - 1.2, c.top);
+      for (const c of S.chimneys || []) {
+        const base = (m ? m.ridge : 8) - 1.2; box(c.x0, c.x1, c.z0, c.z1, base, c.top);
+        box(c.x0 - 0.05, c.x1 + 0.05, c.z0 - 0.05, c.z1 + 0.05, c.top - 0.25, c.top - 0.1, det);   // corbel band
+        const n = c.pots || 0, pw = Math.min(0.2, (c.x1 - c.x0) / (n + 1)), zc = (c.z0 + c.z1) / 2;
+        for (let i = 0; i < n; i++) { const xc = c.x0 + (c.x1 - c.x0) * (i + 1) / (n + 1); box(xc - pw / 2, xc + pw / 2, zc - pw / 2, zc + pw / 2, c.top, c.top + 0.45 + (i % 2) * 0.1); }
+      }
       if (S.outrigger) { const o = S.outrigger, mx = (o.x0 + o.x1) / 2; box(o.x0, o.x1, o.z0, o.z1, 0, o.eaves);
         L([mx, o.ridge, o.z0], [mx, o.ridge, o.z1]); for (const z of [o.z1]) { L([o.x0, o.eaves, z], [mx, o.ridge, z]); L([mx, o.ridge, z], [o.x1, o.eaves, z]); } }
       if (S.extension) { const e = S.extension;
         box(e.x0, e.x1, e.z0, e.z1, 0, e.low);
         L([e.x0, e.high, e.z0], [e.x1, e.high, e.z0]); L([e.x0, e.high, e.z0], [e.x0, e.low, e.z1]); L([e.x1, e.high, e.z0], [e.x1, e.low, e.z1]); }
-      if (S.bay) { const b = S.bay, z = -b.depth;
+      if (S.bay) { const b = S.bay, z = -b.depth, rz = 0, hi = 0.35;
         box(b.x0, b.x1, z, 0, 0, b.top);
-        L([b.x0, b.top, z], [b.x0, b.roof, 0]); L([b.x1, b.top, z], [b.x1, b.roof, 0]); L([b.x0, b.roof, 0], [b.x1, b.roof, 0]); }
-      const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(seg, 3));
-      shellLines = new T.LineSegments(gg, new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.14, depthWrite: false }));
-      root.add(shellLines);
+        // hipped tiled roof: eaves overhang round the bay, a short ridge against the wall
+        const o = 0.15, e = [[b.x0 - o, z - o], [b.x1 + o, z - o], [b.x1 + o, rz], [b.x0 - o, rz]];
+        L([e[0][0], b.top, e[0][1]], [e[1][0], b.top, e[1][1]]); L([e[0][0], b.top, e[0][1]], [e[3][0], b.top, e[3][1]]); L([e[1][0], b.top, e[1][1]], [e[2][0], b.top, e[2][1]]);
+        L([b.x0 + hi, b.roof, rz], [b.x1 - hi, b.roof, rz]); L([e[0][0], b.top, e[0][1]], [b.x0 + hi, b.roof, rz]); L([e[1][0], b.top, e[1][1]], [b.x1 - hi, b.roof, rz]);
+        L([e[3][0], b.top, rz], [b.x0 + hi, b.roof, rz]); L([e[2][0], b.top, rz], [b.x1 - hi, b.roof, rz]);
+        for (let t = 0.33; t < 0.9; t += 0.33) L([e[0][0] + (b.x0 + hi - e[0][0]) * t, b.top + (b.roof - b.top) * t, e[0][1] + (rz - e[0][1]) * t], [e[1][0] + (b.x1 - hi - e[1][0]) * t, b.top + (b.roof - b.top) * t, e[1][1] + (rz - e[1][1]) * t], det);
+        // the bay's sash windows
+        const wy0 = 0.55, wy1 = b.top - 0.15, wx0 = b.x0 + 0.12, wx1 = b.x1 - 0.12, mid = (wx0 + wx1) / 2;
+        rect([[wx0, wy0, z], [wx1, wy0, z], [wx1, wy1, z], [wx0, wy1, z]]);
+        L([mid, wy0, z], [mid, wy1, z], det); L([wx0, (wy0 + wy1) / 2, z], [wx1, (wy0 + wy1) / 2, z], det);
+        L([b.x0 - 0.05, wy0 - 0.05, z - 0.05], [b.x1 + 0.05, wy0 - 0.05, z - 0.05], det);    // sill
+      }
+      for (const w of S.windows || []) {
+        const z = w.face === "rear" ? (S.dormer ? S.dormer.z1 : m.z1) : (m ? m.z0 : 0);
+        rect([[w.x0, w.y0, z], [w.x1, w.y0, z], [w.x1, w.y1, z], [w.x0, w.y1, z]]);
+        const my = (w.y0 + w.y1) / 2, mx = (w.x0 + w.x1) / 2;
+        if (w.sash) { L([w.x0, my, z], [w.x1, my, z], det); if (!w.single) L([mx, w.y0, z], [mx, w.y1, z], det); }
+        else L([mx, w.y0, z], [mx, w.y1, z], det);
+        L([w.x0 - 0.06, w.y0 - 0.05, z], [w.x1 + 0.06, w.y0 - 0.05, z], det);           // sill
+      }
+      if (S.door) { const d = S.door, z = m ? m.z0 : 0, r = (d.x1 - d.x0) / 2, cx = (d.x0 + d.x1) / 2, dz = z + d.recess;
+        const arc = (zz, out) => { let prev = null; for (let i = 0; i <= 16; i++) { const a = Math.PI * i / 16, p = [cx + Math.cos(a) * r, d.spring + Math.sin(a) * r, zz]; if (prev) L(prev, p, out); prev = p; } };
+        arc(z, seg); arc(z - 0.06, det);                                                          // the white arch moulding
+        for (const x of [d.x0, d.x1]) { L([x, 0, z], [x, d.spring, z]); L([x, 0, z], [x, 0, dz], det); L([x, d.spring, z], [x, d.spring, dz], det); }
+        const f0 = cx - 0.42, f1 = cx + 0.42;                                                     // door, set back in the porch
+        rect([[f0, 0, dz], [f1, 0, dz], [f1, 2.05, dz], [f0, 2.05, dz]]);
+        rect([[f0 + 0.12, 1.1, dz], [cx - 0.05, 1.1, dz], [cx - 0.05, 1.85, dz], [f0 + 0.12, 1.85, dz]], det);
+        rect([[cx + 0.05, 1.1, dz], [f1 - 0.12, 1.1, dz], [f1 - 0.12, 1.85, dz], [cx + 0.05, 1.85, dz]], det);
+        // tiled path out to the pavement
+        const pz = S.frontWall ? S.frontWall.z : -1.7;
+        rect([[d.x0, 0.01, pz], [d.x1 + 0.2, 0.01, pz], [d.x1 + 0.2, 0.01, z], [d.x0, 0.01, z]], det);
+        for (let t = 0.25; t < 1; t += 0.25) { const zz = pz + (z - pz) * t; L([d.x0, 0.01, zz], [d.x1 + 0.2, 0.01, zz], det); }
+      }
+      if (S.downpipe && m) { const x = S.downpipe.x, z = m.z0 - 0.04; L([x, 0, z], [x, m.eaves - 0.2, z], det); L([x, m.eaves - 0.2, z], [x, m.eaves - 0.2, z - 0.25], det); }
+      if (S.frontWall) { const f = S.frontWall;
+        L([f.x0, 0, f.z], [f.x1, 0, f.z]); L([f.x0, f.h, f.z], [f.x1, f.h, f.z]); L([f.x0, f.h - 0.15, f.z], [f.x1, f.h - 0.15, f.z], det);
+        L([f.x0, 0, f.z], [f.x0, 0, m ? m.z0 - 0.5 : 0], det);
+        for (const x of f.piers || []) box(x, x + 0.3, f.z - 0.05, f.z + 0.25, 0, f.h + 0.15);
+      }
+      const mk = (pts) => { const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); return gg; };
+      shellLines = new T.LineSegments(mk(seg), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.3, depthWrite: false }));
+      shellDetail = new T.LineSegments(mk(det), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.16, depthWrite: false }));
+      root.add(shellLines); root.add(shellDetail);
     }
 
     // daylight objects live in the model's own coordinates (so plan north works)
@@ -423,7 +473,7 @@
     const f = (t) => t ? t.toTimeString().slice(0, 5) : "—";
     return { rise: f(rise), set: f(set) };
   }
-  let shellLines = null;
+  let shellLines = null, shellDetail = null;
   let sunGroup = null, shadowGroup = null, sunMarker = null, sunPath = null, lastSun = 0;
   function hull(pts) {
     pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -601,7 +651,7 @@
     if (scene.fog) { scene.fog.near = view.dist - 6; scene.fog.far = view.dist + 32; }
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
-    if (shellLines) { const want = focused || floorSel ? 0.035 : whatsOn ? 0.07 : 0.14 * (0.65 + 0.35 * dayK); shellLines.material.opacity += (want - shellLines.material.opacity) * Math.min(1, dt * 4); }
+    if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; }
     if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
     if (now - lastSky > 400) { lastSky = now; updateSky(); }
     updateVisuals(dt);

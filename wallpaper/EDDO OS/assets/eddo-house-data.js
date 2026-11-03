@@ -12,7 +12,22 @@ window.EDDO_HOUSE = {
   shell: {
     main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 6.9, ridge: 11.6, ridgeZ: 3.0 },     // pitched roof, ridge along the street
     dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0 },                          // flat-roofed loft dormer at the back
-    chimneys: [{ x0: 0, x1: 0.7, z0: 2.6, z1: 3.4, top: 12.8 }],
+    chimneys: [                                                                              // stacks with their pots, from the street photo
+      { x0: 0.25, x1: 1.1, z0: 2.6, z1: 3.4, top: 13.0, pots: 3 },
+      { x0: 1.35, x1: 2.15, z0: 2.6, z1: 3.4, top: 13.1, pots: 3 },
+      { x0: 4.3, x1: 4.6, z0: 2.7, z1: 3.3, top: 12.2, pots: 1 },
+    ],
+    rooflights: [{ x0: 2.2, x1: 3.1, t0: 0.45, t1: 0.8 }, { x0: 3.95, x1: 4.35, t0: 0.55, t1: 0.85 }],   // on the front slope, t = 0 eaves to 1 ridge
+    // front windows (z = 0 face); y is height above the ground in the exploded model. sash = mullion + meeting rail
+    windows: [
+      { face: "front", x0: 0.6, x1: 2.8, y0: 4.3, y1: 5.95, sash: true },        // spare room, above the bay
+      { face: "front", x0: 3.65, x1: 4.2, y0: 4.35, y1: 5.95, sash: true, single: true },  // over the front door
+      { face: "rear", x0: 0.6, x1: 1.8, y0: 8.6, y1: 9.9 },                       // loft dormer
+      { face: "rear", x0: 2.5, x1: 3.9, y0: 8.6, y1: 9.9 },
+    ],
+    door: { x0: 3.5, x1: 4.4, recess: 0.55, spring: 2.1 },                        // arched porch with the front door set back
+    frontWall: { x0: -0.1, x1: 3.3, z: -1.7, h: 0.85, piers: [-0.1, 3.05] },       // low brick wall and the tiled path
+    downpipe: { x: 3.33 },
     outrigger: { x0: 2.08, x1: 4.6, z0: 7.41, z1: 9.87, eaves: 6.9, ridge: 8.3 },         // two storeys over kitchen + bathroom
     extension: { x0: 2.08, x1: 4.6, z0: 9.87, z1: 12.0, high: 3.5, low: 2.95 },          // single-storey kitchen end, lean-to roof
     bay: { x0: 0.5, x1: 2.9, depth: 0.45, top: 2.2, roof: 2.75 },                         // front bay window and its little tiled roof
