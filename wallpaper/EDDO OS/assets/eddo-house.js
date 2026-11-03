@@ -138,6 +138,7 @@
   }
 
   // ------------------------------------------------------------ 3D
+  let skyEl = null, plinth = null, northEl = null, lastSky = 0;
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   const view = { theta: -0.75, phi: 0.72, dist: 52, target: null, goal: null, t0: performance.now() };
   let focused = null, hovered = null, hoveredDev = null, drag = null, lastFrame = 0;
@@ -157,7 +158,11 @@
       canvas = document.createElement("canvas"); canvas.className = "eddo-house-canvas";
       labelsEl = document.createElement("div"); labelsEl.className = "eddo-house-labels";
       const anchor = stage.querySelector(".eddo-dim") || stage.querySelector(".scene-atmosphere");
-      if (anchor) { anchor.after(canvas); canvas.after(labelsEl); } else { stage.prepend(labelsEl); stage.prepend(canvas); }
+      skyEl = document.createElement("div"); skyEl.className = "eddo-house-sky";
+      const stars = document.createElement("i"); stars.className = "eddo-house-stars";
+      let sh = []; for (let i = 0; i < 90; i++) sh.push(`${(Math.random() * 100).toFixed(2)}vw ${(Math.random() * 55).toFixed(2)}vh 0 ${Math.random() < 0.15 ? 1 : 0}px rgba(220,235,240,${(0.25 + Math.random() * 0.6).toFixed(2)})`);
+      stars.style.boxShadow = sh.join(","); skyEl.append(stars);
+      if (anchor) { anchor.after(skyEl); skyEl.after(canvas); canvas.after(labelsEl); } else { stage.prepend(labelsEl); stage.prepend(canvas); stage.prepend(skyEl); }
       renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setClearColor(0x000000, 0);
       scene = new T.Scene();
@@ -181,12 +186,38 @@
     root.position.set(-maxX / 2, 0, maxZ / 2);
     pivot.add(root);
 
-    // ground: a faint site grid and the garden outline
-    const gridPts = [];
-    for (let x = -3; x <= Math.ceil(maxX) + 3; x++) gridPts.push(x, 0, -4, x, 0, maxZ + 3);
-    for (let z = -4; z <= Math.ceil(maxZ) + 3; z++) gridPts.push(-3, 0, z, Math.ceil(maxX) + 3, 0, z);
-    const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(gridPts, 3));
-    root.add(new T.LineSegments(gg, new T.LineBasicMaterial({ color: C.grid, transparent: true, opacity: 0.07 })));
+    // ground: a round holographic plinth that fades out at the edge, with a compass ring and slow HUD arcs
+    {
+      const cx = maxX / 2, cz = maxZ / 2, R = Math.max(maxX, maxZ) / 2 + 4;
+      const pos = [], col = [], base = new T.Color(C.grid);
+      const fade = (rr) => Math.max(0, 1 - rr / R) ** 1.4;
+      const seg = (x1, z1, x2, z2, a1, a2) => { pos.push(cx + x1, 0, cz + z1, cx + x2, 0, cz + z2); for (const a of [a1, a2]) col.push(base.r * a, base.g * a, base.b * a); };
+      for (let rr = 2; rr <= R; rr += 2) for (let i = 0; i < 96; i++) {
+        const a = i / 96 * Math.PI * 2, b = (i + 1) / 96 * Math.PI * 2, f = fade(rr) * 0.5;
+        seg(Math.cos(a) * rr, Math.sin(a) * rr, Math.cos(b) * rr, Math.sin(b) * rr, f, f);
+      }
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; for (let rr = 0; rr < R; rr += 1) seg(Math.cos(a) * rr, Math.sin(a) * rr, Math.cos(a) * (rr + 1), Math.sin(a) * (rr + 1), fade(rr) * 0.35, fade(rr + 1) * 0.35); }
+      const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); gg.setAttribute("color", new T.Float32BufferAttribute(col, 3));
+      root.add(new T.LineSegments(gg, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, blending: T.AdditiveBlending, depthWrite: false })));
+      // compass: true-north ticks, from the site's bearing
+      const cp = [], Rc = R + 0.6;
+      for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2, b = (i + 1) / 96 * Math.PI * 2; cp.push(cx + Math.cos(a) * Rc, 0.01, cz + Math.sin(a) * Rc, cx + Math.cos(b) * Rc, 0.01, cz + Math.sin(b) * Rc); }
+      for (let deg = 0; deg < 360; deg += 5) {
+        const [dx, dz] = planDir(deg * Math.PI / 180), L = deg % 90 === 0 ? 0.9 : deg % 45 === 0 ? 0.55 : 0.25;
+        cp.push(cx + dx * Rc, 0.01, cz + dz * Rc, cx + dx * (Rc + L), 0.01, cz + dz * (Rc + L));
+      }
+      const [nx, nz] = planDir(0), [px, pz] = [-nz, nx], tip = Rc + 1.5, bs = Rc + 1.0;
+      cp.push(cx + nx * tip, 0.01, cz + nz * tip, cx + nx * bs + px * 0.3, 0.01, cz + nz * bs + pz * 0.3, cx + nx * tip, 0.01, cz + nz * tip, cx + nx * bs - px * 0.3, 0.01, cz + nz * bs - pz * 0.3);
+      const cg = new T.BufferGeometry(); cg.setAttribute("position", new T.Float32BufferAttribute(cp, 3));
+      root.add(new T.LineSegments(cg, new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.28, depthWrite: false })));
+      plinth = { north: new T.Vector3(cx + nx * (tip + 0.7), 0, cz + nz * (tip + 0.7)), arcs: [] };
+      for (const [rad, span, speed, op] of [[R + 2.2, 1.1, 0.05, 0.3], [R + 2.6, 0.45, -0.08, 0.22], [R + 2.6, 0.3, -0.08, 0.22]]) {
+        const ap = []; for (let i = 0; i <= 40; i++) { const a = i / 40 * span; ap.push(Math.cos(a) * rad, 0.01, Math.sin(a) * rad); }
+        const ag = new T.BufferGeometry(); ag.setAttribute("position", new T.Float32BufferAttribute(ap, 3));
+        const arc = new T.Line(ag, new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: op, depthWrite: false }));
+        arc.position.set(cx, 0, cz); arc.rotation.y = plinth.arcs.length * 2.4; root.add(arc); plinth.arcs.push({ arc, speed });
+      }
+    }
     const houseD = Math.max(...rooms.filter((r) => r.floor !== "garden").map((r) => r.z + r.d));
     const garden = [[0, houseD], [maxX + 0.4, houseD], [maxX + 0.4, maxZ + 1.2], [0, maxZ + 1.2], [0, houseD]];
     const gp = new T.BufferGeometry(); gp.setAttribute("position", new T.Float32BufferAttribute(garden.flatMap(([x, z]) => [x, 0.01, z]), 3));
@@ -474,8 +505,27 @@
       if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * (heatMode ? 0.3 : 1); }
     }
   }
+  // background that follows the real sky: night navy with stars, a warm glow on the sun's side at dawn and dusk, a pale haze by day
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  function updateSky() {
+    if (!skyEl || !sunMarker) return;
+    const k = dayK, tw = Math.max(0, 1 - Math.abs(k - 0.35) / 0.35);   // twilight peaks around sunrise/sunset
+    const top = mix([4, 7, 12], [10, 22, 30], k), hor = mix(mix([8, 14, 22], [24, 44, 52], k), [78, 46, 28], tw * 0.8);
+    const p = sunMarker.getWorldPosition(new T.Vector3()).project(camera);
+    const x = Math.max(-10, Math.min(110, (p.x * 0.5 + 0.5) * 100));
+    skyEl.style.setProperty("--sky-top", `rgba(${top},.84)`); skyEl.style.setProperty("--sky-hor", `rgba(${hor},.72)`);
+    skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", (0.08 + tw * 0.32 + k * 0.06).toFixed(3));
+    skyEl.style.setProperty("--sky-stars", (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
+  }
   function placeLabels() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (plinth) {
+      if (!northEl) { northEl = document.createElement("div"); northEl.className = "eddo-house-north"; northEl.textContent = "N"; labelsEl.append(northEl); }
+      const p = plinth.north.clone(); pivot.children[0].localToWorld(p); p.project(camera);
+      const tf = `translate(${((p.x * 0.5 + 0.5) * w).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * h).toFixed(1)}px)`;
+      if (northEl.style.transform !== tf) northEl.style.transform = tf;
+      northEl.dataset.hidden = String(!!(focused || floorSel));
+    }
     for (const r of rooms) {
       if (!r.label) continue;
       const p = new T.Vector3(r.x + r.w / 2, r.y + r.h + 0.15, r.z + r.d / 2);
@@ -536,6 +586,8 @@
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
     if (shellLines) { const want = focused || floorSel ? 0.035 : whatsOn ? 0.07 : 0.14 * (0.65 + 0.35 * dayK); shellLines.material.opacity += (want - shellLines.material.opacity) * Math.min(1, dt * 4); }
+    if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
+    if (now - lastSky > 400) { lastSky = now; updateSky(); }
     updateVisuals(dt);
     updateDevices(dt, now);
     renderer.render(scene, camera);
