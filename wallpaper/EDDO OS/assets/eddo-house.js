@@ -165,7 +165,7 @@
       if (anchor) { anchor.after(skyEl); skyEl.after(canvas); canvas.after(labelsEl); } else { stage.prepend(labelsEl); stage.prepend(canvas); stage.prepend(skyEl); }
       renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setClearColor(0x000000, 0);
-      scene = new T.Scene();
+      scene = new T.Scene(); scene.fog = new T.Fog(0x070b10, 40, 80);   // far lines fade into the background
       camera = new T.PerspectiveCamera(30, 16 / 9, 0.1, 400);
       pivot = new T.Group(); scene.add(pivot);
       buildModel();
@@ -176,6 +176,20 @@
     return building;
   }
 
+  // walls glow at their edges and stay clear in the middle
+  let _edgeTex = null;
+  function edgeTex() {
+    if (_edgeTex) return _edgeTex;
+    const N = 128, cv = document.createElement("canvas"); cv.width = cv.height = N;
+    const ctx = cv.getContext("2d"), img = ctx.createImageData(N, N);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const e = Math.min(x, y, N - 1 - x, N - 1 - y) / (N / 2);   // 0 at the edge, 1 in the middle
+      const a = Math.pow(1 - e, 3.2) * 0.95 + 0.05;
+      const i = (y * N + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.round(255 * a); img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return (_edgeTex = new T.CanvasTexture(cv));
+  }
   const C = { edge: 0x8fb9c2, edgeHot: 0xffd2a0, face: 0x9fd4dc, plate: 0x1c2427, grid: 0x6f8a90 };
   function buildModel() {
     const root = new T.Group();
@@ -230,7 +244,7 @@
       const glow = new T.Mesh(new T.PlaneGeometry(r.w - 0.12, r.d - 0.12), new T.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
       glow.rotation.x = -Math.PI / 2; glow.position.y = 0.06; g.add(glow);
       const box = new T.BoxGeometry(r.w, r.h, r.d);
-      const faces = new T.Mesh(box, new T.MeshBasicMaterial({ color: C.face, transparent: true, opacity: 0.03, depthWrite: false, side: T.DoubleSide }));
+      const faces = new T.Mesh(box, new T.MeshBasicMaterial({ color: C.face, map: edgeTex(), transparent: true, opacity: 0.12, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending }));
       faces.position.y = r.h / 2; faces.userData.room = r; g.add(faces);
       const edges = new T.LineSegments(new T.EdgesGeometry(box), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: r.quiet ? 0.22 : 0.42 }));
       edges.position.y = r.h / 2; g.add(edges);
@@ -326,8 +340,8 @@
     }
 
     // devices: a marker shaped by what it is. Markers draw on top of walls and keep the same size on screen.
-    const mat = (o) => new T.MeshBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: T.DoubleSide, ...o });
-    const lmat = () => new T.LineBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false });
+    const mat = (o) => new T.MeshBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: T.DoubleSide, fog: false, ...o });
+    const lmat = () => new T.LineBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false });
     const segs = (pts) => { const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(pts.flat(), 3)); return g2; };
     for (const d of devices) {
       const r = d.roomRef, g = r.mesh.g;
@@ -474,7 +488,7 @@
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
-      m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.08 : 0.03;
+      m.faces.material.opacity = dim ? 0.02 : isHover || isFocus ? 0.4 : r.quiet ? 0.06 : 0.14;
       m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
       for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
     }
@@ -513,6 +527,7 @@
     const top = mix([4, 7, 12], [10, 22, 30], k), hor = mix(mix([8, 14, 22], [24, 44, 52], k), [78, 46, 28], tw * 0.8);
     const p = sunMarker.getWorldPosition(new T.Vector3()).project(camera);
     const x = Math.max(-10, Math.min(110, (p.x * 0.5 + 0.5) * 100));
+    if (scene.fog) scene.fog.color.setRGB(...mix(top, hor, 0.4).map((v) => v / 255));
     skyEl.style.setProperty("--sky-top", `rgba(${top},.84)`); skyEl.style.setProperty("--sky-hor", `rgba(${hor},.72)`);
     skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", (0.08 + tw * 0.32 + k * 0.06).toFixed(3));
     skyEl.style.setProperty("--sky-stars", (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
@@ -583,6 +598,7 @@
     const sp = Math.sin(view.phi), cp = Math.cos(view.phi);
     camera.position.set(view.target.x + view.dist * cp * Math.sin(view.theta), view.target.y + view.dist * sp, view.target.z + view.dist * cp * Math.cos(view.theta));
     camera.lookAt(view.target);
+    if (scene.fog) { scene.fog.near = view.dist - 6; scene.fog.far = view.dist + 32; }
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
     if (shellLines) { const want = focused || floorSel ? 0.035 : whatsOn ? 0.07 : 0.14 * (0.65 + 0.35 * dayK); shellLines.material.opacity += (want - shellLines.material.opacity) * Math.min(1, dt * 4); }
