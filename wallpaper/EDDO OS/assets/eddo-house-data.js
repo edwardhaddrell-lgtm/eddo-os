@@ -87,6 +87,31 @@ window.EDDO_HOUSE = {
     { room: "office", name: "Jules Skadi", kind: "lamp", u: 0.5, v: 0.08, match: ["jules"] },
     { room: "office", name: "Office lamp", kind: "lamp", u: 0.73, v: 0.08, entities: ["switch.office_lamps", "switch.office_lamp_2"] },
   ],
+  // Furniture outlines, from Edward's room photos. Same u/v as devices (u from the
+  // room's left wall on the plan, v from its front), h = height, y = height off the floor.
+  // kind: box (default), sofa, shelves (adds shelf lines), rug (flat outline), table, chair.
+  furniture: [
+    // living room (photo from the dining-room end, looking at the bay)
+    { room: "living", name: "Chimney breast", u0: 0, u1: 0.12, v0: 0.38, v1: 0.66, h: 2.6 },
+    { room: "living", name: "Frame TV", u0: 0.12, u1: 0.14, v0: 0.4, v1: 0.64, y: 1.05, h: 0.75 },
+    { room: "living", name: "Bookcase (window side)", kind: "shelves", u0: 0, u1: 0.12, v0: 0.06, v1: 0.38, h: 2.3, base: 0.8, shelves: 4 },
+    { room: "living", name: "Bookcase (back)", kind: "shelves", u0: 0, u1: 0.12, v0: 0.66, v1: 0.97, h: 2.3, base: 0.8, shelves: 4 },
+    { room: "living", name: "Toy cubby", kind: "shelves", u0: 0.12, u1: 0.26, v0: 0.44, v1: 0.6, h: 0.75, shelves: 1 },
+    { room: "living", name: "Sofa", kind: "sofa", u0: 0.72, u1: 1, v0: 0.3, v1: 0.98, h: 0.78 },
+    { room: "living", name: "Sofa chaise", kind: "sofa", u0: 0.46, u1: 1, v0: 0.07, v1: 0.31, h: 0.6, back: false },
+    { room: "living", name: "Rug", kind: "rug", u0: 0.3, u1: 0.82, v0: 0.2, v1: 0.78 },
+    { room: "living", name: "Floor cushions", u0: 0.12, u1: 0.27, v0: 0.78, v1: 0.93, h: 0.4 },
+    // dining room (photo from the living-room end, looking at the garden window)
+    { room: "dining", name: "Chimney breast", u0: 0, u1: 0.12, v0: 0.45, v1: 0.68, h: 2.6 },
+    { room: "dining", name: "Built-in cupboard", u0: 0, u1: 0.12, v0: 0.06, v1: 0.45, h: 2.2 },
+    { room: "dining", name: "Alcove shelves", kind: "shelves", u0: 0, u1: 0.09, v0: 0.68, v1: 0.95, y: 1.0, h: 1.1, shelves: 3 },
+    { room: "dining", name: "Dining table", kind: "table", u0: 0.36, u1: 0.62, v0: 0.5, v1: 0.74, h: 0.75 },
+    { room: "dining", name: "Chair", kind: "chair", u0: 0.4, u1: 0.53, v0: 0.36, v1: 0.48, h: 0.9 },
+    { room: "dining", name: "Chair", kind: "chair", u0: 0.42, u1: 0.55, v0: 0.76, v1: 0.88, h: 0.9 },
+    { room: "dining", name: "High chair", kind: "chair", u0: 0.64, u1: 0.76, v0: 0.52, v1: 0.66, h: 0.8 },
+    { room: "dining", name: "Radiator cover", u0: 0.48, u1: 0.78, v0: 0.94, v1: 1, h: 0.9 },
+    { room: "dining", name: "Bench", kind: "sofa", u0: 0.86, u1: 1, v0: 0.05, v1: 0.5, h: 0.5, back: false },
+  ],
   // outbuildings sit on the ground in the garden
   outbuildings: [
     { id: "office", name: "Garden Office", x: 0.9, z: 16.5, w: 2.75, d: 3.48, h: 2.4,

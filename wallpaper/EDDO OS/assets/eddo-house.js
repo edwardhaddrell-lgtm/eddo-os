@@ -194,6 +194,50 @@
       }
       r.mesh = { g, plate, glow, faces, edges, warm: 0 };
     }
+    // furniture: edge outlines only, so the model stays light
+    const FUR = { color: 0x9cc2c9 };
+    const furMat = () => new T.LineBasicMaterial({ color: FUR.color, transparent: true, opacity: 0.32 });
+    const outline = (g, w, h, d, x, y, z) => { const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(w, h, d)), furMat()); e.position.set(x, y + h / 2, z); g.add(e); return e; };
+    for (const f of H.furniture || []) {
+      const r = rooms.find((x) => x.id === f.room); if (!r || !r.mesh) continue;
+      const g = r.mesh.g, parts = [];
+      const x0 = -r.w / 2 + f.u0 * r.w, x1 = -r.w / 2 + f.u1 * r.w, z0 = -r.d / 2 + f.v0 * r.d, z1 = -r.d / 2 + f.v1 * r.d;
+      const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, y = f.y || 0, h = f.h || 0.8;
+      const kind = f.kind || "box";
+      if (kind === "rug") {
+        const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].flatMap(([a, b]) => [a, 0.06, b]);
+        const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+        parts.push(new T.Line(gg, furMat())); g.add(parts[0]);
+      } else if (kind === "sofa") {
+        const seat = Math.min(0.45, h);
+        parts.push(outline(g, w, seat, d, cx, y, cz));
+        if (f.back !== false) {   // back rest along the wall side (the side nearest a wall)
+          const alongX = w < d, bt = 0.2;
+          parts.push(alongX ? outline(g, bt, h, d, (f.u1 > 0.5 ? x1 - bt / 2 : x0 + bt / 2), y, cz) : outline(g, w, h, bt, cx, y, (f.v1 > 0.5 ? z1 - bt / 2 : z0 + bt / 2)));
+        }
+      } else if (kind === "table") {
+        parts.push(outline(g, w, 0.04, d, cx, y + h - 0.04, cz));
+        const lx = w / 2 - 0.06, lz = d / 2 - 0.06;
+        for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) parts.push(outline(g, 0.04, h - 0.04, 0.04, cx + sx * lx, y, cz + sz * lz));
+      } else if (kind === "chair") {
+        parts.push(outline(g, w, 0.45, d, cx, y, cz));
+        parts.push(outline(g, w, h - 0.45, 0.04, cx, y + 0.45, z0 + 0.02));
+      } else {
+        parts.push(outline(g, w, h, d, cx, y, cz));
+        if (kind === "shelves") {
+          const base = f.base || 0, n = f.shelves || 3;
+          for (let i = 1; i <= n; i++) {
+            const sy = y + base + (h - base) * (i / (n + 1));
+            const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].flatMap(([a, b]) => [a, sy, b]);
+            const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+            const l = new T.Line(gg, furMat()); g.add(l); parts.push(l);
+          }
+          if (base) { const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].flatMap(([a, b]) => [a, y + base, b]); const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); const l = new T.Line(gg, furMat()); g.add(l); parts.push(l); }
+        }
+      }
+      (r.furniture = r.furniture || []).push(...parts);
+    }
+
     // devices: a small marker each; lights also throw a pool of light on the floor
     for (const d of devices) {
       const r = d.roomRef, g = r.mesh.g;
@@ -239,6 +283,7 @@
       m.edges.material.opacity = dim ? 0.08 : isHover || isFocus ? 0.95 : r.quiet ? 0.22 : 0.42 + r.glow * 0.4;
       m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.08 : 0.03;
       m.plate.material.opacity = dim ? 0.15 : 0.62;
+      for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.04 : isFocus ? 0.6 : isHover ? 0.45 : 0.28;
     }
   }
 
@@ -271,7 +316,7 @@
       r.label.dataset.hidden = String(!vis);
       r.label.dataset.on = String(r.on > 0);
       r.label.dataset.active = String(hovered === r || focused === r);
-      const s = r.label.querySelector("span"), txt = roomStatus(r);
+      const s = r.label.querySelector("span"), txt = (r.on || r.temp != null || hovered === r || focused === r) ? roomStatus(r) : "";
       if (s.textContent !== txt) s.textContent = txt;
     }
     for (const d of devices) {
