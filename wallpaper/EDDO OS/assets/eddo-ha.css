@@ -394,3 +394,13 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-house-row[aria-pressed=true] span{color:#ffd2a0}
 .eddo-house-row:hover span{color:#9b7247}
 .eddo-house-tip{margin:4px 0 0;font-size:11px}
+.eddo-house-dev{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin:-8px 0 0 12px;padding:3px 6px;white-space:nowrap;font:9px/1.25 MiSans,system-ui,sans-serif;letter-spacing:1.2px;color:var(--theme-muted,#8f8c84);background:rgba(10,13,13,.55);border-left:1px solid rgba(143,185,194,.5)}
+.eddo-house-dev b{font-weight:500;color:var(--theme-ink,#ece9e2)}
+.eddo-house-dev[data-on=true]{border-left-color:#ffb36b}.eddo-house-dev[data-on=true] span{color:#ffb36b}
+.eddo-house-dev[data-hover=true]{z-index:2;background:rgba(10,13,13,.85)}
+.eddo-house-dev[data-hidden=true]{display:none}
+.eddo-house-back{font-size:10px;letter-spacing:1.6px;color:var(--theme-muted,#77756d);margin-left:4px}.eddo-house-back:hover{color:#9b7247}
+.eddo-house-room{margin:2px 0 2px;font-size:22px;font-weight:400}
+.eddo-house-sub{margin:0 0 6px;font-size:11px;letter-spacing:1.2px}
+.eddo-house-row[data-static] {cursor:default}.eddo-house-row[data-static]:hover span{color:inherit}
+.eddo-house-row[data-linked=false] em{opacity:.55}
