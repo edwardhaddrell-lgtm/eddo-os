@@ -7,6 +7,16 @@
 window.EDDO_HOUSE = {
   name: "Shortland Gardens",
   site: { lat: 51.4057, lon: 0.0158, northDeg: 45 },   // plan north points up-right (45° clockwise from the plan's "up")
+  // Faint outline of the whole building (from the street + aerial photos). Heights
+  // follow the separated floors of the model, so the shell wraps them.
+  shell: {
+    main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 6.9, ridge: 11.6, ridgeZ: 3.0 },     // pitched roof, ridge along the street
+    dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0 },                          // flat-roofed loft dormer at the back
+    chimneys: [{ x0: 0, x1: 0.7, z0: 2.6, z1: 3.4, top: 12.8 }],
+    outrigger: { x0: 2.08, x1: 4.6, z0: 7.41, z1: 9.87, eaves: 6.9, ridge: 8.3 },         // two storeys over kitchen + bathroom
+    extension: { x0: 2.08, x1: 4.6, z0: 9.87, z1: 12.0, high: 3.5, low: 2.95 },          // single-storey kitchen end, lean-to roof
+    bay: { x0: 0.5, x1: 2.9, depth: 0.45, top: 2.2, roof: 2.75 },                         // front bay window and its little tiled roof
+  },
   floorHeight: 2.6,
   floorGap: 1.3,                 // extra space between floors so each level reads clearly
   floors: [

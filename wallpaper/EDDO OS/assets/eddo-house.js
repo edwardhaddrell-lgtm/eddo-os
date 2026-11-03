@@ -210,6 +210,37 @@
       }
       r.mesh = { g, plate, glow, faces, edges, warm: 0 };
     }
+    // faint outline of the whole building
+    if (H.shell) {
+      const S = H.shell, seg = [];
+      const L = (a, b) => seg.push(...a, ...b);
+      const box = (x0, x1, z0, z1, y0, y1) => {
+        const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+        c.forEach(([x, z], i) => { const [nx, nz] = c[(i + 1) % 4]; L([x, y0, z], [nx, y0, nz]); L([x, y1, z], [nx, y1, nz]); L([x, y0, z], [x, y1, z]); });
+      };
+      const m = S.main;
+      if (m) {
+        box(m.x0, m.x1, m.z0, m.z1, 0, m.eaves);
+        L([m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ]);                              // ridge
+        for (const x of [m.x0, m.x1]) { L([x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ]); }       // front slope at both gables
+        const rearTop = S.dormer ? S.dormer.top : m.eaves;
+        if (!S.dormer) for (const x of [m.x0, m.x1]) L([x, m.ridge, m.ridgeZ], [x, m.eaves, m.z1]);
+      }
+      if (S.dormer) { const d = S.dormer; box(d.x0, d.x1, d.z0, d.z1, m ? m.eaves : 0, d.top); }
+      for (const c of S.chimneys || []) box(c.x0, c.x1, c.z0, c.z1, (m ? m.ridge : 8) - 1.2, c.top);
+      if (S.outrigger) { const o = S.outrigger, mx = (o.x0 + o.x1) / 2; box(o.x0, o.x1, o.z0, o.z1, 0, o.eaves);
+        L([mx, o.ridge, o.z0], [mx, o.ridge, o.z1]); for (const z of [o.z1]) { L([o.x0, o.eaves, z], [mx, o.ridge, z]); L([mx, o.ridge, z], [o.x1, o.eaves, z]); } }
+      if (S.extension) { const e = S.extension;
+        box(e.x0, e.x1, e.z0, e.z1, 0, e.low);
+        L([e.x0, e.high, e.z0], [e.x1, e.high, e.z0]); L([e.x0, e.high, e.z0], [e.x0, e.low, e.z1]); L([e.x1, e.high, e.z0], [e.x1, e.low, e.z1]); }
+      if (S.bay) { const b = S.bay, z = -b.depth;
+        box(b.x0, b.x1, z, 0, 0, b.top);
+        L([b.x0, b.top, z], [b.x0, b.roof, 0]); L([b.x1, b.top, z], [b.x1, b.roof, 0]); L([b.x0, b.roof, 0], [b.x1, b.roof, 0]); }
+      const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(seg, 3));
+      shellLines = new T.LineSegments(gg, new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.14, depthWrite: false }));
+      root.add(shellLines);
+    }
+
     // daylight objects live in the model's own coordinates (so plan north works)
     sunGroup = new T.Group(); sunGroup.userData = { cx: maxX / 2, cz: maxZ / 2 }; root.add(sunGroup);
     shadowGroup = new T.Group(); root.add(shadowGroup);
@@ -313,6 +344,7 @@
     const f = (t) => t ? t.toTimeString().slice(0, 5) : "—";
     return { rise: f(rise), set: f(set) };
   }
+  let shellLines = null;
   let sunGroup = null, shadowGroup = null, sunMarker = null, sunPath = null, lastSun = 0;
   function hull(pts) {
     pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -459,6 +491,7 @@
     camera.lookAt(view.target);
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
+    if (shellLines) { const want = focused || floorSel ? 0.035 : whatsOn ? 0.07 : 0.14 * (0.65 + 0.35 * dayK); shellLines.material.opacity += (want - shellLines.material.opacity) * Math.min(1, dt * 4); }
     updateVisuals(dt);
     updateDevices(dt, now);
     renderer.render(scene, camera);
