@@ -1,0 +1,247 @@
+# Loupedeck Live layout. Saved changes reload automatically.
+#
+# Keys are numbered 0–11 in reading order (0 top-left, 11 bottom-right).
+# Knobs: left1–3 and right1–3, top to bottom.
+# Round buttons 0–7 left to right: give a page `button: N` to open it from there.
+# Icons are files in assets/icons (name without extension).
+#
+# Home Assistant: entity IDs come from HA (Settings → Entities). Keys light up
+# when the entity is on, and go grey with a strike-through when it's offline.
+# Knob actions: ha.brightness (lights), ha.climate (target temperature).
+# Everything marked TODO is a placeholder for Edward to fill in.
+
+device:
+  brightness: 0.8
+  startPage: windows
+
+pages:
+  # ---- Round button 0 ------------------------------------------------------
+  # Audio device IDs and monitor IDs: run `npm run action -- list`.
+  windows:
+    title: Windows
+    button: 0
+    color: "#3b82f6"
+    keys:
+      0: { label: Speakers, icon: speaker, action: audio.set, device: '2- LSX II LT\Device\Speakers\Render' }
+      1: { label: Headphones, icon: headphones, action: audio.set, device: 'Elgato Wave:XLR\Device\Headphones\Render' }
+      2: { label: Swap Audio, icon: swap, action: audio.toggle, devices: ['2- LSX II LT\Device\Speakers\Render', 'Elgato Wave:XLR\Device\Headphones\Render'] }
+      3: { label: Mute, icon: mute, action: audio.mute, color: "#ef4444" }
+      4: { label: Extend, icon: monitors, action: display.extend, primary: AUS32F2 }
+      5: { label: Dell Only, icon: monitor, action: display.disable, monitor: AUS32F2 }
+      # Launchers. Store app IDs: Get-AppxPackage / Get-AppxPackageManifest.
+      6: { label: Spotify, icon: music, action: system.app, app: 'SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify', color: "#1db954" }
+      7: { label: Claude, icon: sparkle, action: system.app, app: 'Claude_pzs8sxrjxfjjc!Claude', color: "#d97757" }
+      8: { label: Home Assistant, icon: home, action: system.url, url: "http://homeassistant.local:8123/", browser: chrome, color: "#18bcf2" }
+      9: { label: Unraid, icon: server, action: system.url, url: "http://eddo-nas/", browser: chrome, color: "#f15a2c" }
+      10: { label: Plex, icon: play, action: system.url, url: "http://eddo-nas:32400/web", browser: chrome, color: "#e5a00d" }
+      11: { label: Lock PC, icon: lock, action: system.lock, color: "#a3a3a3" }
+    knobs:
+      left1: { label: Volume, action: audio.volume, step: 2, press: audio.mute }
+
+  # ---- Round button 1 ------------------------------------------------------
+  audio:
+    title: Audio
+    button: 1
+    color: "#22c55e"
+    keys:
+      0: { label: Speakers, icon: speaker, action: audio.set, device: '2- LSX II LT\Device\Speakers\Render' }
+      1: { label: Headphones, icon: headphones, action: audio.set, device: 'Elgato Wave:XLR\Device\Headphones\Render' }
+      2: { label: Asus Monitor, icon: monitor, action: audio.set, device: 'NVIDIA High Definition Audio\Device\PG32UCDM\Render' }
+      3: { label: Mute, icon: mute, action: audio.mute, color: "#ef4444" }
+    knobs:
+      left1: { label: Volume, action: audio.volume, step: 2, press: audio.mute }
+      right1: { label: Speakers, action: audio.volume, step: 2, press: audio.mute, device: '2- LSX II LT\Device\Speakers\Render' }
+      right2: { label: Phones, action: audio.volume, step: 2, press: audio.mute, device: 'Elgato Wave:XLR\Device\Headphones\Render' }
+      right3: { label: Asus, action: audio.volume, step: 2, press: audio.mute, device: 'NVIDIA High Definition Audio\Device\PG32UCDM\Render' }
+
+  # ---- Round button 2 ------------------------------------------------------
+  scenes:
+    title: Scenes & Actions
+    button: 2
+    color: "#a855f7"
+    keys:
+      0: { label: Start Up, icon: power, action: ha.scene, entity: scene.startup, color: "#22c55e" }
+      1: { label: Shut Down, icon: power, action: ha.scene, entity: scene.shutdown, color: "#ef4444" }
+      2: { label: Night Time, icon: moon, action: ha.scene, entity: scene.bedtime }
+      3: { label: Movie Time, icon: film, action: ha.scene, entity: scene.movie_time }
+      4: { label: Baby Sleep, icon: baby, action: ha.scene, entity: scene.baby_sleep }
+      5: { label: Nappy Time, icon: baby, action: ha.scene, entity: scene.nappy_time }
+      6: { label: Hob Light, icon: light, action: ha.scene, entity: script.hob_light }
+      7: { label: Hob Fan Up, icon: fan, action: ha.scene, entity: script.hob_light_on }
+      8: { label: Downstairs Light, icon: light, action: ha.scene, entity: script.downstairs }
+
+  # ---- Round button 3: rooms launcher --------------------------------------
+  rooms:
+    title: Rooms
+    button: 3
+    color: "#f59e0b"
+    keys:
+      0: { label: Living Room, icon: sofa, action: nav.page, page: living_room }
+      1: { label: Kitchen, icon: kitchen, action: nav.page, page: kitchen }
+      2: { label: Office, icon: desk, action: nav.page, page: office }
+      3: { label: Dining Room, icon: dining, action: nav.page, page: dining_room }
+      4: { label: Bedroom, icon: bed, action: nav.page, page: bedroom }
+      5: { label: Master Bedroom, icon: bed, action: nav.page, page: master_bedroom }
+      6: { label: Guest Room, icon: bed, action: nav.page, page: guest_room }
+      7: { label: "Fox's Room", icon: bed, action: nav.page, page: fox_room }
+      8: { label: Bathroom, icon: bath, action: nav.page, page: bathroom }
+      9: { label: Garden, icon: tree, action: nav.page, page: garden }
+
+  # ---- Round button 4 ------------------------------------------------------
+  media:
+    title: Media
+    button: 4
+    color: "#ef4444"
+    keys:
+      0: { label: Plex on Frame, icon: play, action: ha.scene, entity: script.samsung_frame_launch_plex }
+      1: { label: YouTube on Frame, icon: youtube, action: ha.scene, entity: script.samsung_frame_launch_youtube }
+      2: { label: Cartridge Plex, icon: play, action: ha.scene, entity: script.cartridge_play_on_frame }
+      3: { label: Movie Time, icon: film, action: ha.scene, entity: scene.movie_time }
+      4: { label: Audiobooks, icon: book }    # TODO: what should this do?
+
+  # ---- Room pages (opened from Rooms; buttons 5–7 are TODO favourites) -----
+  living_room:
+    title: Living Room
+    button: 5               # TODO: placeholder favourite
+    color: "#f59e0b"
+    keys:
+      0: { label: All Lights, icon: light, action: ha.toggle, entity: light.living_room }
+      1: { label: Ceiling, icon: light, action: ha.toggle, entity: light.living_room_light }
+      2: { label: Candle, icon: lamp, action: ha.toggle, entity: light.candle }
+      3: { label: Doughnut Lamp, icon: lamp, action: ha.toggle, entity: light.dougnut_lamp }
+      4: { label: Baby Lamp, icon: lamp, action: ha.toggle, entity: switch.baby_lamp_localbytes_plug_pm_d5cfa3 }
+      5: { label: Movie Time, icon: film, action: ha.scene, entity: scene.movie_time }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: All Lights, action: ha.brightness, entity: light.living_room, step: 5, press: ha.toggle }
+      left2: { label: Ceiling, action: ha.brightness, entity: light.living_room_light, step: 5, press: ha.toggle }
+      left3: { label: Candle, action: ha.brightness, entity: light.candle, step: 5, press: ha.toggle }
+
+  kitchen:
+    color: "#f59e0b"
+    keys:
+      0: { label: Top Lights, icon: light, action: ha.toggle, entity: light.kitchen_top_lights }
+      1: { label: Hob Light, icon: light, action: ha.scene, entity: script.hob_light }
+      2: { label: Hob Fan Up, icon: fan, action: ha.scene, entity: script.hob_light_on }
+      3: { label: Coffee Machine, icon: coffee, action: ha.toggle, entity: switch.office_draw_light_socket_1 }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Top Lights, action: ha.brightness, entity: light.kitchen_top_lights, step: 5, press: ha.toggle }
+
+  office:
+    title: Office
+    button: 6               # TODO: placeholder favourite
+    color: "#f59e0b"
+    keys:
+      0: { label: Start Up, icon: power, action: ha.scene, entity: scene.startup, color: "#22c55e" }
+      1: { label: Shut Down, icon: power, action: ha.scene, entity: scene.shutdown, color: "#ef4444" }
+      2: { label: Office Lights, icon: light, action: ha.toggle, entity: light.garden_office_lights }   # the 4 JETSTROM panels (HA's old light.office group only has Desk Hue left)
+      3: { label: Desk Hue, icon: lamp, action: ha.toggle, entity: light.deskhue }
+      4: { label: Gradient Strip, icon: strip, action: ha.toggle, entity: light.hue_play_gradient_lightstrip_1 }
+      5: { label: Office Lamps, icon: lamp, action: ha.toggle, entity: switch.office_lamps }
+      6: { label: Ed Skadis, icon: plug, action: ha.toggle, entity: switch.ed_skadis_plug_localbytes_plug_pm_d5f029 }
+      7: { label: Jules Skadis, icon: plug, action: ha.toggle, entity: switch.office_lamp_2 }
+      8: { label: Office AC, icon: snowflake, action: nav.page, page: office_ac, entity: climate.garden_office, color: "#06b6d4" }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Office Lights, action: ha.brightness, entity: light.garden_office_lights, step: 5, press: ha.toggle }
+      left2: { label: Desk Hue, action: ha.brightness, entity: light.deskhue, step: 5, press: ha.toggle }
+      left3: { label: Strip, action: ha.brightness, entity: light.hue_play_gradient_lightstrip_1, step: 5, press: ha.toggle }
+      right1: { label: Office AC, action: ha.climate, entity: climate.garden_office, step: 0.5, press: ha.toggle, color: "#06b6d4" }
+
+  # Garden office air conditioner (opened from the Office page)
+  office_ac:
+    title: Office AC
+    color: "#06b6d4"
+    keys:
+      0: { label: Power, icon: power, action: ha.toggle, entity: climate.garden_office }
+      1: { label: Heat, icon: flame, action: ha.climateMode, entity: climate.garden_office, mode: heat, color: "#f97316" }
+      2: { label: Cool, icon: snowflake, action: ha.climateMode, entity: climate.garden_office, mode: cool }
+      3: { label: Auto, icon: auto, action: ha.climateMode, entity: climate.garden_office, mode: heat_cool, color: "#22c55e" }
+      4: { label: Dry, icon: droplet, action: ha.climateMode, entity: climate.garden_office, mode: dry, color: "#3b82f6" }
+      5: { label: Fan Only, icon: wind, action: ha.climateMode, entity: climate.garden_office, mode: fan_only, color: "#a3a3a3" }
+      6: { label: Target, action: ha.climate, entity: climate.garden_office }
+      7: { label: Room, action: ha.value, entity: climate.garden_office, attribute: current_temperature, unit: "°", color: "#a3a3a3" }
+      8: { label: Colder, icon: minus, action: ha.climate, entity: climate.garden_office, step: 0.5, delta: -1, color: "#3b82f6" }
+      9: { label: Warmer, icon: plus, action: ha.climate, entity: climate.garden_office, step: 0.5, delta: 1, color: "#f97316" }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Target, action: ha.climate, entity: climate.garden_office, step: 0.5, press: ha.toggle }
+      right1: { label: Fan, action: ha.climateOption, entity: climate.garden_office, option: fan }
+      right2: { label: Vane ↕, action: ha.climateOption, entity: climate.garden_office, option: swing }
+      right3: { label: Vane ↔, action: ha.climateOption, entity: climate.garden_office, option: swing_horizontal }
+
+  dining_room:
+    color: "#f59e0b"
+    keys:
+      0: { label: Heating, icon: thermometer, action: ha.toggle, entity: climate.dining_room, color: "#ef4444" }
+      1: { label: Main Light, icon: light, action: ha.toggle, entity: light.dining_room_wall_lights_light }
+      2: { label: Wall Light, icon: light, action: ha.toggle, entity: light.dining_room_light_light }
+      3: { label: Lamp, icon: lamp, action: ha.toggle, entity: light.dining_room_lamp }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Heating, action: ha.climate, entity: climate.dining_room, step: 0.5, press: ha.toggle, color: "#ef4444" }
+      left2: { label: Main Light, action: ha.brightness, entity: light.dining_room_wall_lights_light, step: 5, press: ha.toggle }
+      left3: { label: Wall Light, action: ha.brightness, entity: light.dining_room_light_light, step: 5, press: ha.toggle }
+
+  bedroom:
+    title: Bedroom
+    button: 7               # TODO: placeholder favourite
+    color: "#f59e0b"
+    keys:
+      0: { label: Bed Lights, icon: light, action: ha.toggle, entity: light.bed_lights_3 }
+      1: { label: Bedroom Lights, icon: light, action: ha.toggle, entity: light.bedroom_lights }
+      2: { label: Bedside Lamp, icon: lamp, action: ha.toggle, entity: light.hue_white_candle_1 }
+      3: { label: Bedside Lamp 2, icon: lamp, action: ha.toggle, entity: light.hue_white_candle_1_2 }
+      4: { label: LED Strip, icon: strip, action: ha.toggle, entity: light.bed_led_strip_light }
+      5: { label: Fan, icon: fan, action: ha.toggle, entity: switch.fan }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Bed Lights, action: ha.brightness, entity: light.bed_lights_3, step: 5, press: ha.toggle }
+
+  master_bedroom:
+    color: "#f59e0b"
+    keys:
+      0: { label: Light, icon: light, action: ha.toggle, entity: light.master_bedroom_light }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Light, action: ha.brightness, entity: light.master_bedroom_light, step: 5, press: ha.toggle }
+
+  guest_room:
+    color: "#f59e0b"
+    keys:
+      0: { label: Lights, icon: light, action: ha.toggle, entity: light.guest_room }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Lights, action: ha.brightness, entity: light.guest_room, step: 5, press: ha.toggle }
+
+  fox_room:
+    title: "Fox's Room"
+    color: "#f59e0b"
+    keys:
+      0: { label: Bedtime Light, icon: moon, action: ha.toggle, entity: light.fox_s_room_bedtime_player_bedtime_light }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Bedtime Light, action: ha.brightness, entity: light.fox_s_room_bedtime_player_bedtime_light, step: 5, press: ha.toggle }
+
+  bathroom:
+    color: "#f59e0b"
+    keys:
+      0: { label: Top Lights, icon: light, action: ha.toggle, entity: light.samotech_sm325_zg_light }
+      1: { label: N1 Light, icon: light, action: ha.toggle, entity: light.n1_light }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Top Lights, action: ha.brightness, entity: light.samotech_sm325_zg_light, step: 5, press: ha.toggle }
+
+  garden:
+    color: "#f59e0b"
+    keys:
+      0: { label: Office AC, icon: snowflake, action: ha.toggle, entity: climate.garden_office, color: "#06b6d4" }
+      1: { label: Office Lights, icon: light, action: ha.toggle, entity: light.garden_office_lights }
+      2: { label: Shelf Lights, icon: plug, action: ha.toggle, entity: switch.garden_shelf_lights_socket_1 }
+      3: { label: Floodlight, icon: floodlight, action: ha.toggle, entity: light.garden_floodlight_light }
+      4: { label: Garden Light, icon: light, action: ha.toggle, entity: light.garden_light_2 }
+      11: { label: Back, icon: back, action: nav.back }
+    knobs:
+      left1: { label: Office AC, action: ha.climate, entity: climate.garden_office, step: 0.5, press: ha.toggle, color: "#06b6d4" }
+      left2: { label: Office Lights, action: ha.brightness, entity: light.garden_office_lights, step: 5, press: ha.toggle }

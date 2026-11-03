@@ -1,0 +1,1505 @@
+{
+  "contentrating": "Everyone",
+  "description": "Personal edition of \"Rhine Lab · Interactive Desktop\" by Uranium (Steam Workshop 3799142774, MIT licence), rebranded as EDDO LAB / EDNET, with a live Home Assistant panel (Office + coffee machine) and workspace tasks fed from an HA to-do list.\n\nHome Assistant settings are in the \"Home Assistant\" group at the bottom of the properties.",
+  "file": "index.html",
+  "general": {
+    "localization": {
+      "en-us": {
+        "ui_archivecoverage": "Array coverage margin",
+        "ui_archivecoverage_0": "Automatic · Standard margin",
+        "ui_archivecoverage_1": "Automatic · Extra margin",
+        "ui_audioreactive": "Enable audio response (system audio)",
+        "ui_autotheme": "Schedule light/dark theme (overrides manual changes at the next scheduled time)",
+        "ui_boot": "Play opening on startup (applies on next load)",
+        "ui_breakminutes": "Break duration (minutes; applies next session)",
+        "ui_clicksound": "Button click sounds",
+        "ui_colortheme": "Color theme",
+        "ui_colortheme_0": "Light · Frosted white",
+        "ui_colortheme_1": "Dark · Graphite",
+        "ui_customwallpaper": "Show custom wallpaper when 3D is off",
+        "ui_customwallpaperfile": "Custom wallpaper image",
+        "ui_customwallpapermask": "Top/bottom mask coverage (0 disables it)",
+        "ui_darkstarthour": "Switch to dark · Hour (0–23)",
+        "ui_darkstartminute": "Switch to dark · Minute",
+        "ui_desktopmode": "Default mode at startup",
+        "ui_desktopmode_0": "Desktop workspace",
+        "ui_desktopmode_1": "Archive display",
+        "ui_enableevent": "Enable upcoming event",
+        "ui_enablefocus": "Enable focus timer",
+        "ui_enablemedia": "Enable now playing",
+        "ui_enabletasks": "Enable today's tasks",
+        "ui_enabletime": "Enable time & date",
+        "ui_eventdate": "Target date (YYYY-MM-DD, optional HH:mm; local time)",
+        "ui_eventname": "Event name",
+        "ui_focusminutes": "Focus duration (minutes; applies next session)",
+        "ui_focusreminder": "Focus completion chime",
+        "ui_gamepace": "Relay pace (applies to the next target)",
+        "ui_gamepace_0": "Gentle",
+        "ui_gamepace_1": "Normal",
+        "ui_gamepace_2": "Fast",
+        "ui_huddepth": "Curvature depth",
+        "ui_hudparallax": "Curved UI parallax",
+        "ui_hudtracking": "Mouse tracking",
+        "ui_idlebreathing": "Idle breathing (also works when always aligned)",
+        "ui_language": "Language",
+        "ui_language_0": "Chinese (Simplified)",
+        "ui_language_1": "English",
+        "ui_lightstarthour": "Switch to light · Hour (0–23)",
+        "ui_lightstartminute": "Switch to light · Minute",
+        "ui_load3donstartup": "Load 3D on startup (applies on next load)",
+        "ui_modelprecision": "Model detail (360° viewer always uses the full model)",
+        "ui_modelprecision_0": "High · Original model",
+        "ui_modelprecision_1": "Medium · Simplified background",
+        "ui_modelprecision_2": "Low · Simplified background and foreground",
+        "ui_music": "Background music",
+        "ui_musicvolume": "Music volume",
+        "ui_openingdetail": "Show archive details during opening (applies next opening)",
+        "ui_openingdetail_0": "Follow workspace mode (skip in workspace, play in archive display)",
+        "ui_openingdetail_1": "Show details",
+        "ui_openingdetail_2": "Skip details, stop at array",
+        "ui_qualityanisotropy": "Custom · Texture filtering",
+        "ui_qualityanisotropy_0": "1×",
+        "ui_qualityanisotropy_1": "2×",
+        "ui_qualityanisotropy_2": "4×",
+        "ui_qualityanisotropy_3": "8×",
+        "ui_qualityanisotropy_4": "16×",
+        "ui_qualityantialias": "Custom · Anti-aliasing",
+        "ui_qualityantialias_0": "Original",
+        "ui_qualityantialias_1": "SMAA",
+        "ui_qualityaoresolution": "Custom · Occlusion resolution",
+        "ui_qualityaoresolution_0": "50%",
+        "ui_qualityaoresolution_1": "75%",
+        "ui_qualityaoresolution_2": "100%",
+        "ui_qualityaosamples": "Custom · Ambient occlusion samples",
+        "ui_qualityaosamples_0": "Off",
+        "ui_qualityaosamples_1": "16 samples",
+        "ui_qualityaosamples_2": "32 samples",
+        "ui_qualityaosamples_3": "64 samples",
+        "ui_qualitydepthoffield": "Custom · Depth of field strength (%)",
+        "ui_qualitypixelratio": "Custom · Pixel density limit",
+        "ui_qualitypixelratio_0": "1×",
+        "ui_qualitypixelratio_1": "1.5×",
+        "ui_qualitypixelratio_2": "2×",
+        "ui_qualitypixelratio_3": "3×",
+        "ui_qualityscale": "Custom · 3D render scale (%)",
+        "ui_qualityshadows": "Custom · Shadow resolution",
+        "ui_qualityshadows_0": "Off",
+        "ui_qualityshadows_1": "1024",
+        "ui_qualityshadows_2": "2048",
+        "ui_qualityshadows_3": "4096",
+        "ui_qualitytransmission": "Custom · Transparent material resolution",
+        "ui_qualitytransmission_0": "25%",
+        "ui_qualitytransmission_1": "50%",
+        "ui_qualitytransmission_2": "75%",
+        "ui_qualitytransmission_3": "100%",
+        "ui_reactiveintensity": "Audio response intensity",
+        "ui_reactivemute": "Mute wallpaper music while audio response is enabled",
+        "ui_reduced": "Reduce motion",
+        "ui_renderquality": "Graphics quality",
+        "ui_renderquality_0": "Performance",
+        "ui_renderquality_1": "Original",
+        "ui_renderquality_2": "High",
+        "ui_renderquality_3": "Ultra",
+        "ui_renderquality_4": "Custom",
+        "ui_rhythmstyle": "Audio response style",
+        "ui_rhythmstyle_0": "Original · Layered motion",
+        "ui_rhythmstyle_1": "Continuous spectrum · Bass left, mids center, treble right",
+        "ui_rhythmstyle_2": "Continuous layered waves",
+        "ui_screenfinish": "Global screen effects",
+        "ui_screenfringe": "Chromatic aberration",
+        "ui_screengrain": "Fine grain",
+        "ui_screengrainsize": "Grain size",
+        "ui_screenvignette": "Vignette",
+        "ui_selectedindexaccent": "Dark theme: accent only the selected archive label",
+        "ui_selectionstyle": "Selected archive height",
+        "ui_selectionstyle_0": "Original height",
+        "ui_selectionstyle_1": "Align during audio response",
+        "ui_selectionstyle_2": "Always aligned",
+        "ui_sessionname": "Login name (opening, footer and access log; up to 24 characters)",
+        "ui_showbrand": "Show brand lettering",
+        "ui_showclock": "Show time & date",
+        "ui_showfooter": "Show footer information (session, name and clock)",
+        "ui_showfooterclock": "Show footer clock",
+        "ui_showgame": "Show game entry",
+        "ui_showmodebutton": "Show workspace / archive switch",
+        "ui_showmodule": "Show right-side content",
+        "ui_shownavigation": "Show bottom navigation",
+        "ui_showtasks": "Show today's tasks",
+        "ui_showworkbenchbutton": "Show full workspace toggle",
+        "ui_sound": "Interaction sounds",
+        "ui_soundvolume": "Sound volume",
+        "ui_superperformance": "Super performance mode (keeps animations)",
+        "ui_task1": "Today's task 1",
+        "ui_task2": "Today's task 2",
+        "ui_task3": "Today's task 3",
+        "ui_uifrost": "Frosted backing for text & buttons",
+        "ui_uifroststrength": "Frost intensity",
+        "ui_uimarginbottom": "Bottom margin (px)",
+        "ui_uimarginleft": "Left margin (px)",
+        "ui_uimarginright": "Right margin (px)",
+        "ui_uimargintop": "Top margin (px)",
+        "ui_wbmodulex": "Workspace panel · Horizontal offset (positive = right)",
+        "ui_wbmoduley": "Workspace panel · Vertical offset (positive = down)",
+        "ui_wbnavigationx": "Workspace navigation · Horizontal offset (positive = right)",
+        "ui_wbnavigationy": "Workspace navigation · Vertical offset (positive = down)",
+        "ui_wboverviewx": "Clock and tasks · Horizontal offset (positive = right)",
+        "ui_wboverviewy": "Clock and tasks · Vertical offset (positive = down)",
+        "ui_showha": "Show the Home Systems panel",
+        "ui_hatasks": "Fill today's tasks from a Home Assistant to-do list",
+        "ui_haurl": "Home Assistant address",
+        "ui_hatoken": "Long-lived access token (HA → Profile → Security)",
+        "ui_haarea": "Room / area to show (used when the entity list is empty)",
+        "ui_hakeywords": "Also show devices whose name contains (comma-separated)",
+        "ui_hatodo": "Tasks list (HA to-do entity or list name, e.g. Top 3 from Google Tasks)",
+        "ui_haentities": "Panel entities: entity_id=Label, comma-separated (clear it to use room + keyword below)",
+        "ui_bgdim": "Darken background (%) — makes text pop, especially in dark mode",
+        "ui_halinks": "Panel link buttons: Label=URL, comma-separated (opened in Chrome via the Loupedeck controller)",
+        "ui_hacalendar": "Upcoming event from HA calendar (entity id or name, e.g. haddrellwood)",
+        "ui_hainside": "Inside temperature from (climate or sensor entity)",
+        "ui_haoutside": "Outside temperature: Label=latitude,longitude (Open-Meteo)",
+        "ui_showunraid": "Show the Server / Eddo-NAS panel",
+        "ui_haunraid": "Server keywords (HA entity / device names to match)",
+        "ui_jarvispipeline": "Jarvis: Assist pipeline name (blank = your preferred pipeline)",
+        "ui_jarvisspeak": "Jarvis: speak replies through the PC speakers",
+        "ui_jarvisprompts": "Jarvis: question buttons, separated by |",
+        "ui_jarvistalk": "Jarvis: show the \"Talk to Jarvis\" button (uses the mic via the Loupedeck controller)",
+        "ui_jarvisgreet": "Jarvis: spoken daily briefing when the wallpaper starts (and on REINITIALIZE)",
+        "ui_greethours": "Greeting interval (hours) — 0 = every time the wallpaper starts",
+        "ui_burnin": "OLED burn-in guard: slowly shift the interface a few pixels",
+        "ui_idleminutes": "Idle mode after (minutes) — fades to a dim clock; 0 = off",
+        "ui_jarvisrate": "Jarvis speaking speed (%) — lower is slower, pitch stays the same",
+        "ui_briefdeliveries": "Briefing: mention parcels out for delivery today (from HA parcel integrations)"
+      }
+    },
+    "properties": {
+      "archivecoverage": {
+        "index": 15,
+        "options": [
+          {
+            "label": "ui_archivecoverage_0",
+            "value": "standard"
+          },
+          {
+            "label": "ui_archivecoverage_1",
+            "value": "extra"
+          }
+        ],
+        "order": 115,
+        "text": "ui_archivecoverage",
+        "type": "combo",
+        "value": "standard"
+      },
+      "audioreactive": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 61,
+        "order": 161,
+        "text": "ui_audioreactive",
+        "type": "bool",
+        "value": true
+      },
+      "autotheme": {
+        "index": 9,
+        "order": 109,
+        "text": "ui_autotheme",
+        "type": "bool",
+        "value": false
+      },
+      "boot": {
+        "index": 5,
+        "order": 105,
+        "text": "ui_boot",
+        "type": "bool",
+        "value": true
+      },
+      "breakminutes": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 52,
+        "max": 60,
+        "min": 1,
+        "order": 152,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_breakminutes",
+        "type": "slider",
+        "value": 5
+      },
+      "clicksound": {
+        "condition": "sound.value == true",
+        "index": 56,
+        "order": 156,
+        "text": "ui_clicksound",
+        "type": "bool",
+        "value": true
+      },
+      "colortheme": {
+        "index": 8,
+        "options": [
+          {
+            "label": "ui_colortheme_0",
+            "value": "light"
+          },
+          {
+            "label": "ui_colortheme_1",
+            "value": "dark"
+          }
+        ],
+        "order": 108,
+        "text": "ui_colortheme",
+        "type": "combo",
+        "value": "light"
+      },
+      "customwallpaper": {
+        "index": 27,
+        "order": 127,
+        "text": "ui_customwallpaper",
+        "type": "bool",
+        "value": false
+      },
+      "customwallpaperfile": {
+        "condition": "customwallpaper.value == true",
+        "index": 28,
+        "order": 128,
+        "text": "ui_customwallpaperfile",
+        "type": "file",
+        "value": ""
+      },
+      "customwallpapermask": {
+        "condition": "customwallpaper.value == true",
+        "index": 29,
+        "max": 100,
+        "min": 0,
+        "order": 129,
+        "step": 1,
+        "text": "ui_customwallpapermask",
+        "type": "slider",
+        "value": 100
+      },
+      "darkstarthour": {
+        "condition": "autotheme.value == true",
+        "index": 10,
+        "max": 23,
+        "min": 0,
+        "order": 110,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_darkstarthour",
+        "type": "slider",
+        "value": 19
+      },
+      "darkstartminute": {
+        "condition": "autotheme.value == true",
+        "index": 11,
+        "max": 59,
+        "min": 0,
+        "order": 111,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_darkstartminute",
+        "type": "slider",
+        "value": 0
+      },
+      "desktopmode": {
+        "index": 1,
+        "options": [
+          {
+            "label": "ui_desktopmode_0",
+            "value": "workbench"
+          },
+          {
+            "label": "ui_desktopmode_1",
+            "value": "archive"
+          }
+        ],
+        "order": 101,
+        "text": "ui_desktopmode",
+        "type": "combo",
+        "value": "workbench"
+      },
+      "enableevent": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 94,
+        "order": 194,
+        "text": "ui_enableevent",
+        "type": "bool",
+        "value": true
+      },
+      "enablefocus": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 96,
+        "order": 196,
+        "text": "ui_enablefocus",
+        "type": "bool",
+        "value": true
+      },
+      "enablemedia": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 95,
+        "order": 195,
+        "text": "ui_enablemedia",
+        "type": "bool",
+        "value": true
+      },
+      "enabletasks": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 93,
+        "order": 193,
+        "text": "ui_enabletasks",
+        "type": "bool",
+        "value": true
+      },
+      "enabletime": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 92,
+        "order": 192,
+        "text": "ui_enabletime",
+        "type": "bool",
+        "value": true
+      },
+      "eventdate": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 50,
+        "order": 150,
+        "text": "ui_eventdate",
+        "type": "textinput",
+        "value": ""
+      },
+      "eventname": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 49,
+        "order": 149,
+        "text": "ui_eventname",
+        "type": "textinput",
+        "value": ""
+      },
+      "focusminutes": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 51,
+        "max": 120,
+        "min": 1,
+        "order": 151,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_focusminutes",
+        "type": "slider",
+        "value": 25
+      },
+      "focusreminder": {
+        "condition": "sound.value == true",
+        "index": 57,
+        "order": 157,
+        "text": "ui_focusreminder",
+        "type": "bool",
+        "value": true
+      },
+      "gamepace": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true) && showgame.value == true",
+        "index": 67,
+        "options": [
+          {
+            "label": "ui_gamepace_0",
+            "value": "gentle"
+          },
+          {
+            "label": "ui_gamepace_1",
+            "value": "normal"
+          },
+          {
+            "label": "ui_gamepace_2",
+            "value": "quick"
+          }
+        ],
+        "order": 167,
+        "text": "ui_gamepace",
+        "type": "combo",
+        "value": "normal"
+      },
+      "groupaudio": {
+        "index": 53,
+        "order": 153,
+        "text": "Audio",
+        "type": "group"
+      },
+      "groupcapabilities": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 91,
+        "order": 191,
+        "text": "Workspace · Available tools",
+        "type": "group"
+      },
+      "groupcontent": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 45,
+        "order": 145,
+        "text": "Workspace · Tasks & events",
+        "type": "group"
+      },
+      "groupfooter": {
+        "index": 40,
+        "order": 140,
+        "text": "Footer",
+        "type": "group"
+      },
+      "groupgame": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 65,
+        "order": 165,
+        "text": "Workspace · Ripple relay",
+        "type": "group"
+      },
+      "groupidentity": {
+        "index": 2,
+        "order": 102,
+        "text": "Login identity",
+        "type": "group"
+      },
+      "groupopening": {
+        "index": 4,
+        "order": 104,
+        "text": "Opening & appearance",
+        "type": "group"
+      },
+      "groupreactive": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 60,
+        "order": 160,
+        "text": "Workspace · Audio response",
+        "type": "group"
+      },
+      "groupuimargins": {
+        "index": 79,
+        "order": 179,
+        "text": "UI margins: + in / − out",
+        "type": "group"
+      },
+      "groupvisualeffects": {
+        "index": 68,
+        "order": 168,
+        "text": "HUD & screen effects",
+        "type": "group"
+      },
+      "groupworkbench": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 32,
+        "order": 132,
+        "text": "Workspace · Visibility",
+        "type": "group"
+      },
+      "groupworkbenchposition": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 84,
+        "order": 184,
+        "text": "Workspace · Position",
+        "type": "group"
+      },
+      "huddepth": {
+        "condition": "hudparallax.value == true",
+        "index": 70,
+        "max": 100,
+        "min": 0,
+        "order": 170,
+        "step": 1,
+        "text": "ui_huddepth",
+        "type": "slider",
+        "value": 20
+      },
+      "hudparallax": {
+        "index": 69,
+        "order": 169,
+        "text": "ui_hudparallax",
+        "type": "bool",
+        "value": false
+      },
+      "hudtracking": {
+        "condition": "hudparallax.value == true",
+        "index": 71,
+        "order": 171,
+        "text": "ui_hudtracking",
+        "type": "bool",
+        "value": true
+      },
+      "idlebreathing": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 39,
+        "order": 139,
+        "text": "ui_idlebreathing",
+        "type": "bool",
+        "value": true
+      },
+      "language": {
+        "index": 0,
+        "options": [
+          {
+            "label": "ui_language_0",
+            "value": "zh-CN"
+          },
+          {
+            "label": "ui_language_1",
+            "value": "en-US"
+          }
+        ],
+        "order": 100,
+        "text": "ui_language",
+        "type": "combo",
+        "value": "en-US",
+        "condition": "language.value == 'hidden'"
+      },
+      "lightstarthour": {
+        "condition": "autotheme.value == true",
+        "index": 12,
+        "max": 23,
+        "min": 0,
+        "order": 112,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_lightstarthour",
+        "type": "slider",
+        "value": 7
+      },
+      "lightstartminute": {
+        "condition": "autotheme.value == true",
+        "index": 13,
+        "max": 59,
+        "min": 0,
+        "order": 113,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_lightstartminute",
+        "type": "slider",
+        "value": 0
+      },
+      "load3donstartup": {
+        "index": 6,
+        "order": 106,
+        "text": "ui_load3donstartup",
+        "type": "bool",
+        "value": true
+      },
+      "modelprecision": {
+        "index": 30,
+        "options": [
+          {
+            "label": "ui_modelprecision_0",
+            "value": "high"
+          },
+          {
+            "label": "ui_modelprecision_1",
+            "value": "medium"
+          },
+          {
+            "label": "ui_modelprecision_2",
+            "value": "low"
+          }
+        ],
+        "order": 130,
+        "text": "ui_modelprecision",
+        "type": "combo",
+        "value": "high"
+      },
+      "music": {
+        "index": 58,
+        "order": 158,
+        "text": "ui_music",
+        "type": "bool",
+        "value": true
+      },
+      "musicvolume": {
+        "condition": "music.value == true",
+        "index": 59,
+        "max": 100,
+        "min": 0,
+        "order": 159,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_musicvolume",
+        "type": "slider",
+        "value": 50
+      },
+      "openingdetail": {
+        "condition": "boot.value == true",
+        "index": 7,
+        "options": [
+          {
+            "label": "ui_openingdetail_0",
+            "value": "auto"
+          },
+          {
+            "label": "ui_openingdetail_1",
+            "value": "show"
+          },
+          {
+            "label": "ui_openingdetail_2",
+            "value": "skip"
+          }
+        ],
+        "order": 107,
+        "text": "ui_openingdetail",
+        "type": "combo",
+        "value": "auto"
+      },
+      "qualityanisotropy": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 26,
+        "options": [
+          {
+            "label": "ui_qualityanisotropy_0",
+            "value": "1"
+          },
+          {
+            "label": "ui_qualityanisotropy_1",
+            "value": "2"
+          },
+          {
+            "label": "ui_qualityanisotropy_2",
+            "value": "4"
+          },
+          {
+            "label": "ui_qualityanisotropy_3",
+            "value": "8"
+          },
+          {
+            "label": "ui_qualityanisotropy_4",
+            "value": "16"
+          }
+        ],
+        "order": 126,
+        "text": "ui_qualityanisotropy",
+        "type": "combo",
+        "value": "16"
+      },
+      "qualityantialias": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 20,
+        "options": [
+          {
+            "label": "ui_qualityantialias_0",
+            "value": "off"
+          },
+          {
+            "label": "ui_qualityantialias_1",
+            "value": "smaa"
+          }
+        ],
+        "order": 120,
+        "text": "ui_qualityantialias",
+        "type": "combo",
+        "value": "off"
+      },
+      "qualityaoresolution": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 23,
+        "options": [
+          {
+            "label": "ui_qualityaoresolution_0",
+            "value": "0.5"
+          },
+          {
+            "label": "ui_qualityaoresolution_1",
+            "value": "0.75"
+          },
+          {
+            "label": "ui_qualityaoresolution_2",
+            "value": "1"
+          }
+        ],
+        "order": 123,
+        "text": "ui_qualityaoresolution",
+        "type": "combo",
+        "value": "1"
+      },
+      "qualityaosamples": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 22,
+        "options": [
+          {
+            "label": "ui_qualityaosamples_0",
+            "value": "0"
+          },
+          {
+            "label": "ui_qualityaosamples_1",
+            "value": "16"
+          },
+          {
+            "label": "ui_qualityaosamples_2",
+            "value": "32"
+          },
+          {
+            "label": "ui_qualityaosamples_3",
+            "value": "64"
+          }
+        ],
+        "order": 122,
+        "text": "ui_qualityaosamples",
+        "type": "combo",
+        "value": "32"
+      },
+      "qualitydepthoffield": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 24,
+        "max": 150,
+        "min": 0,
+        "order": 124,
+        "step": 5,
+        "text": "ui_qualitydepthoffield",
+        "type": "slider",
+        "value": 100
+      },
+      "qualitypixelratio": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 19,
+        "options": [
+          {
+            "label": "ui_qualitypixelratio_0",
+            "value": "1"
+          },
+          {
+            "label": "ui_qualitypixelratio_1",
+            "value": "1.5"
+          },
+          {
+            "label": "ui_qualitypixelratio_2",
+            "value": "2"
+          },
+          {
+            "label": "ui_qualitypixelratio_3",
+            "value": "3"
+          }
+        ],
+        "order": 119,
+        "text": "ui_qualitypixelratio",
+        "type": "combo",
+        "value": "1.5"
+      },
+      "qualityscale": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 18,
+        "max": 200,
+        "min": 50,
+        "order": 118,
+        "step": 5,
+        "text": "ui_qualityscale",
+        "type": "slider",
+        "value": 100
+      },
+      "qualityshadows": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 21,
+        "options": [
+          {
+            "label": "ui_qualityshadows_0",
+            "value": "0"
+          },
+          {
+            "label": "ui_qualityshadows_1",
+            "value": "1024"
+          },
+          {
+            "label": "ui_qualityshadows_2",
+            "value": "2048"
+          },
+          {
+            "label": "ui_qualityshadows_3",
+            "value": "4096"
+          }
+        ],
+        "order": 121,
+        "text": "ui_qualityshadows",
+        "type": "combo",
+        "value": "2048"
+      },
+      "qualitytransmission": {
+        "condition": "renderquality.value == 'custom' && superperformance.value == false",
+        "index": 25,
+        "options": [
+          {
+            "label": "ui_qualitytransmission_0",
+            "value": "0.25"
+          },
+          {
+            "label": "ui_qualitytransmission_1",
+            "value": "0.5"
+          },
+          {
+            "label": "ui_qualitytransmission_2",
+            "value": "0.75"
+          },
+          {
+            "label": "ui_qualitytransmission_3",
+            "value": "1"
+          }
+        ],
+        "order": 125,
+        "text": "ui_qualitytransmission",
+        "type": "combo",
+        "value": "1"
+      },
+      "reactiveintensity": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true) && audioreactive.value == true",
+        "index": 63,
+        "max": 300,
+        "min": 0,
+        "order": 163,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_reactiveintensity",
+        "type": "slider",
+        "value": 100
+      },
+      "reactivemute": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true) && audioreactive.value == true",
+        "index": 64,
+        "order": 164,
+        "text": "ui_reactivemute",
+        "type": "bool",
+        "value": true
+      },
+      "reduced": {
+        "index": 31,
+        "order": 131,
+        "text": "ui_reduced",
+        "type": "bool",
+        "value": false
+      },
+      "renderquality": {
+        "condition": "superperformance.value == false",
+        "index": 17,
+        "options": [
+          {
+            "label": "ui_renderquality_0",
+            "value": "performance"
+          },
+          {
+            "label": "ui_renderquality_1",
+            "value": "original"
+          },
+          {
+            "label": "ui_renderquality_2",
+            "value": "high"
+          },
+          {
+            "label": "ui_renderquality_3",
+            "value": "ultra"
+          },
+          {
+            "label": "ui_renderquality_4",
+            "value": "custom"
+          }
+        ],
+        "order": 117,
+        "text": "ui_renderquality",
+        "type": "combo",
+        "value": "original"
+      },
+      "rhythmstyle": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true) && audioreactive.value == true",
+        "index": 62,
+        "options": [
+          {
+            "label": "ui_rhythmstyle_0",
+            "value": "legacy"
+          },
+          {
+            "label": "ui_rhythmstyle_1",
+            "value": "wave"
+          },
+          {
+            "label": "ui_rhythmstyle_2",
+            "value": "lift"
+          }
+        ],
+        "order": 162,
+        "text": "ui_rhythmstyle",
+        "type": "combo",
+        "value": "legacy"
+      },
+      "schemecolor": {
+        "order": 0,
+        "text": "ui_browse_properties_scheme_color",
+        "type": "color",
+        "value": "0 0 0"
+      },
+      "screenfinish": {
+        "index": 72,
+        "order": 172,
+        "text": "ui_screenfinish",
+        "type": "bool",
+        "value": false
+      },
+      "screenfringe": {
+        "condition": "screenfinish.value == true",
+        "index": 75,
+        "max": 100,
+        "min": 0,
+        "order": 175,
+        "step": 1,
+        "text": "ui_screenfringe",
+        "type": "slider",
+        "value": 20
+      },
+      "screengrain": {
+        "condition": "screenfinish.value == true",
+        "index": 73,
+        "max": 100,
+        "min": 0,
+        "order": 173,
+        "step": 1,
+        "text": "ui_screengrain",
+        "type": "slider",
+        "value": 20
+      },
+      "screengrainsize": {
+        "condition": "screenfinish.value == true",
+        "index": 74,
+        "max": 100,
+        "min": 0,
+        "order": 174,
+        "step": 1,
+        "text": "ui_screengrainsize",
+        "type": "slider",
+        "value": 20
+      },
+      "screenvignette": {
+        "condition": "screenfinish.value == true",
+        "index": 76,
+        "max": 100,
+        "min": 0,
+        "order": 176,
+        "step": 1,
+        "text": "ui_screenvignette",
+        "type": "slider",
+        "value": 20
+      },
+      "selectedindexaccent": {
+        "condition": "colortheme.value == 'dark'",
+        "index": 14,
+        "order": 114,
+        "text": "ui_selectedindexaccent",
+        "type": "bool",
+        "value": false
+      },
+      "selectionstyle": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 38,
+        "options": [
+          {
+            "label": "ui_selectionstyle_0",
+            "value": "original"
+          },
+          {
+            "label": "ui_selectionstyle_1",
+            "value": "music-flat"
+          },
+          {
+            "label": "ui_selectionstyle_2",
+            "value": "flat"
+          }
+        ],
+        "order": 138,
+        "text": "ui_selectionstyle",
+        "type": "combo",
+        "value": "music-flat"
+      },
+      "sessionname": {
+        "index": 3,
+        "order": 103,
+        "text": "ui_sessionname",
+        "type": "textinput",
+        "value": "EDDO"
+      },
+      "showbrand": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 37,
+        "order": 137,
+        "text": "ui_showbrand",
+        "type": "bool",
+        "value": true
+      },
+      "showclock": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 33,
+        "order": 133,
+        "text": "ui_showclock",
+        "type": "bool",
+        "value": true
+      },
+      "showfooter": {
+        "index": 41,
+        "order": 141,
+        "text": "ui_showfooter",
+        "type": "bool",
+        "value": true
+      },
+      "showfooterclock": {
+        "condition": "showfooter.value == true",
+        "index": 42,
+        "order": 142,
+        "text": "ui_showfooterclock",
+        "type": "bool",
+        "value": true
+      },
+      "showgame": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 66,
+        "order": 166,
+        "text": "ui_showgame",
+        "type": "bool",
+        "value": true
+      },
+      "showmodebutton": {
+        "index": 43,
+        "order": 143,
+        "text": "ui_showmodebutton",
+        "type": "bool",
+        "value": false
+      },
+      "showmodule": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 35,
+        "order": 135,
+        "text": "ui_showmodule",
+        "type": "bool",
+        "value": true
+      },
+      "shownavigation": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 36,
+        "order": 136,
+        "text": "ui_shownavigation",
+        "type": "bool",
+        "value": true
+      },
+      "showtasks": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 34,
+        "order": 134,
+        "text": "ui_showtasks",
+        "type": "bool",
+        "value": true
+      },
+      "showworkbenchbutton": {
+        "index": 44,
+        "order": 144,
+        "text": "ui_showworkbenchbutton",
+        "type": "bool",
+        "value": true
+      },
+      "sound": {
+        "index": 54,
+        "order": 154,
+        "text": "ui_sound",
+        "type": "bool",
+        "value": true
+      },
+      "soundvolume": {
+        "condition": "sound.value == true",
+        "index": 55,
+        "max": 100,
+        "min": 0,
+        "order": 155,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_soundvolume",
+        "type": "slider",
+        "value": 55
+      },
+      "superperformance": {
+        "index": 16,
+        "order": 116,
+        "text": "ui_superperformance",
+        "type": "bool",
+        "value": false
+      },
+      "task1": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 46,
+        "order": 146,
+        "text": "ui_task1",
+        "type": "textinput",
+        "value": ""
+      },
+      "task2": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 47,
+        "order": 147,
+        "text": "ui_task2",
+        "type": "textinput",
+        "value": ""
+      },
+      "task3": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 48,
+        "order": 148,
+        "text": "ui_task3",
+        "type": "textinput",
+        "value": ""
+      },
+      "uifrost": {
+        "index": 77,
+        "order": 177,
+        "text": "ui_uifrost",
+        "type": "bool",
+        "value": false
+      },
+      "uifroststrength": {
+        "condition": "uifrost.value == true",
+        "index": 78,
+        "max": 100,
+        "min": 0,
+        "order": 178,
+        "step": 1,
+        "text": "ui_uifroststrength",
+        "type": "slider",
+        "value": 55
+      },
+      "uimarginbottom": {
+        "index": 81,
+        "max": 300,
+        "min": -300,
+        "order": 181,
+        "step": 1,
+        "text": "ui_uimarginbottom",
+        "type": "slider",
+        "value": 0
+      },
+      "uimarginleft": {
+        "index": 82,
+        "max": 300,
+        "min": -300,
+        "order": 182,
+        "step": 1,
+        "text": "ui_uimarginleft",
+        "type": "slider",
+        "value": 0
+      },
+      "uimarginright": {
+        "index": 83,
+        "max": 300,
+        "min": -300,
+        "order": 183,
+        "step": 1,
+        "text": "ui_uimarginright",
+        "type": "slider",
+        "value": 0
+      },
+      "uimargintop": {
+        "index": 80,
+        "max": 300,
+        "min": -300,
+        "order": 180,
+        "step": 1,
+        "text": "ui_uimargintop",
+        "type": "slider",
+        "value": 0
+      },
+      "wbmodulex": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 87,
+        "max": 300,
+        "min": -300,
+        "order": 187,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wbmodulex",
+        "type": "slider",
+        "value": 0
+      },
+      "wbmoduley": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 88,
+        "max": 300,
+        "min": -300,
+        "order": 188,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wbmoduley",
+        "type": "slider",
+        "value": 0
+      },
+      "wbnavigationx": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 89,
+        "max": 300,
+        "min": -300,
+        "order": 189,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wbnavigationx",
+        "type": "slider",
+        "value": 0
+      },
+      "wbnavigationy": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 90,
+        "max": 300,
+        "min": -300,
+        "order": 190,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wbnavigationy",
+        "type": "slider",
+        "value": 0
+      },
+      "wboverviewx": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 85,
+        "max": 300,
+        "min": -300,
+        "order": 185,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wboverviewx",
+        "type": "slider",
+        "value": 0
+      },
+      "wboverviewy": {
+        "condition": "(desktopmode.value == 'workbench' || showmodebutton.value == true || showworkbenchbutton.value == true)",
+        "index": 86,
+        "max": 300,
+        "min": -300,
+        "order": 186,
+        "precision": 0,
+        "step": 1,
+        "text": "ui_wboverviewy",
+        "type": "slider",
+        "value": 0
+      },
+      "groupha": {
+        "order": 197,
+        "text": "Home Assistant · EDNET",
+        "type": "group",
+        "index": 97
+      },
+      "showha": {
+        "order": 198,
+        "text": "ui_showha",
+        "type": "bool",
+        "value": true,
+        "index": 98
+      },
+      "hatasks": {
+        "order": 199,
+        "text": "ui_hatasks",
+        "type": "bool",
+        "value": true,
+        "index": 99
+      },
+      "haurl": {
+        "order": 200,
+        "text": "ui_haurl",
+        "type": "textinput",
+        "value": "http://192.168.4.81:8123",
+        "condition": "(showha.value == true || hatasks.value == true)",
+        "index": 100
+      },
+      "hatoken": {
+        "order": 201,
+        "text": "ui_hatoken",
+        "type": "textinput",
+        "value": "",
+        "condition": "(showha.value == true || hatasks.value == true)",
+        "index": 101
+      },
+      "haarea": {
+        "order": 203,
+        "text": "ui_haarea",
+        "type": "textinput",
+        "value": "Office",
+        "condition": "showha.value == true && haentities.value == ''",
+        "index": 102
+      },
+      "hakeywords": {
+        "order": 204,
+        "text": "ui_hakeywords",
+        "type": "textinput",
+        "value": "coffee",
+        "condition": "showha.value == true && haentities.value == ''",
+        "index": 103
+      },
+      "hatodo": {
+        "order": 208,
+        "text": "ui_hatodo",
+        "type": "textinput",
+        "value": "Top 3",
+        "condition": "hatasks.value == true",
+        "index": 104
+      },
+      "haentities": {
+        "order": 202,
+        "index": 105,
+        "text": "ui_haentities",
+        "type": "textinput",
+        "value": "scene.startup=Start Up, scene.shutdown=Shut Down, climate.garden_office=Office AC, light.garden_office_lights=Office Lights, light.deskhue=Desk Hue, switch.ed_skadis_plug_localbytes_plug_pm_d5f029=Ed Skadis, switch.office_lamp_2=Jules Skadis, switch.office_draw_light_socket_1=Coffee Machine",
+        "condition": "showha.value == true"
+      },
+      "bgdim": {
+        "order": 109,
+        "index": 106,
+        "text": "ui_bgdim",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 90,
+        "step": 1,
+        "precision": 0
+      },
+      "halinks": {
+        "order": 207,
+        "index": 107,
+        "text": "ui_halinks",
+        "type": "textinput",
+        "value": "Unraid=http://eddo-nas/",
+        "condition": "showha.value == true"
+      },
+      "hacalendar": {
+        "order": 209,
+        "index": 108,
+        "text": "ui_hacalendar",
+        "type": "textinput",
+        "value": "haddrellwood"
+      },
+      "hainside": {
+        "order": 205,
+        "index": 110,
+        "text": "ui_hainside",
+        "type": "textinput",
+        "value": "climate.garden_office",
+        "condition": "showha.value == true"
+      },
+      "haoutside": {
+        "order": 206,
+        "index": 111,
+        "text": "ui_haoutside",
+        "type": "textinput",
+        "value": "Bromley=51.4057,0.0158",
+        "condition": "showha.value == true"
+      },
+      "showunraid": {
+        "order": 211,
+        "index": 112,
+        "text": "ui_showunraid",
+        "type": "bool",
+        "value": true
+      },
+      "haunraid": {
+        "order": 212,
+        "index": 113,
+        "text": "ui_haunraid",
+        "type": "textinput",
+        "value": "unraid, eddo_nas, eddo-nas",
+        "condition": "showunraid.value == true"
+      },
+      "jarvispipeline": {
+        "order": 215,
+        "index": 114,
+        "text": "ui_jarvispipeline",
+        "type": "textinput",
+        "value": "jarvis"
+      },
+      "jarvisspeak": {
+        "order": 216,
+        "index": 115,
+        "text": "ui_jarvisspeak",
+        "type": "bool",
+        "value": true
+      },
+      "jarvisprompts": {
+        "order": 218,
+        "index": 116,
+        "text": "ui_jarvisprompts",
+        "type": "textinput",
+        "value": "What's on my calendar today?|How warm is the office?|Turn on the office lights|Turn everything off in the office|Good morning, Jarvis"
+      },
+      "jarvistalk": {
+        "order": 214,
+        "index": 117,
+        "text": "ui_jarvistalk",
+        "type": "bool",
+        "value": true
+      },
+      "jarvisgreet": {
+        "order": 219,
+        "index": 118,
+        "text": "ui_jarvisgreet",
+        "type": "bool",
+        "value": true
+      },
+      "greethours": {
+        "order": 220,
+        "index": 119,
+        "text": "ui_greethours",
+        "type": "slider",
+        "value": 4,
+        "min": 0,
+        "max": 12,
+        "step": 1,
+        "precision": 0,
+        "condition": "jarvisgreet.value == true"
+      },
+      "burnin": {
+        "order": 223,
+        "index": 120,
+        "text": "ui_burnin",
+        "type": "bool",
+        "value": true
+      },
+      "idleminutes": {
+        "order": 224,
+        "index": 121,
+        "text": "ui_idleminutes",
+        "type": "slider",
+        "value": 10,
+        "min": 0,
+        "max": 60,
+        "step": 1,
+        "precision": 0
+      },
+      "jarvisrate": {
+        "order": 217,
+        "index": 122,
+        "text": "ui_jarvisrate",
+        "type": "slider",
+        "value": 92,
+        "min": 70,
+        "max": 110,
+        "step": 1,
+        "precision": 0
+      },
+      "briefdeliveries": {
+        "order": 221,
+        "index": 123,
+        "text": "ui_briefdeliveries",
+        "type": "bool",
+        "value": true,
+        "condition": "jarvisgreet.value == true"
+      },
+      "groupserver": {
+        "type": "group",
+        "index": 124,
+        "text": "Server · Eddo-NAS",
+        "order": 210
+      },
+      "groupjarvis": {
+        "type": "group",
+        "index": 125,
+        "text": "Jarvis",
+        "order": 213
+      },
+      "groupscreen": {
+        "type": "group",
+        "index": 126,
+        "text": "Screen care (OLED)",
+        "order": 222
+      }
+    },
+    "supportsaudioprocessing": true
+  },
+  "preview": "preview.jpg",
+  "ratingsex": "none",
+  "ratingviolence": "none",
+  "tags": [
+    "Technology"
+  ],
+  "title": "EDDO OS · EDNET Interactive Desktop",
+  "type": "web",
+  "version": 2,
+  "visibility": "private"
+}

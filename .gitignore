@@ -1,0 +1,14 @@
+# secrets / per-machine
+.env
+**/.env
+bridge-key.txt
+**/bridge-key.js
+# generated / local
+node_modules/
+logs/
+icue-log/
+controller/preview/
+controller/tools/*.exe
+*.log
+.DS_Store
+Thumbs.db

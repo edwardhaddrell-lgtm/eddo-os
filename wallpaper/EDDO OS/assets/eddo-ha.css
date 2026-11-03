@@ -1,0 +1,376 @@
+/* EDDO OS · Home Assistant panel — matches the workspace's ruled, paper-and-ink style */
+.eddo-ha{position:absolute;left:1361px;top:640px;width:360px;z-index:6;font-size:13px;letter-spacing:.3px;color:var(--theme-ink,#080a08);pointer-events:auto;opacity:0;transition:opacity .8s;translate:var(--eddo-ha-x,0px) var(--eddo-ha-y,0px)}
+.eddo-ha[data-visible=true]{opacity:1}.eddo-ha[data-visible=false]{pointer-events:none}
+.eddo-ha-kicker{font-size:11px;letter-spacing:1.8px;border-top:1px solid var(--theme-line,#aaa59a);padding-top:12px;display:flex;justify-content:space-between;align-items:center}
+.eddo-ha-kicker b{font-weight:600}
+.eddo-ha-dot{width:7px;height:7px;background:#b8b2a6}
+.eddo-ha[data-status=live] .eddo-ha-dot{background:#ed821b;animation:eddo-pulse 2.4s ease-in-out infinite}
+.eddo-ha[data-status=error] .eddo-ha-dot{background:#b5452f}
+@keyframes eddo-pulse{50%{opacity:.35}}
+.eddo-ha-list{margin-top:8px}
+.eddo-ha-row{display:flex;align-items:stretch;border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-row:first-child{border-top:0}
+.eddo-ha-main{flex:1;display:flex;align-items:center;gap:12px;padding:10px 0;text-align:left;min-width:0}
+button.eddo-ha-main:hover .eddo-ha-name{color:#9b7247}
+.eddo-ha-led{flex:0 0 9px;height:9px;border:1px solid var(--theme-muted,#a6a49c)}
+.eddo-ha-row[data-on=true] .eddo-ha-led{background:var(--theme-ink,#080a08);border-color:var(--theme-ink,#080a08)}
+.eddo-ha-row[data-busy=true] .eddo-ha-led{background:#ed821b;border-color:#ed821b}
+.eddo-ha-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eddo-ha-state{font-size:11px;letter-spacing:1.2px;color:var(--theme-muted,#77756d);font-variant-numeric:tabular-nums;white-space:nowrap}
+.eddo-ha-row[data-on=true] .eddo-ha-state{color:var(--theme-ink,#080a08)}
+.eddo-ha-step{display:flex;gap:6px;align-items:center;margin-left:12px}
+.eddo-ha-step button{width:24px;height:24px;border:1px solid var(--theme-line,#a6a49c);font-size:14px;line-height:1}
+.eddo-ha-step button:hover{border-color:#9b7247;color:#9b7247}
+.eddo-ha-foot{margin:10px 0 0;font-size:10px;letter-spacing:1.4px;color:var(--theme-muted,#77756d);line-height:1.7}
+.eddo-ha-foot:empty{display:none}
+.eddo-ha:not([data-status=live]) .eddo-ha-foot{font-size:12px;letter-spacing:.3px}
+#stage[data-layout=compact] .eddo-ha,#stage[data-layout=portrait] .eddo-ha{display:none}
+.eddo-ha-actions{display:flex;gap:10px;margin:4px 0 8px}
+.eddo-ha-actions button{flex:1;padding:9px 12px;border:1px solid var(--theme-line,#a6a49c);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.eddo-ha-actions button:hover{border-color:#9b7247;color:#9b7247}
+.eddo-ha-actions button[data-busy=true]{background:var(--theme-ink,#080a08);color:var(--theme-paper,#e8e5e1)}
+.eddo-ha-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:22px;border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-grid .eddo-ha-row{border-top:0;border-bottom:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-grid .eddo-ha-main{padding:9px 0;gap:9px}
+.eddo-ha-wide{border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha{width:440px}
+.eddo-dim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s}
+#stage[data-mode=boot] .eddo-dim{display:none}
+.eddo-ha-caret{font-style:normal;font-size:9px;margin-left:6px;color:var(--theme-muted,#77756d)}
+.eddo-ha-modes{display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 10px 21px}
+.eddo-ha-modes button{padding:6px 10px;border:1px solid var(--theme-line,#a6a49c);font-size:11px;letter-spacing:1.1px;text-transform:uppercase}
+.eddo-ha-modes button:hover{border-color:#9b7247;color:#9b7247}
+.eddo-ha-modes button[aria-pressed=true]{background:var(--theme-ink,#080a08);color:var(--theme-paper,#e8e5e1);border-color:var(--theme-ink,#080a08)}
+.eddo-ha-actions button span{font-size:10px;letter-spacing:1px}
+.wb-today .wb-heading{cursor:pointer}.wb-today .wb-heading h2::after{content:" ↗";font-size:.7em;opacity:.5}
+.eddo-ha-temps{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 6px;padding-bottom:12px;border-bottom:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-temps:empty{display:none}
+.eddo-ha-temp{display:flex;align-items:center;gap:10px}
+.eddo-ha-temp b{font-size:40px;font-weight:300;letter-spacing:-1.5px;line-height:1;font-variant-numeric:tabular-nums}
+.eddo-ha-temp b sup{font-size:.45em;letter-spacing:0;margin-left:2px}
+.eddo-ha-temp span{font-size:10px;letter-spacing:1.4px;line-height:1.5;color:var(--theme-muted,#77756d)}
+.eddo-ha-temp-diff{font-size:11px;letter-spacing:1.2px;color:#ed821b;font-variant-numeric:tabular-nums}
+
+/* Workspace panel moved up to make room for Home Systems underneath */
+#stage:not([data-layout=compact]):not([data-layout=portrait]) .wb-module{top:17%}
+.eddo-ha-temp b{font-size:34px}
+/* collapsible headers */
+button.eddo-ha-kicker{width:100%;text-align:left;cursor:pointer;color:inherit}
+.eddo-ha-right{display:flex;align-items:center;gap:10px}
+.eddo-caret{font-style:normal;font-size:9px;color:var(--theme-muted,#77756d)}
+.eddo-caret::before{content:"▾"}
+.eddo-ha[data-collapsed=true] .eddo-caret::before,.wb-today[data-collapsed=true] .wb-heading h2::after{content:"▸"}
+.eddo-ha[data-collapsed=true] :is(.eddo-ha-temps,.eddo-ha-list,.eddo-ha-foot){display:none}
+.wb-today .wb-heading{cursor:pointer}
+.wb-today .wb-heading h2::after{content:"▾";font-size:.55em;opacity:.5;margin-left:8px;vertical-align:middle}
+.wb-today[data-collapsed=true] .wb-tasks{display:none}
+/* game mode tab */
+.eddo-game{display:grid;grid-template-columns:1fr;gap:0;margin-top:18px;border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-game button{display:flex;align-items:baseline;gap:14px;padding:14px 0;border-bottom:1px solid var(--theme-line,#bdb8ad);text-align:left}
+.eddo-game b{font-size:19px;font-weight:400;min-width:150px}
+.eddo-game small{font-size:11px;letter-spacing:1px;color:var(--theme-muted,#77756d);flex:1}
+.eddo-game button:hover b{color:#9b7247}
+/* Server / Eddo-NAS (left column, under Today's tasks) */
+.eddo-srv{margin-top:26px;font-size:12px;letter-spacing:.3px}
+.eddo-srv[hidden]{display:none}
+.eddo-srv-head{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:1.8px;border-top:1px solid var(--theme-line,#aaa59a);padding-top:12px;text-align:left;color:inherit}
+.eddo-srv-head b{font-weight:600}
+.eddo-srv-dot{width:7px;height:7px;background:#b8b2a6}.eddo-srv-dot[data-ok=true]{background:#5fb36b}
+.eddo-srv[data-collapsed=true] .eddo-caret::before{content:"▸"}
+.eddo-srv[data-collapsed=true] :is(.eddo-srv-body,.wb-muted){display:none}
+.eddo-srv-line{margin:10px 0 8px;font-size:10px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
+.eddo-srv-bar{display:grid;grid-template-columns:52px 1fr 40px;align-items:center;gap:10px;margin:6px 0;font-size:10px;letter-spacing:1.3px}
+.eddo-srv-bar i{height:3px;background:var(--theme-line,#bdb8ad);display:block}
+.eddo-srv-bar i b{display:block;height:100%;background:var(--theme-ink,#080a08)}
+.eddo-srv-bar i b[data-hot=true]{background:#ed821b}
+.eddo-srv-bar em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+.eddo-srv-chips{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:10px;letter-spacing:1px;text-transform:uppercase}
+.eddo-srv-chips span{color:var(--theme-muted,#77756d)}
+.eddo-srv-chips span::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border:1px solid currentColor;vertical-align:1px}
+.eddo-srv-chips span[data-on=true]{color:var(--theme-ink,#080a08)}
+.eddo-srv-chips span[data-on=true]::before{background:#5fb36b;border-color:#5fb36b}
+/* Printer */
+.eddo-prn{margin-top:18px}
+.eddo-prn-label{font-style:normal;font-size:10px;letter-spacing:1.6px;color:var(--theme-muted,#77756d);margin-right:8px}
+.eddo-prn-dot{width:7px;height:7px;background:#b8b2a6;display:inline-block}
+.eddo-prn[data-phase=printing] .eddo-prn-dot{background:#5fb36b;animation:eddo-pulse 1.6s ease-in-out infinite}
+.eddo-prn[data-phase=finished] .eddo-prn-dot{background:#5fb36b}
+.eddo-prn[data-phase=paused] .eddo-prn-dot{background:#ed821b}
+.eddo-prn[data-phase=failed] .eddo-prn-dot{background:#d9483b}
+.eddo-prn[data-collapsed=true] .eddo-prn-label{display:none}
+.eddo-prn-job{display:flex;gap:12px;align-items:center;margin:12px 0 6px}
+.eddo-prn-cover{width:52px;height:52px;object-fit:contain;border:1px solid var(--theme-line,#bdb8ad);background:rgba(127,127,127,.08);flex:none}
+.eddo-prn-info{min-width:0;display:flex;flex-direction:column;gap:4px}
+.eddo-prn-info b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eddo-prn-info span{font-size:10px;letter-spacing:1.6px;color:var(--theme-muted,#77756d);display:flex;align-items:center}
+.eddo-prn-fil{width:9px;height:9px;display:inline-block;margin-right:7px;border:1px solid rgba(127,127,127,.5);flex:none;vertical-align:-1px}
+.eddo-prn-foot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.eddo-prn-foot>div{display:flex;gap:6px}
+.eddo-prn-btn{font-size:10px;letter-spacing:1.6px;padding:4px 8px;border:1px solid var(--theme-line,#bdb8ad);color:inherit}
+.eddo-prn-btn:hover{border-color:currentColor}
+.eddo-prn-btn[data-on=true]{background:var(--theme-ink,#080a08);color:var(--theme-paper,#f3f1ea);border-color:var(--theme-ink,#080a08)}
+.eddo-prn-last{margin:10px 0 0;font-size:13px}
+.eddo-prn-diag{font-size:10px;letter-spacing:.6px;line-height:1.5;word-break:break-all;margin:8px 0 0}
+/* 07 Jarvis */
+.eddo-j-state{font-size:10px;letter-spacing:1.8px;color:var(--theme-muted,#77756d);display:flex;align-items:center;gap:8px;margin:0}
+.eddo-j-state i{width:7px;height:7px;background:#b8b2a6;display:inline-block}
+.eddo-jarvis[data-busy=true] .eddo-j-state i,.eddo-jarvis[data-speaking=true] .eddo-j-state i{background:#ed821b;animation:eddo-pulse 1s ease-in-out infinite}
+.eddo-j-state span{letter-spacing:.3px;text-transform:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eddo-j-reply{font-size:21px;line-height:1.5;margin:14px 0 18px;min-height:64px;max-height:200px;overflow:auto;overflow-wrap:anywhere}
+.eddo-j-prompts{border-top:1px solid var(--theme-line,#bdb8ad)}
+.eddo-j-prompts button{display:flex;justify-content:space-between;width:100%;padding:10px 0;border-bottom:1px solid var(--theme-line,#bdb8ad);font-size:13px;text-align:left}
+.eddo-j-prompts button:hover{color:#9b7247}
+.eddo-j-prompts button:disabled{opacity:.45}
+.eddo-j-history{margin-top:12px;font-size:11px;line-height:1.6;color:var(--theme-muted,#77756d)}
+.eddo-j-history p{margin:4px 0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.eddo-j-history b{font-weight:500;color:var(--theme-ink,#080a08);margin-right:6px}
+/* Talk to Jarvis — floating button (top right) and dialog */
+.eddo-talk{position:absolute;right:var(--edge,59px);top:124px;z-index:8;display:flex;align-items:center;gap:10px;padding:9px 14px;border:1px solid var(--theme-line,#a6a49c);font-size:11px;letter-spacing:1.8px;color:var(--theme-ink,#080a08);opacity:0;pointer-events:none;transition:opacity .6s}
+.eddo-talk[data-visible=true]{opacity:1;pointer-events:auto}
+.eddo-talk i{width:8px;height:8px;border-radius:50%;background:#ed821b}
+.eddo-talk:hover{border-color:#9b7247;color:#9b7247}
+.eddo-j-talk{display:flex;justify-content:space-between;width:100%;padding:12px 14px;margin-bottom:14px;border:1px solid var(--theme-ink,#080a08);font-size:13px;letter-spacing:1.4px;text-transform:uppercase}
+.eddo-j-talk span{font-size:10px;letter-spacing:1.4px;color:#ed821b}
+.eddo-j-talk:hover{color:#9b7247;border-color:#9b7247}
+.eddo-dlg{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(8,10,8,.45);backdrop-filter:blur(3px)}
+.eddo-dlg[data-open=true]{display:flex}
+.eddo-dlg-card{width:640px;padding:30px 34px 26px;background:var(--theme-paper,#e8e5e1);color:var(--theme-ink,#080a08);border-top:6px solid var(--theme-ink,#080a08);box-shadow:0 30px 80px rgba(0,0,0,.35)}
+[data-dark-surface=true] .eddo-dlg-card,#stage[data-theme=dark] .eddo-dlg-card{background:#151816;color:#ece9e2;border-top-color:#ece9e2}
+.eddo-dlg-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:1.8px;padding-bottom:14px;border-bottom:1px solid var(--theme-line,#bdb8ad)}
+.eddo-dlg-top button{font-size:10px;letter-spacing:1.6px;opacity:.7}.eddo-dlg-top button:hover{opacity:1;color:#9b7247}
+.eddo-dlg-state{display:flex;align-items:center;gap:10px;margin:18px 0 10px;font-size:12px;letter-spacing:2px}
+.eddo-dlg-state i{width:9px;height:9px;border-radius:50%;background:#b8b2a6}
+.eddo-dlg-card[data-state=listening] .eddo-dlg-state i{background:#d23c2c;animation:eddo-pulse 1s infinite}
+.eddo-dlg-card[data-state=thinking] .eddo-dlg-state i,.eddo-dlg-card[data-state=starting] .eddo-dlg-state i{background:#ed821b;animation:eddo-pulse .7s infinite}
+.eddo-dlg-card[data-state=replied] .eddo-dlg-state i{background:#5fb36b}
+.eddo-dlg-card[data-state=error] .eddo-dlg-state i{background:#b5452f}
+.eddo-dlg-state span{font-size:10px;letter-spacing:1px;opacity:.6}
+.eddo-dlg-meter{display:flex;align-items:flex-end;gap:5px;height:34px;margin-bottom:8px}
+.eddo-dlg-meter b{flex:1;background:currentColor;opacity:.75;transition:height .08s}
+.eddo-dlg-card:not([data-state=listening]) .eddo-dlg-meter b{height:8%!important;opacity:.25}
+.eddo-dlg-label{margin:16px 0 4px;font-size:10px;letter-spacing:1.8px;opacity:.55}
+.eddo-dlg-heard{margin:0;font-size:17px;line-height:1.5;min-height:26px}
+.eddo-dlg-reply{margin:0;font-size:22px;line-height:1.5;min-height:66px;max-height:230px;overflow:auto}
+.eddo-dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.eddo-dlg-actions button{padding:9px 14px;border:1px solid var(--theme-line,#a6a49c);font-size:11px;letter-spacing:1.6px}
+.eddo-dlg-actions button:hover{border-color:#9b7247;color:#9b7247}
+.eddo-dlg-actions button[hidden]{display:none}
+/* squeezed: only the header shows when there's no room under a tall tab */
+.eddo-ha[data-squeezed=true] :is(.eddo-ha-temps,.eddo-ha-list,.eddo-ha-foot){display:none}
+.eddo-ha[data-squeezed=true] .eddo-caret::before{content:"▸"}
+.eddo-ha[data-peek=true]{z-index:12;background:var(--theme-paper,#e8e5e1);box-shadow:0 -18px 40px rgba(0,0,0,.18);padding:0 12px 10px;margin-left:-12px}
+#stage[data-theme=dark] .eddo-ha[data-peek=true],[data-dark-surface=true] .eddo-ha[data-peek=true]{background:#151816}
+/* compact Jarvis tab */
+.eddo-j-reply{font-size:18px;min-height:0;max-height:140px;margin:10px 0 14px}
+.eddo-j-talk{margin-bottom:10px;padding:10px 14px}
+.eddo-j-prompts{display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
+.eddo-j-prompts button{padding:8px 0;font-size:12px}
+.eddo-j-history{display:none}
+/* Jarvis waveform */
+.eddo-wave{display:block;width:100%;height:46px;color:var(--theme-ink,#080a08);opacity:0;transition:opacity .4s}
+#stage[data-jarvis-speaking=true] .eddo-wave{opacity:.9}
+.eddo-j-wave{height:40px;margin-top:6px}
+.eddo-dlg-wave{height:54px;margin-top:-34px;color:#ed821b}
+.eddo-dlg-card[data-state=listening] .eddo-dlg-wave{display:none}
+/* greeting toast */
+.eddo-toast{position:absolute;left:50%;top:120px;z-index:25;width:760px;translate:-50% -14px;opacity:0;pointer-events:none;transition:opacity .6s,translate .6s;padding:18px 26px 12px;background:var(--theme-paper,#e8e5e1);color:var(--theme-ink,#080a08);border-top:4px solid var(--theme-ink,#080a08);box-shadow:0 24px 60px rgba(0,0,0,.25)}
+#stage[data-theme=dark] .eddo-toast,[data-dark-surface=true] .eddo-toast{background:#151816;color:#ece9e2;border-top-color:#ece9e2}
+.eddo-toast[data-open=true]{opacity:1;translate:-50% 0}
+.eddo-toast-k{margin:0;font-size:10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;opacity:.7}
+.eddo-toast-k i{width:7px;height:7px;border-radius:50%;background:#ed821b}
+.eddo-toast-t{margin:8px 0 4px;font-size:19px;line-height:1.5}
+.eddo-toast-wave{height:34px;color:#ed821b}
+/* burn-in guard: slow pixel shift of the interface (not the 3D background) */
+#stage > :not(#three-scene):not(.scene-atmosphere):not(.eddo-dim):not(.wallpaper-background):not(.eddo-dlg):not(.eddo-idle):not(.eddo-toast):not(.boot-background):not(#boot-background){translate:var(--eddo-shift-x,0px) var(--eddo-shift-y,0px);transition:translate 2s ease}
+/* idle mode: everything fades to a dim drifting clock */
+#stage[data-eddo-idle=true] > :not(#three-scene):not(.scene-atmosphere):not(.eddo-dim):not(.wallpaper-background):not(.eddo-idle){opacity:0!important;pointer-events:none!important;transition:opacity 1.5s!important}
+#stage[data-eddo-idle=true] .eddo-dim{opacity:.82!important;display:block!important}
+.eddo-idle{position:absolute;z-index:40;display:none;flex-direction:column;align-items:flex-start;color:#cfcac0;opacity:.55;transition:left 3s ease,top 3s ease;pointer-events:none}
+#stage[data-eddo-idle=true] .eddo-idle{display:flex}
+.eddo-idle b{font-size:120px;font-weight:200;letter-spacing:-4px;line-height:1}
+.eddo-idle span{font-size:12px;letter-spacing:3px;margin-top:8px}
+/* ↻ re-sync on Today's tasks */
+.eddo-task-refresh{margin-left:auto;margin-right:12px;width:22px;height:22px;font-size:14px;line-height:1;color:var(--theme-muted,#77756d);border:1px solid transparent}
+.eddo-task-refresh:hover{color:#9b7247;border-color:var(--theme-line,#bdb8ad)}
+.eddo-task-refresh[data-spin=true]{animation:eddo-spin .8s linear infinite;color:#ed821b}
+@keyframes eddo-spin{to{rotate:360deg}}
+.wb-today .wb-heading{display:flex;align-items:center}
+/* 05 Cameras */
+.eddo-cams{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px}
+.eddo-cams>.eddo-cam-note{grid-column:1/-1;margin:0}
+.eddo-cam-head{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1.6px;padding-bottom:6px}
+.eddo-cam-head em{font-style:normal;color:var(--theme-muted,#77756d)}
+.eddo-cam[data-live=true] .eddo-cam-head em{color:#ed821b}
+.eddo-cam[data-playing=true] .eddo-cam-head em{color:#d23c2c}
+.eddo-cam-media{position:relative;aspect-ratio:16/9;background:#101210;overflow:hidden;border:1px solid var(--theme-line,#bdb8ad)}
+.eddo-cam-media img,.eddo-cam-media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.eddo-cam-media video{opacity:0;transition:opacity .4s}
+.eddo-cam[data-playing=true] .eddo-cam-media video{opacity:1}
+.eddo-cam-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;letter-spacing:1.6px;color:#77756d}
+.eddo-cam-btn{margin-top:8px;width:100%;padding:8px 0;border:1px solid var(--theme-line,#a6a49c);font-size:11px;letter-spacing:1.6px}
+.eddo-cam-btn:hover{border-color:#9b7247;color:#9b7247}
+.eddo-cam-btn:disabled{opacity:.4}
+.eddo-cam[data-live=true] .eddo-cam-btn{border-color:#d23c2c;color:#d23c2c}
+.eddo-cams[data-count="3"],.eddo-cams[data-count="4"]{gap:10px 14px}
+:is(.eddo-cams[data-count="3"],.eddo-cams[data-count="4"]) .eddo-cam-btn{display:none}
+:is(.eddo-cams[data-count="3"],.eddo-cams[data-count="4"]) .eddo-cam-head{padding-bottom:4px}
+/* camera stills / zoom / big view */
+.eddo-cam-media{cursor:zoom-in}
+.eddo-cam-media img{opacity:1}.eddo-cam-media[data-empty=true] img{opacity:0}
+.eddo-cam-media[data-empty=false] .eddo-cam-empty{display:none}
+.eddo-cam-zoom{position:absolute;right:6px;top:4px;font-style:normal;font-size:14px;color:#fff;opacity:.6;text-shadow:0 1px 3px #000}
+.eddo-cam-overlay{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(8,10,8,.55);backdrop-filter:blur(3px);translate:none!important}
+.eddo-cam-overlay[data-open=true]{display:flex}
+.eddo-cam-big{width:960px;padding:16px 18px 18px;background:var(--theme-paper,#e8e5e1);color:var(--theme-ink,#080a08);border-top:5px solid var(--theme-ink,#080a08);box-shadow:0 30px 80px rgba(0,0,0,.4)}
+#stage[data-theme=dark] .eddo-cam-big,[data-dark-surface=true] .eddo-cam-big{background:#151816;color:#ece9e2;border-top-color:#ece9e2}
+.eddo-cam-big .eddo-cam-head{align-items:center;gap:14px;padding-bottom:10px}
+.eddo-cam-big .eddo-cam-head span{font-size:12px;letter-spacing:2px}
+.eddo-cam-big .eddo-cam-head em{margin-left:auto}
+.eddo-cam-close{font-size:14px;opacity:.7}.eddo-cam-close:hover{opacity:1;color:#9b7247}
+.eddo-cam-big .eddo-cam-media{cursor:default}
+.eddo-cam-big .eddo-cam-zoom{display:none}
+.eddo-cam-big[data-live=true] .eddo-cam-head em{color:#ed821b}
+.eddo-cam-big[data-playing=true] .eddo-cam-head em{color:#d23c2c}
+.eddo-cam-big[data-playing=true] video{opacity:1}
+.eddo-cam-big[data-live=true] .eddo-cam-btn{border-color:#d23c2c;color:#d23c2c}
+/* Today's tasks lives in the 02 tab now; hidden from the left column */
+.wb-overview>.wb-today{display:none!important}
+.wb-content .wb-today{margin-top:4px}
+.wb-content .wb-today .wb-heading{border-top:0;padding-top:0;cursor:default;justify-content:flex-end}
+.wb-content .wb-today .wb-heading h2{display:none}
+.wb-content .wb-today[data-collapsed=true] .wb-tasks{display:block}
+.wb-content .wb-today .wb-task{font-size:17px;padding:14px 0}
+.wb-content .wb-today .eddo-task-refresh{margin-left:0;margin-right:12px}
+
+/* ===================================================================
+   Wordmark: drop the "ANALYSIS OS" line (keeps EDDO LAB / INTEGRATED HOME SYSTEMS)
+   =================================================================== */
+.brand>p{display:none!important}
+
+/* ===================================================================
+   Type pass — every EDDO addition uses the wallpaper's own scale:
+     kicker   11px · 1.8px tracking · uppercase      (section headers)
+     label    10px · 1.6px tracking · uppercase      (states, units, small tags)
+     button   11px · 1.6px tracking · uppercase
+     body     13px · .3px                            (rows, list items)
+     reading  18px · 1.5                             (Jarvis replies)
+     figure   300 weight, tabular numbers            (temperatures, clock)
+   =================================================================== */
+:is(.eddo-ha,.eddo-srv,.eddo-talk,.eddo-dlg,.eddo-toast,.eddo-cam-overlay,.eddo-idle,[data-eddo-tab],.eddo-cams,.eddo-jarvis,.eddo-game){font-family:MiSans,Mi Sans,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+/* kickers */
+:is(.eddo-ha-kicker,.eddo-srv-head,.eddo-dlg-top,.eddo-cam-big .eddo-cam-head span){font-size:11px!important;letter-spacing:1.8px!important;text-transform:uppercase;font-weight:400}
+:is(.eddo-ha-kicker,.eddo-srv-head) b{font-weight:600}
+/* labels */
+:is(.eddo-ha-state,.eddo-ha-foot,.eddo-srv-line,.eddo-srv-bar,.eddo-cam-head,.eddo-cam-state,.eddo-cam-empty,.eddo-j-state,.eddo-dlg-state,.eddo-dlg-label,.eddo-toast-k,.eddo-ha-temp span,.eddo-ha-temp-diff,.eddo-game small,.eddo-idle span){font-size:10px!important;letter-spacing:1.6px!important;text-transform:uppercase}
+.eddo-ha:not([data-status=live]) .eddo-ha-foot{text-transform:none;letter-spacing:.3px!important;font-size:12px!important}
+.eddo-j-state span{text-transform:none;letter-spacing:.3px}
+/* buttons */
+:is(.eddo-ha-actions button,.eddo-ha-modes button,.eddo-cam-btn,.eddo-dlg-actions button,.eddo-dlg-top button,.eddo-talk,.eddo-j-talk){font-size:11px!important;letter-spacing:1.6px!important;text-transform:uppercase;font-weight:400}
+:is(.eddo-ha-actions button,.eddo-ha-modes button,.eddo-cam-btn,.eddo-dlg-actions button) span{font-size:inherit;letter-spacing:inherit}
+/* body */
+:is(.eddo-ha-name,.eddo-j-prompts button,.eddo-dlg-heard,.eddo-toast-t){font-size:13px!important;letter-spacing:.3px;line-height:1.5}
+.eddo-dlg-heard{font-size:15px!important}
+.eddo-game b{font-size:18px!important;font-weight:400}
+/* reading */
+:is(.eddo-j-reply,.eddo-dlg-reply){font-size:18px!important;line-height:1.5;font-weight:400}
+.eddo-toast-t{font-size:17px!important}
+/* figures */
+.eddo-ha-temp b{font-weight:300;letter-spacing:-1px}
+.eddo-idle b{font-weight:200}
+/* shared colours for secondary text */
+:is(.eddo-ha-state,.eddo-ha-foot,.eddo-srv-line,.eddo-cam-head em,.eddo-j-state,.eddo-ha-temp span,.eddo-game small,.eddo-dlg-label){color:var(--theme-muted,#77756d)}
+/* the moved task list uses the workspace row style */
+.wb-content .wb-today .wb-task{font-size:15px!important;letter-spacing:.3px}
+/* light controls — slim brightness bar under each dimmable light, colour dot, compact colour strip */
+.eddo-ha-grid .eddo-ha-row{flex-wrap:wrap;position:relative}
+.eddo-ha-row .eddo-ha-main{min-width:0}
+.eddo-ha-dot{flex:0 0 12px;height:12px;align-self:center;margin-left:10px;border:1px solid var(--theme-muted,#a6a49c);background:var(--dot,transparent);border-radius:50%}
+.eddo-ha-dot:hover,.eddo-ha-dot[aria-expanded=true]{outline:1px solid var(--theme-ink,#080a08);outline-offset:2px}
+.eddo-ha-range{-webkit-appearance:none;appearance:none;display:block;width:100%;height:14px;margin:-6px 0 4px;background:transparent;cursor:pointer}
+.eddo-ha-range:focus{outline:none}
+.eddo-ha-range::-webkit-slider-runnable-track{height:2px;background:linear-gradient(90deg,var(--theme-ink,#080a08) var(--pct,0%),var(--theme-line,#bdb8ad) var(--pct,0%))}
+.eddo-ha-range::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:8px;margin-top:-3px;background:var(--theme-ink,#080a08);border:0;opacity:0;transition:opacity .2s}
+.eddo-ha-row:hover .eddo-ha-range::-webkit-slider-thumb,.eddo-ha-range:active::-webkit-slider-thumb{opacity:1}
+.eddo-ha-row[data-on=false] .eddo-ha-range::-webkit-slider-runnable-track{background:var(--theme-line,#bdb8ad)}
+.eddo-ha-light{padding:10px 0 8px;border-bottom:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-light-head{display:flex;justify-content:space-between;align-items:center;font-size:10px!important;letter-spacing:1.6px!important;color:var(--theme-muted,#77756d);margin-bottom:8px}
+.eddo-ha-light-head button{font-size:11px;color:var(--theme-muted,#77756d)}.eddo-ha-light-head button:hover{color:#9b7247}
+.eddo-ha-swatches{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.eddo-sw{width:16px;height:16px;flex:0 0 16px;background:var(--c);border:1px solid rgba(0,0,0,.25)}
+.eddo-sw:hover{outline:1px solid var(--theme-ink,#080a08);outline-offset:2px}
+.eddo-sw-gap{width:8px;flex:0 0 8px;border-left:1px solid var(--theme-line,#bdb8ad);height:16px;margin-left:4px}
+.eddo-ha-hue{height:12px;margin:0}
+.eddo-ha-hue::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,hsl(0 100% 55%),hsl(60 100% 55%),hsl(120 100% 45%),hsl(180 100% 45%),hsl(240 100% 60%),hsl(300 100% 55%),hsl(359 100% 55%))!important}
+.eddo-ha-hue::-webkit-slider-thumb{opacity:1;width:3px;height:12px;margin-top:-4px;background:var(--theme-ink,#080a08)}
+/* fix: keep the light name on its own line; slider always wraps beneath */
+.eddo-ha-grid .eddo-ha-row{display:flex;flex-wrap:wrap;align-items:center}
+.eddo-ha-grid .eddo-ha-row .eddo-ha-main{flex:1 1 auto;min-width:60%}
+.eddo-ha-grid .eddo-ha-row .eddo-ha-dot{flex:0 0 12px}
+/* custom sliders */
+.eddo-slider{flex:0 0 100%;position:relative;height:16px;margin:-6px 0 4px;cursor:pointer;touch-action:none}
+.eddo-slider::before{content:"";position:absolute;left:0;right:0;top:7px;height:2px;background:var(--theme-line,#bdb8ad)}
+.eddo-slider i{position:absolute;left:0;top:7px;height:2px;width:var(--pct,0%);background:var(--theme-ink,#080a08)}
+.eddo-slider i::after{content:"";position:absolute;right:-4px;top:-3px;width:8px;height:8px;background:var(--theme-ink,#080a08);opacity:0;transition:opacity .2s}
+.eddo-ha-row:hover .eddo-slider i::after,.eddo-slider[data-dragging=true] i::after,.eddo-ha-hue i::after{opacity:1}
+.eddo-ha-row[data-on=false] .eddo-slider i{background:var(--theme-muted,#a6a49c)}
+.eddo-ha-hue{margin:0;height:14px}
+.eddo-ha-hue::before{top:5px;height:4px;background:linear-gradient(90deg,hsl(0 100% 55%),hsl(60 100% 55%),hsl(120 100% 45%),hsl(180 100% 45%),hsl(240 100% 60%),hsl(300 100% 55%),hsl(359 100% 55%))}
+.eddo-ha-hue i{top:5px;height:4px;background:transparent}
+.eddo-ha-hue i::after{width:3px;height:12px;top:-4px;right:-1.5px}
+/* brightness bar: clearly a control, not a divider */
+.eddo-ha-grid .eddo-ha-row .eddo-ha-main{padding-bottom:4px}
+.eddo-slider.eddo-ha-bri{height:18px;margin:0 0 9px}
+.eddo-slider.eddo-ha-bri::before{top:7px;height:4px;background:var(--theme-line,#bdb8ad);opacity:.6}
+.eddo-slider.eddo-ha-bri i{top:7px;height:4px}
+.eddo-slider.eddo-ha-bri i::after{opacity:1!important;width:10px;height:10px;top:-3px;right:-5px}
+.eddo-slider.eddo-ha-bri:hover i::after,.eddo-slider.eddo-ha-bri[data-dragging=true] i::after{background:#ed821b}
+/* scroll-to-dim: show it's adjustable on hover */
+.eddo-ha .eddo-ha-row:has(.eddo-ha-bri):hover{background:linear-gradient(90deg,rgba(237,130,27,.06),transparent)}
+.eddo-ha .eddo-ha-row:has(.eddo-ha-bri):hover .eddo-ha-state::after{content:" ⇅";opacity:.5}
+/* Open Google Tasks — in the 02 tasks panel header */
+.eddo-task-open{margin-right:auto;padding:6px 12px;border:1px solid var(--theme-line,#a6a49c);font-size:11px!important;letter-spacing:1.6px!important;text-transform:uppercase}
+.eddo-task-open span{margin-left:6px}
+.eddo-task-open:hover{border-color:#9b7247;color:#9b7247}
+.wb-overview .eddo-task-open{display:none}
+.wb-content .wb-today .wb-heading{justify-content:flex-start;gap:12px;margin-bottom:6px}
+.wb-content .wb-today .wb-task-count{margin-left:0}
+
+/* footer clock: bigger and solid so it renders crisp when the stage is scaled up */
+#stage .footer-identity{font-size:10px;letter-spacing:1.2px;font-weight:500;-webkit-font-smoothing:antialiased}
+#stage[data-theme=dark] .footer-identity,[data-dark-surface=true] .footer-identity{color:#a9a69c}
+
+/* quick buttons, top right: OPEN FILES + TALK TO JARVIS */
+.eddo-quick{position:absolute;right:var(--edge,59px);top:124px;z-index:8;display:flex;gap:10px;opacity:0;pointer-events:none;transition:opacity .6s}
+.eddo-quick[data-visible=true]{opacity:1;pointer-events:auto}
+.eddo-quick .eddo-talk{position:static;opacity:1;pointer-events:auto}
+.eddo-quick .eddo-talk[hidden]{display:none}
+.eddo-files i{width:10px;height:8px;border-radius:0;background:none;border:1.5px solid currentColor;border-top-width:3px}
+.eddo-files[data-busy=true]{border-color:#9b7247;color:#9b7247}
+
+/* web edition (Mac etc.): no PC controller, so hide what needs it */
+html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
+
+/* footer battery: KEYBOARD 82% · MOUSE 45% */
+.eddo-batt{display:inline-flex;align-items:center;gap:7px;margin-left:12px;padding:2px 0 2px 14px;border-left:1px solid currentColor;white-space:nowrap;font-variant-numeric:tabular-nums}
+.eddo-batt[hidden]{display:none}
+.eddo-batt b{font-weight:inherit}
+.eddo-batt b[data-low=true]{color:#ed821b}
+.eddo-batt i{font-style:normal;opacity:.6}
+
+/* EDDO-PC panel */
+.eddo-pc{margin-top:18px}
+.eddo-pc .eddo-srv-dot[data-hot=true]{background:#ed821b}
+.eddo-pc[data-collapsed=true] :is(.eddo-srv-body){display:none}
+
+/* 01 Time & date: the big clock + date live in the tab (moved from the left column) */
+.eddo-time-slot{padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid var(--theme-line,#bdb8ad)}
+.eddo-time-slot .wb-clock{display:block;font-size:96px;line-height:1.05}
+.eddo-time-slot~.wb-large{font-size:44px;line-height:1.1}
+.eddo-time-slot~.wb-rule{margin-top:10px}
+.eddo-time-slot .wb-date{margin-top:10px}
+
+/* clock + date only show inside tab 01, never in the left column */
+.wb-time>:is(.wb-clock,.wb-date){display:none}
+/* no divider between DAILY TERMINAL and the first panel under it */
+:is(.wb-time+.eddo-srv,.wb-time+.wb-today+.eddo-srv)>.eddo-srv-head{border-top:0;padding-top:0}
+:is(.wb-time+.eddo-srv,.wb-time+.wb-today+.eddo-srv){margin-top:18px}

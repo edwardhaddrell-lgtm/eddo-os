@@ -1,0 +1,42 @@
+{
+  "name": "loupedeck-controller",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "hello": "tsx src/hello.ts",
+    "start": "tsx src/main.ts",
+    "preview": "tsx src/preview.ts",
+    "typecheck": "tsc --noEmit",
+    "action": "tsx src/cli.ts",
+    "service": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run.ps1",
+    "install-startup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-startup.ps1",
+    "remove-startup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-startup.ps1 -Remove"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "loupedeck": "^7.0.3",
+    "serialport": "^13.0.0",
+    "yaml": "^2.9.1",
+    "audify": "^1.10.1",
+    "ws": "^8.18.0",
+    "koffi": "3.3.5",
+    "cue-sdk": "4.0.84"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "@types/ws": "^8.5.12"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true,
+    "@serialport/bindings-cpp@13.0.0": true,
+    "esbuild@0.28.2": true,
+    "audify@1.10.1": true,
+    "koffi@3.3.5": true
+  }
+}
