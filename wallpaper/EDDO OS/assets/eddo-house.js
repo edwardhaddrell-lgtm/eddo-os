@@ -488,7 +488,7 @@
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
-      m.faces.material.opacity = dim ? 0.02 : isHover || isFocus ? 0.4 : r.quiet ? 0.06 : 0.14;
+      m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.2 : r.quiet ? 0.03 : 0.07;
       m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
       for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
     }
