@@ -152,7 +152,7 @@
     if (renderer) return true;
     if (building) return building;
     building = (async () => {
-      try { T = await import("./three-eddo.min.js"); } catch (err) { console.warn("House: three.js failed to load", err); return false; }
+      try { T = await import("./three-eddo-2.min.js"); } catch (err) { console.warn("House: three.js failed to load", err); return false; }
       const stage = document.querySelector("#stage"); if (!stage) return false;
       canvas = document.createElement("canvas"); canvas.className = "eddo-house-canvas";
       labelsEl = document.createElement("div"); labelsEl.className = "eddo-house-labels";
@@ -294,21 +294,55 @@
       (r.furniture = r.furniture || []).push(...parts);
     }
 
-    // devices: a small marker each; lights also throw a pool of light on the floor
+    // devices: a marker shaped by what it is. Markers draw on top of walls and keep the same size on screen.
+    const mat = (o) => new T.MeshBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: T.DoubleSide, ...o });
+    const lmat = () => new T.LineBasicMaterial({ color: 0x6f878c, transparent: true, opacity: 0, depthTest: false, depthWrite: false });
+    const segs = (pts) => { const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(pts.flat(), 3)); return g2; };
     for (const d of devices) {
       const r = d.roomRef, g = r.mesh.g;
       const hgt = d.kind === "climate" && /radiator/i.test(d.name) ? 0.45 : Math.min(KIND_HEIGHT[d.kind] ?? 1, r.h - 0.2);
       const x = -r.w / 2 + d.u * r.w, z = -r.d / 2 + d.v * r.d;
-      const core = new T.Mesh(new T.BoxGeometry(0.14, 0.14, 0.14), new T.MeshBasicMaterial({ color: 0x5d7277, transparent: true, opacity: 0.9 }));
-      core.position.set(x, hgt, z); g.add(core);
-      const hit = new T.Mesh(new T.BoxGeometry(0.55, 0.55, 0.55), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const core = new T.Group(); core.position.set(x, hgt, z); core.renderOrder = 20; g.add(core);
+      const parts = [];   // role: on = only when running, off = only when idle, both = always; k = opacity
+      const add = (obj, role, k, tint = true) => { obj.renderOrder = 20; core.add(obj); parts.push({ obj, role, k, tint }); return obj; };
+      const faceCentre = () => { core.rotation.order = "YXZ"; core.rotation.y = Math.atan2(-x, -z); };
+      const k = d.kind;
+      if (k === "light" || k === "lamp") {
+        const rad = k === "light" ? 0.1 : 0.075;
+        add(new T.Mesh(new T.SphereGeometry(rad, 18, 12), mat()), "on", 1);                                    // the bulb
+        add(new T.Mesh(new T.SphereGeometry(rad * 2.4, 18, 12), mat({ blending: T.AdditiveBlending })), "on", 0.22); // its halo
+        const ring = add(new T.Mesh(new T.RingGeometry(rad * 0.75, rad, 28), mat()), "off", 0.85, false);       // off: a hollow ring
+        ring.rotation.x = -Math.PI / 2;
+      } else if (k === "camera") {
+        const W = 0.17, Hh = 0.11, L = 0.34, c = [[-W, -Hh, L], [W, -Hh, L], [W, Hh, L], [-W, Hh, L]];
+        const pts = []; for (let i = 0; i < 4; i++) pts.push([0, 0, 0], c[i], c[i], c[(i + 1) % 4]);
+        add(new T.LineSegments(segs(pts), lmat()), "both", 0.8);                                                 // a view cone
+        add(new T.Mesh(new T.SphereGeometry(0.035, 10, 8), mat()), "both", 1);
+        faceCentre(); core.rotation.x = 0.4;
+      } else if (k === "tv") {
+        add(new T.Mesh(new T.PlaneGeometry(0.36, 0.21), mat()), "on", 0.55);                                    // a screen that lights up
+        add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(0.36, 0.21)), lmat()), "both", 0.9);
+        faceCentre();
+      } else if (k === "climate") {
+        const e = add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.12, 0.12, 0.12)), lmat()), "both", 0.6); // a diamond
+        e.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+        const f = add(new T.Mesh(new T.BoxGeometry(0.07, 0.07, 0.07), mat()), "on", 0.9); f.rotation.copy(e.rotation);
+      } else if (k === "printer" || k === "pc") {
+        add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.2, 0.2, 0.2)), lmat()), "both", 0.85); // a wire cube
+        add(new T.Mesh(new T.BoxGeometry(0.09, 0.09, 0.09), mat()), "on", 0.95);
+      } else {   // appliances, fans
+        const ring = add(new T.Mesh(new T.RingGeometry(0.1, 0.13, 6), mat()), "both", 0.8);                     // a hexagon ring
+        ring.rotation.x = -Math.PI / 2;
+        add(new T.Mesh(new T.SphereGeometry(0.045, 10, 8), mat()), "on", 1);
+      }
+      const hit = new T.Mesh(new T.BoxGeometry(0.6, 0.6, 0.6), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       hit.position.copy(core.position); hit.userData.device = d; g.add(hit);
       let pool = null;
-      if (d.kind === "light" || d.kind === "lamp") {
-        pool = new T.Mesh(new T.CircleGeometry(d.kind === "light" ? 0.9 : 0.5, 32), new T.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      if (k === "light" || k === "lamp") {
+        pool = new T.Mesh(new T.CircleGeometry(k === "light" ? 0.9 : 0.5, 32), new T.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
         pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.07, z); g.add(pool);
       }
-      d.mesh = { core, hit, pool, glow: 0 };
+      d.mesh = { core, hit, pool, parts, glow: 0, size: 1 };
     }
     // labels
     labelsEl.innerHTML = rooms.filter((r) => !r.quiet).map((r) => `<div class="eddo-house-label" data-room="${r.id}"><b>${esc(r.name.toUpperCase())}</b><span></span></div>`).join("");
@@ -415,18 +449,28 @@
     }
   }
 
+  const _wp = { v: null };
   function updateDevices(dt, now) {
+    const tmp = _wp.v || (_wp.v = new T.Vector3());
     for (const d of devices) {
       const m = d.mesh; if (!m) continue;
       const st = devState(d); d.st = st;
-      const want = st.active ? 1 : 0;
-      m.glow += (want - m.glow) * Math.min(1, dt * 4);
-      const col = st.active ? new T.Color(...(st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : [1, 0.64, 0.29]))) : new T.Color(st.linked ? 0x6f878c : 0x3c4648);
-      m.core.material.color.copy(col);
+      m.glow += ((st.active ? 1 : 0) - m.glow) * Math.min(1, dt * 3);      // fade over about a second
+      const col = new T.Color(...(st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : d.kind === "camera" ? [1, 0.38, 0.32] : [1, 0.64, 0.29])));
+      const idle = new T.Color(st.linked ? 0x7d9599 : 0x3c4648);
       const dim = hiddenFloor(d.roomRef.floor) || (whatsOn && !focused && !devActive(d));
-      const pulse = d.kind === "camera" && st.active ? 0.55 + 0.45 * Math.sin(now / 400) : 1;
-      m.core.material.opacity = (dim ? 0.15 : 0.95) * pulse;
-      const sc = hoveredDev === d ? 1.6 : 1; m.core.scale.setScalar(sc);
+      const near = hoveredDev === d || focused === d.roomRef;
+      const base = dim ? 0.12 : near ? 1 : 0.8;
+      for (const p of m.parts) {
+        const w = p.role === "on" ? m.glow : p.role === "off" ? 1 - m.glow : 1;
+        p.obj.material.opacity = base * p.k * w;
+        p.obj.material.color.copy(p.tint ? idle.clone().lerp(col, m.glow) : idle);
+        p.obj.visible = p.obj.material.opacity > 0.005;
+      }
+      // same size on screen at any zoom; a little bigger under the mouse
+      m.core.getWorldPosition(tmp);
+      const want = Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);
+      m.size += (want - m.size) * Math.min(1, dt * 8); m.core.scale.setScalar(m.size);
       if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * (heatMode ? 0.3 : 1); }
     }
   }
@@ -444,7 +488,7 @@
       r.label.dataset.hidden = String(!vis);
       r.label.dataset.on = String(r.on > 0);
       r.label.dataset.active = String(hovered === r || focused === r);
-      const s = r.label.querySelector("span"), txt = heatMode ? (r.temp != null ? `${r.temp.toFixed(1)}°` : "") : (r.on || hovered === r || focused === r) ? roomStatus(r) : "";
+      const s = r.label.querySelector("span"), txt = heatMode ? (r.temp != null ? `${r.temp.toFixed(1)}°` : "") : (hovered === r || focused === r) ? roomStatus(r) : "";
       if (s.textContent !== txt) s.textContent = txt;
     }
     for (const d of devices) {
@@ -563,8 +607,14 @@
     call("climate", "set_temperature", { target: { entity_id: id }, service_data: { temperature: Math.round(t * 2) / 2 } });
   }
   const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, button, a"));
+  let lastInput = performance.now();
+  function back() { if (focused) focus(null); else if (floorSel || whatsOn) { whatsOn = false; setFloor(null); } }
+  setInterval(() => { if (running && !drag && (focused || floorSel || whatsOn) && performance.now() - lastInput > 120000) back(); }, 5000);  // drift home after 2 idle minutes
   function hookInput() {
     const stage = document.querySelector("#stage");
+    ["mousemove", "mousedown", "wheel"].forEach((t) => window.addEventListener(t, () => { lastInput = performance.now(); }, { passive: true }));
+    stage.addEventListener("contextmenu", (e) => { if (!running || overUi(e.target)) return; e.preventDefault(); back(); });
+    window.addEventListener("keydown", (e) => { if (running && e.key === "Escape") back(); });
     stage.addEventListener("mousedown", (e) => { if (!running || overUi(e.target)) return; drag = { x: e.clientX, y: e.clientY, theta: view.theta, phi: view.goal.phi, moved: false }; });
     window.addEventListener("mousemove", (e) => {
       if (!running) return;
