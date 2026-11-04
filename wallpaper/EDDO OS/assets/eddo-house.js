@@ -697,7 +697,7 @@
       const want = r.on && !heatMode && !energyMode ? 0.16 + 0.3 * r.bri : 0;
       r.glow += (want - r.glow) * Math.min(1, dt * 4);
       const lc = new T.Color(r.color[0], r.color[1], r.color[2]);
-      m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow;
+      m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow * FLOOR_GLOW;
       m.plate.material.color.copy(new T.Color(C.plate).lerp(lc, r.glow * 0.7));
       const isFocus = focused === r, isHover = hovered === r, dim = isDim(r);
       const night = 0.6 + 0.4 * dayK;                         // the model darkens after sunset; lit rooms keep glowing
@@ -708,7 +708,7 @@
         m.plate.material.color.copy(tempColour(r.temp).multiplyScalar(0.5 + 0.15 * breathe));
         m.glow.material.color.copy(new T.Color(0xff8a3d)); m.glow.material.opacity = r.action === "heating" ? 0.05 + 0.1 * breathe : 0;
       }
-      else m.plate.material.color.copy(base.lerp(lc, r.glow * 0.7));
+      else m.plate.material.color.copy(base.lerp(lc, r.glow * 0.7 * FLOOR_GLOW));
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
@@ -817,6 +817,7 @@
     for (; pi < flow.packets.length; pi++) flow.packets[pi].visible = false;
   }
   const _wp = { v: null };
+  const FLOOR_GLOW = window.EDDO_WEB ? 0.5 : 1;   // lit floors glow half as strongly on the Mac (its screen makes them look brighter)
   function updateDevices(dt, now) {
     const tmp = _wp.v || (_wp.v = new T.Vector3());
     for (const d of devices) {
@@ -840,7 +841,7 @@
       m.core.getWorldPosition(tmp);
       const want = Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);
       m.size += (want - m.size) * Math.min(1, dt * 8); m.core.scale.setScalar(m.size);
-      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22); }
+      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * FLOOR_GLOW; }
     }
   }
   // background that follows the real sky: night navy with stars, a warm glow on the sun's side at dawn and dusk, a pale haze by day
