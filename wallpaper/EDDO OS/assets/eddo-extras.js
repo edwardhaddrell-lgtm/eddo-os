@@ -629,11 +629,28 @@
   const picUrl = (p) => `${HA().baseUrl()}${p}${p.includes("?") ? "&" : "?"}t=${Date.now()}`;
   // try each snapshot source in turn; fall back to the last live frame, then a placeholder
   function loadStill(c, img) {
-    const srcs = c.pics.map(picUrl); if (lastFrame.has(c.key)) srcs.push(lastFrame.get(c.key));
-    let i = 0;
-    let tries = c.other ? 2 : 0;
-    const next = () => { if (i < srcs.length) img.src = srcs[i++]; else if (tries-- > 0 && c.pics.length) { i = 0; srcs.splice(0, c.pics.length, ...c.pics.map(picUrl)); setTimeout(() => { if (img.isConnected && !(CAMS.live && CAMS.live.key === c.key)) next(); }, 4000); } else { img.removeAttribute("src"); img.closest(".eddo-cam-media")?.setAttribute("data-empty", "true"); } };
-    img.onerror = next; img.onload = () => img.closest(".eddo-cam-media")?.setAttribute("data-empty", "false");
+    let srcs = c.pics.map(picUrl); if (lastFrame.has(c.key)) srcs.push(lastFrame.get(c.key));
+    let i = 0, tries = 3;
+    const empty = () => { img.removeAttribute("src"); img.closest(".eddo-cam-media")?.setAttribute("data-empty", "true"); };
+    // every camera gets a few retries; each retry asks Home Assistant for fresh picture links (they expire)
+    const retry = async () => {
+      try {
+        const states = await HA().send({ type: "get_states" });
+        const fresh = [c.still, c.live].map((id) => id && states.find((x) => x.entity_id === id)).filter(Boolean).map((x) => x.attributes.entity_picture).filter(Boolean);
+        if (fresh.length) c.pics = [...new Set(fresh)];
+      } catch (_) {}
+      srcs = c.pics.map(picUrl);
+      i = 0;
+    };
+    const next = () => {
+      if (i < srcs.length) { img.src = srcs[i++]; return; }
+      if (tries-- > 0) { setTimeout(async () => { if (!img.isConnected || (CAMS.live && CAMS.live.key === c.key)) return; await retry(); next(); }, 3000); return; }
+      empty();
+    };
+    img.onerror = next;
+    img.onload = () => {
+      img.closest(".eddo-cam-media")?.setAttribute("data-empty", "false");
+    };
     next();
   }
   function grabFrame(key) {
