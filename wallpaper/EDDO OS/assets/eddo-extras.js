@@ -820,6 +820,20 @@
       return true;
     },
     keys: () => CAMS.list.map((c) => c.key),
+    // a motion-JPEG URL for a small live preview (fresh token each time), or a still if the camera has no stream
+    async feed(key) {
+      if (!CAMS.loaded) await loadCameras();
+      const c = CAMS.list.find((x) => x.key === key); if (!c) return null;
+      const ids = [c.live, c.still].filter(Boolean); if (!ids.length) return null;
+      try {
+        const states = await HA().send({ type: "get_states" });
+        for (const id of ids) {
+          const st = states.find((x) => x.entity_id === id), pic = st && st.attributes.entity_picture;
+          if (pic) return { stream: HA().baseUrl() + pic.replace("/api/camera_proxy/", "/api/camera_proxy_stream/"), still: picUrl(pic), label: c.label };
+        }
+      } catch (_) {}
+      return c.pics[0] ? { stream: null, still: picUrl(c.pics[0]), label: c.label } : null;
+    },
   };
   // keep the big view's labels in step with the card
   setInterval(() => {

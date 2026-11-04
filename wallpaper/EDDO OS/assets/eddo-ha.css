@@ -413,12 +413,6 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 
 /* 05 House: just the model and the room list */
 #stage[data-eddo-house] :is(.brand,.wb-overview,.eddo-ha){opacity:0!important;pointer-events:none!important;transition:opacity .4s}
-.eddo-house-bar{display:flex;justify-content:space-between;gap:10px;margin:0 0 6px}
-.eddo-house-seg{display:inline-flex;border:1px solid var(--theme-line,#bdb8ad)}
-.eddo-house-seg button{padding:6px 10px;font-size:10px;letter-spacing:1.6px;color:var(--theme-muted,#8f8c84)}
-.eddo-house-seg button+button{border-left:1px solid var(--theme-line,#bdb8ad)}
-.eddo-house-seg button:hover{color:#9b7247}
-.eddo-house-seg button[aria-pressed=true]{background:var(--theme-ink,#ece9e2);color:var(--theme-paper,#151816)}
 .eddo-house-sunline{margin:0 0 10px;font-size:10px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
 .eddo-house-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .eddo-house-off{padding:5px 10px;border:1px solid var(--theme-line,#bdb8ad);font-size:10px;letter-spacing:1.6px;color:inherit}
@@ -435,3 +429,54 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-house-clim{display:flex;gap:6px;margin:-2px 0 8px 20px}
 .eddo-house-clim button{min-width:28px;padding:4px 8px;border:1px solid var(--theme-line,#bdb8ad);font-size:11px;letter-spacing:1.2px;color:inherit}
 .eddo-house-clim button:hover{border-color:#9b7247;color:#9b7247}
+
+/* House tab: floor tabs with a sliding highlight, view + overlay chips */
+.eddo-house-bar{display:flex;flex-direction:column;gap:7px;margin:0 0 14px}
+.eddo-house-tabs{position:relative;display:flex;justify-content:space-between;border-bottom:1px solid var(--theme-line,#3a3f3d)}
+.eddo-house-tabs button{padding:6px 2px 8px;font-size:10px;letter-spacing:1.7px;color:var(--theme-muted,#8f8c84);transition:color .3s}
+.eddo-house-tabs button:hover{color:var(--theme-ink,#ece9e2)}
+.eddo-house-tabs button[aria-pressed=true]{color:#ffd2a0}
+.eddo-house-ind{position:absolute;left:0;bottom:-1px;width:0;height:2px;background:#ffb36b;box-shadow:0 0 8px rgba(255,179,107,.7);transition:transform .5s cubic-bezier(.65,0,.35,1),width .5s cubic-bezier(.65,0,.35,1),opacity .3s;pointer-events:none}
+.eddo-house-views{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.eddo-house-cap{width:40px;font-size:8.5px;letter-spacing:1.8px;color:var(--theme-muted,#77756d);opacity:.65}
+.eddo-house-views button{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;font-size:9.5px;letter-spacing:1.4px;color:var(--theme-muted,#8f8c84);border:1px solid transparent;border-radius:2px;transition:color .25s,border-color .25s,background .25s}
+.eddo-house-views button:hover{color:var(--theme-ink,#ece9e2);border-color:var(--theme-line,#3a3f3d)}
+.eddo-house-views button[aria-pressed=true]{color:#ffd2a0;border-color:rgba(255,179,107,.4);background:rgba(255,179,107,.08)}
+.eddo-house-views button[aria-pressed=true]::before{content:"";width:4px;height:4px;border-radius:50%;background:#ffb36b;box-shadow:0 0 6px #ffb36b}
+.eddo-house-sun{margin-left:auto;font-size:9.5px;letter-spacing:1.2px;color:var(--theme-muted,#77756d)}
+/* hold / hover ring around a marker */
+.eddo-house-ring{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;opacity:0;transition:opacity .15s;pointer-events:none}
+.eddo-house-ring[data-on=true]{opacity:1}
+.eddo-house-ring svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 4px rgba(255,190,120,.8))}
+.eddo-house-ring circle{fill:none;stroke:#ffd2a0;stroke-width:2;stroke-linecap:round;stroke-dasharray:100.6;stroke-dashoffset:100.6;transform:rotate(-90deg);transform-origin:20px 20px}
+.eddo-house-ring[data-on=true] circle{animation:eddoRing var(--ms,3000ms) linear forwards}
+@keyframes eddoRing{to{stroke-dashoffset:0}}
+/* live camera panel projected in front of a camera marker */
+.eddo-house-preview{position:absolute;left:0;top:0;width:320px;height:186px;transform-origin:0 0;opacity:0;transition:opacity .5s;pointer-events:none;overflow:hidden;background:rgba(6,10,12,.7);border:1px solid rgba(143,185,194,.7);box-shadow:0 0 30px rgba(143,185,194,.25),inset 0 0 20px rgba(143,185,194,.15)}
+.eddo-house-preview[data-open=true]{opacity:1}
+.eddo-house-preview img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}
+.eddo-house-preview[data-state=live] img{opacity:.92}
+.eddo-house-preview::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(143,185,194,.06) 0 1px,transparent 1px 3px)}
+.eddo-house-preview span,.eddo-house-preview em{position:absolute;left:8px;font:9px/1 MiSans,system-ui,sans-serif;letter-spacing:1.4px;color:#dfeef0;text-shadow:0 1px 3px #000;z-index:1}
+.eddo-house-preview span{top:7px}
+.eddo-house-preview em{bottom:7px;font-style:normal;color:#ffb36b}
+/* settings menu for a device */
+.eddo-house-pop{position:absolute;left:0;top:0;width:232px;padding:10px 12px 12px;pointer-events:auto;background:rgba(9,13,14,.88);border:1px solid rgba(143,185,194,.35);box-shadow:0 10px 30px rgba(0,0,0,.45);backdrop-filter:blur(6px);font:10px/1.3 MiSans,system-ui,sans-serif;color:var(--theme-ink,#ece9e2);animation:eddoPop .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes eddoPop{from{opacity:0;translate:0 6px}}
+.eddo-house-pop header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.eddo-house-pop header b{font-weight:500;letter-spacing:1.6px}
+.eddo-house-pop header em{flex:1;font-style:normal;font-size:9px;letter-spacing:1.2px;color:var(--theme-muted,#8f8c84)}
+.eddo-house-pop header button{font-size:14px;line-height:1;color:var(--theme-muted,#8f8c84)}
+.eddo-house-pop>p{margin:10px 0 5px;font-size:8.5px;letter-spacing:1.8px;color:var(--theme-muted,#77756d)}
+.eddo-house-pop-main{width:100%;padding:7px;font-size:10px;letter-spacing:1.6px;border:1px solid var(--theme-line,#3a3f3d);transition:background .2s,color .2s}
+.eddo-house-pop-main[data-on=true]{color:#ffd2a0;border-color:rgba(255,179,107,.5);background:rgba(255,179,107,.1)}
+.eddo-house-pop-main:hover{border-color:#ffb36b}
+.eddo-house-pop-row{display:flex;gap:4px}
+.eddo-house-pop-row button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 2px;font-size:9px;letter-spacing:1.2px;border:1px solid var(--theme-line,#3a3f3d)}
+.eddo-house-pop-row button[style]::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+.eddo-house-pop-row button:hover{border-color:#ffb36b}
+.eddo-house-pop-sw{display:flex;gap:5px}
+.eddo-house-pop-sw button{width:22px;height:22px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);opacity:.85;transition:transform .15s,opacity .15s}
+.eddo-house-pop-sw button:hover{transform:scale(1.15);opacity:1}
+.eddo-house-pop .eddo-house-item{border:0}
+.eddo-house-pop .eddo-house-slider{margin:2px 0 4px}

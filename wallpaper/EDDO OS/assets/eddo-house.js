@@ -140,6 +140,16 @@
   // ------------------------------------------------------------ 3D
   let skyEl = null, plinth = null, northEl = null, lastSky = 0;
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
+  let anim = null, orbitMode = "drift", tour = null;
+  const HOME = { dist: 52, phi: 0.72 };
+  // ease the camera to a new view; theta (the turn) is optional and takes the short way round
+  function goTo(goal, dur = 1200) {
+    const from = { target: view.target ? view.target.clone() : goal.target.clone(), dist: view.dist, phi: view.phi, theta: view.theta };
+    let dTheta = null;
+    if (goal.theta != null) { dTheta = ((goal.theta - view.theta) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI; }
+    view.goal = { target: goal.target, dist: goal.dist, phi: goal.phi };
+    anim = view.target ? { from, dTheta, t0: performance.now(), dur } : null;
+  }
   const view = { theta: -0.75, phi: 0.72, dist: 52, target: null, goal: null, t0: performance.now() };
   let focused = null, hovered = null, hoveredDev = null, drag = null, lastFrame = 0;
   let floorSel = null, heatMode = false, whatsOn = false, dayK = 1, sunInfo = null;
@@ -621,6 +631,111 @@
     }
   }
 
+  // ---- overlays that follow a marker on screen
+  const screenOf = (d) => { const p = d.mesh.core.getWorldPosition(new T.Vector3()).project(camera); return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight, ok: p.z < 1 }; };
+  let ringEl = null, ringDev = null;
+  function holdRing(d, ms) {
+    if (!labelsEl) return;
+    if (!ringEl) { ringEl = document.createElement("div"); ringEl.className = "eddo-house-ring"; ringEl.innerHTML = `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/></svg>`; labelsEl.append(ringEl); }
+    ringDev = d;
+    ringEl.dataset.on = "false"; void ringEl.offsetWidth;            // restart the sweep
+    if (d) { ringEl.style.setProperty("--ms", ms + "ms"); ringEl.dataset.on = "true"; }
+  }
+  // hover a camera for 3 s: a ring fills, then its live view appears on a panel in front of it
+  const preview = { dev: null, el: null, timer: null, close: null, ticket: 0 };
+  let dwellDev = null, dwellTimer = null;
+  function dwell(d) {
+    if (d === dwellDev) return;
+    dwellDev = d; clearTimeout(dwellTimer);
+    if (preview.dev && d === preview.dev) { clearTimeout(preview.close); return; }
+    if (preview.dev && d !== preview.dev) { clearTimeout(preview.close); preview.close = setTimeout(closePreview, 2500); }
+    if (d && d.cam && !drag) { holdRing(d, 3000); dwellTimer = setTimeout(() => { holdRing(null); openPreview(d); }, 3000); }
+    else if (ringDev && (!drag || !d)) holdRing(null);
+  }
+  async function openPreview(d) {
+    closePreview();
+    const ticket = ++preview.ticket;
+    preview.dev = d;
+    if (!preview.el) {
+      preview.el = document.createElement("div"); preview.el.className = "eddo-house-preview";
+      preview.el.innerHTML = `<img alt=""><span></span><em>CONNECTING…</em>`; labelsEl.append(preview.el);
+    }
+    const el = preview.el, img = el.querySelector("img");
+    el.querySelector("span").textContent = (d.name || "").toUpperCase(); el.dataset.state = "loading"; el.dataset.open = "true";
+    const f = window.eddoCams && await window.eddoCams.feed(d.cam);
+    if (ticket !== preview.ticket) return;
+    if (!f) { el.querySelector("em").textContent = "NO FEED"; return; }
+    img.onload = () => { if (ticket === preview.ticket) { el.dataset.state = "live"; el.querySelector("em").textContent = f.stream ? "● LIVE · CLICK TO OPEN" : "SNAPSHOT · CLICK TO OPEN"; } };
+    img.onerror = () => { if (ticket === preview.ticket && f.stream && img.src !== f.still) img.src = f.still; else if (ticket === preview.ticket) el.querySelector("em").textContent = "NO FEED"; };
+    img.src = f.stream || f.still;
+    preview.timer = setTimeout(closePreview, 120000);
+  }
+  function closePreview() {
+    preview.ticket++; clearTimeout(preview.timer); clearTimeout(preview.close);
+    preview.dev = null;
+    if (preview.el) { preview.el.dataset.open = "false"; const img = preview.el.querySelector("img"); img.onload = img.onerror = null; img.removeAttribute("src"); }
+  }
+  // the panel sits at the end of the camera's view cone; a CSS 3-D transform maps it onto that rectangle
+  function homography(w, h, q) {
+    const src = [[0, 0], [w, 0], [w, h], [0, h]], A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i], [u, v] = q[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+    }
+    for (let c = 0; c < 8; c++) {           // Gaussian elimination
+      let m = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[m][c])) m = r;
+      [A[c], A[m]] = [A[m], A[c]]; [b[c], b[m]] = [b[m], b[c]];
+      if (Math.abs(A[c][c]) < 1e-9) return null;
+      for (let r = 0; r < 8; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; b[r] -= f * b[c]; }
+    }
+    const H = b.map((v, i) => v / A[i][i]);
+    return `matrix3d(${[H[0], H[3], 0, H[6], H[1], H[4], 0, H[7], 0, 0, 1, 0, H[2], H[5], 0, 1].map((v) => v.toFixed(6)).join(",")})`;
+  }
+  function placePreview() {
+    const d = preview.dev, el = preview.el; if (!d || !el || el.dataset.open !== "true") return;
+    const W = 0.62, Hh = 0.36, Z = 0.85, w = 320, h = 186;          // panel in the marker's own space (it scales with the marker)
+    const pts = [[-W, Hh, Z], [W, Hh, Z], [W, -Hh, Z], [-W, -Hh, Z]].map(([x, y, z]) => {
+      const p = d.mesh.core.localToWorld(new T.Vector3(x, y, z)).project(camera);
+      return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight, ok: p.z < 1 };
+    });
+    if (pts.some((p) => !p.ok)) { el.style.visibility = "hidden"; return; }
+    // the cone may face away from the screen; mirror so the picture always reads the right way round
+    const cross = (pts[1].x - pts[0].x) * (pts[3].y - pts[0].y) - (pts[1].y - pts[0].y) * (pts[3].x - pts[0].x);
+    const q = (cross < 0 ? [pts[1], pts[0], pts[3], pts[2]] : pts).map((p) => [p.x, p.y]);
+    const m = homography(w, h, q); if (!m) return;
+    el.style.visibility = ""; el.style.transform = m;
+  }
+  // ---- settings menu for a device (press and hold a marker, or right-click if Windows lets it through)
+  let pop = null;
+  function openPop(d) {
+    closePop(); closePreview();
+    pop = { dev: d, el: document.createElement("div") };
+    pop.el.className = "eddo-house-pop"; labelsEl.append(pop.el);
+    renderPop();
+  }
+  function closePop() { if (pop) { pop.el.remove(); pop = null; } }
+  function renderPop() {
+    if (!pop) return;
+    const d = pop.dev, st = d.st || devState(d), i = devices.indexOf(d), lid = lightOf(d);
+    const la = lid && states.get(lid) ? states.get(lid).a : {}, modes = la.supported_color_modes || [];
+    const ct = modes.includes("color_temp"), col = modes.some((m) => /hs|rgb|xy/.test(m));
+    let h = `<header><b>${esc(d.name.toUpperCase())}</b><em>${esc(d.cam ? "CAMERA" : st.text || "")}</em><button data-house-pop-close aria-label="Close">×</button></header>`;
+    if (canToggle(d)) h += `<button class="eddo-house-pop-main" data-house-dev="${i}" data-on="${st.active}">${st.active ? "TURN OFF" : "TURN ON"}</button>`;
+    if (lid) h += `<p>BRIGHTNESS</p><div class="eddo-house-item"><div class="eddo-house-slider" data-bri="${esc(lid)}" style="--pct:${briPct(lid)}%"><i></i></div></div>`;
+    if (ct) h += `<p>WARMTH</p><div class="eddo-house-pop-row">${[["WARM", 2700], ["NEUTRAL", 4000], ["DAYLIGHT", 6000]].map(([n, k]) => `<button data-house-ct="${esc(lid)}:${k}" style="--c:${k < 3000 ? "#ffb36b" : k < 5000 ? "#ffe2bf" : "#dcecff"}">${n}</button>`).join("")}</div>`;
+    if (col) h += `<p>COLOUR</p><div class="eddo-house-pop-sw">${["255,147,41", "255,60,40", "255,40,140", "150,60,255", "40,110,255", "40,220,200", "90,255,90"].map((c) => `<button data-house-rgb="${esc(lid)}:${c}" style="--c:rgb(${c})" aria-label="Colour"></button>`).join("")}</div>`;
+    if (d.ids.some((x) => x.startsWith("climate."))) h += `<p>HEATING</p><div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button><button data-house-clim="${i}:power">${st.active ? "OFF" : "ON"}</button></div>`;
+    if (d.cam) h += `<button class="eddo-house-pop-main" data-house-cam="${esc(d.cam)}">OPEN CAMERA</button>`;
+    if (!canToggle(d) && !lid && !d.cam && !d.ids.length) h += `<p class="wb-muted">Not linked to Home Assistant.</p>`;
+    if (pop.el.innerHTML !== h) pop.el.innerHTML = h;
+  }
+  function placePop() {
+    if (!pop || !pop.dev.mesh) return;
+    const s = screenOf(pop.dev), w = canvas.clientWidth;
+    const x = Math.min(w - 250, Math.max(10, s.x + 18)), y = Math.max(10, s.y - 30);
+    const tf = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`; if (pop.el.style.transform !== tf) pop.el.style.transform = tf;
+  }
   function resize() {
     const stage = document.querySelector("#stage"); if (!stage || !renderer) return;
     const w = stage.offsetWidth, h = stage.offsetHeight, k = stage.getBoundingClientRect().width / w || 1;
@@ -637,15 +752,25 @@
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
-    if (now - lastFrame < 30) return;          // ~30 fps is plenty
+    const fps = Math.max(20, Math.min(60, (window.rhineWallpaperHost && window.rhineWallpaperHost.fps) || 30));
+    if (now - lastFrame < 1000 / fps - 8) return;    // follow Wallpaper Engine's frame-rate setting
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     resize();
-    // ease towards the goal view; drift gently when nothing is happening
     const g = view.goal;
-    view.target.lerp(g.target, Math.min(1, dt * 3));
-    view.dist += (g.dist - view.dist) * Math.min(1, dt * 3);
-    view.phi += (g.phi - view.phi) * Math.min(1, dt * 3);
-    if (!drag && !focused) view.theta += dt * 0.035;
+    if (anim) {
+      // one smooth ease-in-out move to the new view
+      const t = Math.min(1, (now - anim.t0) / anim.dur), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, a = anim.from;
+      view.target.lerpVectors(a.target, g.target, e);
+      view.dist = a.dist + (g.dist - a.dist) * e; view.phi = a.phi + (g.phi - a.phi) * e;
+      if (anim.dTheta != null) view.theta = a.theta + anim.dTheta * e;
+      if (t >= 1) anim = null;
+    } else {
+      // small follow-ups (scroll zoom, drag) settle quickly
+      view.target.lerp(g.target, Math.min(1, dt * 5));
+      view.dist += (g.dist - view.dist) * Math.min(1, dt * 5);
+      view.phi += (g.phi - view.phi) * Math.min(1, dt * 5);
+      if (!drag && !focused) view.theta += dt * (orbitMode === "spin" ? 0.16 : orbitMode === "drift" ? 0.035 : 0);
+    }
     const sp = Math.sin(view.phi), cp = Math.cos(view.phi);
     camera.position.set(view.target.x + view.dist * cp * Math.sin(view.theta), view.target.y + view.dist * sp, view.target.z + view.dist * cp * Math.cos(view.theta));
     camera.lookAt(view.target);
@@ -659,6 +784,8 @@
     updateDevices(dt, now);
     renderer.render(scene, camera);
     placeLabels();
+    if (ringEl && ringDev) { const p = screenOf(ringDev); ringEl.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
+    placePreview(); placePop();
   }
 
   function roomCentre(r) { const p = new T.Vector3(r.x + r.w / 2, r.y + r.h / 2, r.z + r.d / 2); r.mesh.g.parent.localToWorld(p); return p; }
@@ -667,7 +794,8 @@
     if (r) whatsOn = false;
     if (!T) return;
     if (!r && floorSel) return setFloor(floorSel);
-    view.goal = r ? { target: roomCentre(r), dist: r.floor === "garden" ? 16 : 20, phi: 0.85 } : { target: new T.Vector3(0, 3.2, 0), dist: 52, phi: 0.72 };
+    if (!r && !tour) orbitMode = "drift";
+    goTo(r ? { target: roomCentre(r), dist: r.floor === "garden" ? 16 : 20, phi: 0.85 } : { target: new T.Vector3(0, 3.2, 0), ...HOME });
     refreshList();
   }
 
@@ -676,7 +804,8 @@
     if (!T) return;
     const rs = rooms.filter((r) => !floorSel || r.floor === floorSel);
     const c = rs.map(roomCentre).reduce((a, b) => a.add(b), new T.Vector3()).multiplyScalar(1 / Math.max(1, rs.length));
-    view.goal = floorSel ? { target: c, dist: floorSel === "garden" ? 18 : 30, phi: 0.95 } : { target: new T.Vector3(0, 3.2, 0), dist: 52, phi: 0.72 };
+    if (!floorSel) orbitMode = "drift";
+    goTo(floorSel ? { target: c, dist: floorSel === "garden" ? 18 : 30, phi: 0.95 } : { target: new T.Vector3(0, 3.2, 0), ...HOME });
     refreshList();
   }
   function pick(ev) {
@@ -687,6 +816,20 @@
     // prefer real rooms over halls/landings
     const hit = hits.find((h) => !h.object.userData.room.quiet) || hits[0];
     return hit ? hit.object.userData.room : null;
+  }
+  // While a room is open, a click on another room (even through the open room's walls) goes there;
+  // a click on the open room itself or on empty space steps back out.
+  function clickRoom(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const ray = new T.Raycaster(), v = new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+    ray.setFromCamera(v, camera);
+    const hits = ray.intersectObjects(rooms.filter((r) => r.mesh && (!floorSel || r.floor === floorSel)).map((r) => r.mesh.faces), false).map((h) => h.object.userData.room);
+    if (!hits.length) return back();
+    if (!focused) return focus(hits.find((r) => !r.quiet) || hits[0]);
+    const iSelf = hits.indexOf(focused), before = iSelf < 0 ? hits : hits.slice(0, iSelf);
+    const next = before.find((r) => !r.quiet) || (iSelf >= 0 ? hits.slice(iSelf + 1).find((r) => r.floor === focused.floor && !r.quiet) : null) || before[0];
+    if (next && next !== focused) return focus(next);
+    back();
   }
   function pickDevice(ev) {
     const rect = canvas.getBoundingClientRect();
@@ -725,39 +868,74 @@
     const t = (+st.a.temperature || +st.a.current_temperature || 20) + delta;
     call("climate", "set_temperature", { target: { entity_id: id }, service_data: { temperature: Math.round(t * 2) / 2 } });
   }
-  const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, button, a"));
+  const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, .eddo-house-pop, button, a"));
   let lastInput = performance.now();
-  function back() { if (focused) focus(null); else if (floorSel || whatsOn) { whatsOn = false; setFloor(null); } }
-  setInterval(() => { if (running && !drag && (focused || floorSel || whatsOn) && performance.now() - lastInput > 120000) back(); }, 5000);  // drift home after 2 idle minutes
+  function stopTour() { if (tour) { clearInterval(tour.timer); tour = null; } }
+  function back() {
+    stopTour(); closePop();
+    if (focused) focus(null);
+    else if (floorSel || whatsOn || orbitMode !== "drift") { whatsOn = false; setFloor(null); }
+  }
+  const VIEWS = {
+    front: { theta: 0, phi: 0.22, dist: 44 },
+    back: { theta: Math.PI, phi: 0.32, dist: 48 },
+    side: { theta: Math.PI / 2, phi: 0.3, dist: 46 },
+    top: { theta: 0, phi: 1.42, dist: 50 },
+  };
+  function setView(name) {
+    if (!T || !view.target) return;
+    stopTour(); closePop();
+    whatsOn = false; focused = null; floorSel = null;
+    if (name === "spin") { orbitMode = orbitMode === "spin" ? "drift" : "spin"; goTo({ target: new T.Vector3(0, 3.2, 0), ...HOME }); return refreshList(); }
+    if (name === "tour") {
+      const list = rooms.filter((r) => !r.quiet);
+      let i = 0; orbitMode = "off";
+      const step = () => { if (!running) return stopTour(); const r = list[i++ % list.length]; focused = r; whatsOn = false; goTo({ target: roomCentre(r), dist: r.floor === "garden" ? 16 : 21, phi: 0.82, theta: view.theta + 0.9 }, 1800); refreshList(); };
+      tour = { timer: setInterval(step, 6500) }; step(); return;
+    }
+    orbitMode = "off";
+    goTo({ target: new T.Vector3(0, name === "top" ? 2 : 3.6, 0), ...VIEWS[name] }, 1400);
+    refreshList();
+  }
+  setInterval(() => { if (running && !drag && !tour && (focused || floorSel || whatsOn || orbitMode === "off") && performance.now() - lastInput > 120000) back(); }, 5000);  // drift home after 2 idle minutes
   function hookInput() {
     const stage = document.querySelector("#stage");
     ["mousemove", "mousedown", "wheel"].forEach((t) => window.addEventListener(t, () => { lastInput = performance.now(); }, { passive: true }));
-    stage.addEventListener("contextmenu", (e) => { if (!running || overUi(e.target)) return; e.preventDefault(); back(); });
-    window.addEventListener("keydown", (e) => { if (running && e.key === "Escape") back(); });
-    stage.addEventListener("mousedown", (e) => { if (!running || overUi(e.target)) return; drag = { x: e.clientX, y: e.clientY, theta: view.theta, phi: view.goal.phi, moved: false }; });
+    stage.addEventListener("contextmenu", (e) => { if (!running || overUi(e.target)) return; e.preventDefault(); const d = pickDevice(e); if (d) openPop(d); else back(); });
+    window.addEventListener("keydown", (e) => { if (running && e.key === "Escape") { if (pop) closePop(); else back(); } });
+    stage.addEventListener("mousedown", (e) => {
+      if (!running || overUi(e.target) || e.button !== 0) return;
+      stopTour(); anim = null; clearTimeout(dwellTimer);
+      drag = { x: e.clientX, y: e.clientY, theta: view.theta, phi: view.goal.phi, moved: false };
+      // press and hold a marker for its settings
+      const d = pickDevice(e);
+      if (d) { const dr = drag; holdRing(d, 550); dr.hold = setTimeout(() => { if (drag === dr && !dr.moved) { dr.held = true; holdRing(null); openPop(d); } }, 550); }
+    });
     window.addEventListener("mousemove", (e) => {
       if (!running) return;
       if (drag) {
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-        if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+        if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 7) { drag.moved = true; clearTimeout(drag.hold); holdRing(null); }
+        if (!drag.moved) return;
         view.theta = drag.theta - dx * 0.006;
         view.goal.phi = Math.max(0.12, Math.min(1.35, drag.phi + dy * 0.004));
         return;
       }
       const ui = overUi(e.target);
       hoveredDev = ui ? null : pickDevice(e);
+      dwell(hoveredDev);
       hovered = ui ? null : hoveredDev ? hoveredDev.roomRef : pick(e);
     });
     window.addEventListener("mouseup", (e) => {
       if (!running || !drag) return;
-      const moved = drag.moved; drag = null;
-      if (!moved && !overUi(e.target)) {
-        const d = pickDevice(e);
-        if (d && focused === d.roomRef && d.cam && window.eddoCams) { window.eddoCams.open(d.cam); return; }
-        if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
-        const r = d ? d.roomRef : pick(e);
-        focus(r && r !== focused ? r : null);
-      }
+      const dr = drag, moved = dr.moved; drag = null; clearTimeout(dr.hold); holdRing(null);
+      if (dr.held || moved || overUi(e.target)) return;
+      if (pop) { closePop(); return; }
+      const d = pickDevice(e);
+      if (d && d.cam && window.eddoCams && (focused === d.roomRef || preview.dev === d)) { closePreview(); window.eddoCams.open(d.cam); return; }
+      if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
+      if (d) return focus(d.roomRef);
+      clickRoom(e);
     });
     stage.addEventListener("wheel", (e) => {
       if (!running || overUi(e.target)) return;
@@ -774,17 +952,36 @@
     requestAnimationFrame(frame);
   }
   function stop() {
+    stopTour(); closePop(); closePreview(); dwell(null);
     running = false; hovered = null; hoveredDev = null; drag = null;
     document.querySelector("#stage")?.removeAttribute("data-eddo-house");
   }
 
   // ------------------------------------------------------------ tab
   let listEl = null, sliding = null;
-  const FLOORS = [["", "ALL"], ["ground", "G"], ["first", "1"], ["second", "2"], ["garden", "OFFICE"]];
-  function toolbar() {
-    const sun = sunInfo ? `<span class="eddo-house-sun" title="Sunrise / sunset">${sunInfo.up ? "☀" : "☾"} ${sunInfo.rise} – ${sunInfo.set}</span>` : "";
-    return `<div class="eddo-house-bar"><span class="eddo-house-seg">${FLOORS.map(([id, l]) => `<button data-house-floor="${id}" aria-pressed="${(floorSel || "") === id && !focused}">${l}</button>`).join("")}</span>` +
-      `<span class="eddo-house-seg"><button data-house-mode="heat" aria-pressed="${heatMode}">HEAT</button><button data-house-mode="on" aria-pressed="${whatsOn}">WHAT'S ON</button></span></div>` + (sun ? `<p class="eddo-house-sunline">${sun}</p>` : "");
+  const FLOORS = [["", "ALL"], ["ground", "GROUND"], ["first", "FIRST"], ["second", "SECOND"], ["garden", "OFFICE"]];
+  let barEl = null;
+  const VIEW_BTNS = [["spin", "SPIN"], ["tour", "TOUR"], ["front", "FRONT"], ["back", "BACK"], ["side", "SIDE"], ["top", "TOP"]];
+  // The bar is built once and then only updated, so its sliding highlight can animate between buttons.
+  function updateBar() {
+    if (!barEl || !barEl.isConnected) return;
+    if (!barEl.dataset.built) {
+      barEl.dataset.built = "1";
+      barEl.innerHTML =
+        `<div class="eddo-house-tabs" data-group="floor"><i class="eddo-house-ind"></i>${FLOORS.map(([id, l]) => `<button data-house-floor="${id}">${l}</button>`).join("")}</div>` +
+        `<div class="eddo-house-views"><span class="eddo-house-cap">VIEW</span>${VIEW_BTNS.map(([id, l]) => `<button data-house-view="${id}">${l}</button>`).join("")}</div>` +
+        `<div class="eddo-house-views"><span class="eddo-house-cap">SHOW</span><button data-house-mode="heat">HEAT</button><button data-house-mode="on">WHAT'S ON</button><span class="eddo-house-sun"></span></div>`;
+    }
+    const cur = focused ? focused.floor : floorSel || "";
+    barEl.querySelectorAll("[data-house-floor]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.houseFloor === cur && (!!focused || !!floorSel || (!cur && orbitMode !== "off" && !tour)))));
+    const ind = barEl.querySelector(".eddo-house-ind"), on = barEl.querySelector('[data-house-floor][aria-pressed="true"]');
+    if (on) { ind.style.width = on.offsetWidth + "px"; ind.style.transform = `translateX(${on.offsetLeft}px)`; ind.style.opacity = "1"; } else ind.style.opacity = "0";
+    const vOn = tour ? "tour" : orbitMode === "spin" ? "spin" : null;
+    barEl.querySelectorAll("[data-house-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.houseView === vOn)));
+    barEl.querySelector('[data-house-mode="heat"]').setAttribute("aria-pressed", String(heatMode));
+    barEl.querySelector('[data-house-mode="on"]').setAttribute("aria-pressed", String(whatsOn));
+    const sun = sunInfo ? `${sunInfo.up ? "☀" : "☾"} ${sunInfo.rise}–${sunInfo.set}` : "", se = barEl.querySelector(".eddo-house-sun");
+    if (se.textContent !== sun) se.textContent = sun;
   }
   function devRow(d) {
     const st = d.st || devState(d), i = devices.indexOf(d), lid = lightOf(d), hasClim = d.ids.some((x) => x.startsWith("climate."));
@@ -817,26 +1014,31 @@
           `<div class="eddo-house-item" data-on="${r.on > 0}"><button class="eddo-house-row" data-house-room="${r.id}"><i style="--c:rgb(${r.color.map((v) => Math.round(v * 255)).join(",")})"></i><span>${esc(r.name)}</span><em>${esc(heatMode ? (r.temp != null ? r.temp.toFixed(1) + "°" : "—") : roomStatus(r))}</em></button></div>`).join("") + `</div>`).join("") +
         `<p class="wb-muted eddo-house-tip">Drag to turn · scroll to zoom · click a room to control it</p>`;
     }
-    const html = toolbar() + body;
+    updateBar(); renderPop();
+    const html = body;
     if (listEl.innerHTML !== html) listEl.innerHTML = html;
   }
   document.addEventListener("click", (e) => {
     if (!e.target.closest || !running) return;
     const q = (sel) => e.target.closest(sel);
     let b;
-    if ((b = q("[data-house-floor]"))) { whatsOn = false; return setFloor(b.dataset.houseFloor); }
+    if (q("[data-house-pop-close]")) return closePop();
+    if ((b = q("[data-house-view]"))) return setView(b.dataset.houseView);
+    if ((b = q("[data-house-ct]"))) { const [id, k] = b.dataset.houseCt.split(":"); return call("light", "turn_on", { target: { entity_id: id }, service_data: { color_temp_kelvin: +k } }); }
+    if ((b = q("[data-house-rgb]"))) { const [id, c] = b.dataset.houseRgb.split(":"); return call("light", "turn_on", { target: { entity_id: id }, service_data: { rgb_color: c.split(",").map(Number) } }); }
+    if ((b = q("[data-house-floor]"))) { stopTour(); closePop(); whatsOn = false; if (!b.dataset.houseFloor) orbitMode = "drift"; return setFloor(b.dataset.houseFloor); }
     if ((b = q("[data-house-mode]"))) {
       if (b.dataset.houseMode === "heat") heatMode = !heatMode;
-      else { whatsOn = !whatsOn; if (whatsOn) { focused = null; floorSel = null; setFloor(null); } }
+      else { whatsOn = !whatsOn; if (whatsOn) { stopTour(); focused = null; floorSel = null; setFloor(null); } }
       return refreshList();
     }
-    if (q("[data-house-back]") && !q("[data-house-off]")) return focus(null);
+    if (q("[data-house-back]") && !q("[data-house-off]")) { stopTour(); return focus(null); }
     if ((b = q("[data-house-off]"))) { const id = b.dataset.houseOff; roomOff(id === "*" ? rooms : rooms.filter((r) => r.id === id)); return; }
     if ((b = q("[data-house-scene]"))) return call("scene", "turn_on", { target: { entity_id: b.dataset.houseScene } });
     if ((b = q("[data-house-cam]"))) { window.eddoCams && window.eddoCams.open(b.dataset.houseCam); return; }
     if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
     if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
-    if ((b = q("[data-house-room]"))) { const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }
+    if ((b = q("[data-house-room]"))) { stopTour(); const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }
   });
   // brightness sliders in the panel (drag), and scroll over any light row
   document.addEventListener("mousedown", (e) => {
@@ -859,7 +1061,8 @@
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {
-      c.innerHTML = `<div class="eddo-house-list"></div>`;
+      c.innerHTML = `<div class="eddo-house-bar"></div><div class="eddo-house-list"></div>`;
+      barEl = c.querySelector(".eddo-house-bar");
       listEl = c.querySelector(".eddo-house-list");
       refreshList();
     },
