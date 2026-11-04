@@ -18,7 +18,7 @@
   const states = new Map();
   let dirty = true;
   const devices = (H.devices || []).map((d) => ({ ...d, ids: [], roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
-  const KIND_DOMAINS = { light: ["light", "switch"], lamp: ["light", "switch"], appliance: ["switch", "sensor", "binary_sensor", "select"], tv: ["media_player"],
+  const KIND_DOMAINS = { light: ["light", "switch"], lamp: ["light", "switch"], appliance: ["switch", "water_heater", "binary_sensor", "select", "sensor"], tv: ["media_player"],
     climate: ["climate"], fan: ["fan", "climate", "switch"], camera: ["camera"], printer: ["sensor"], pc: [] };
   const KIND_HEIGHT = { light: 2.3, lamp: 1.0, appliance: 0.6, tv: 1.25, climate: 1.9, fan: 0.7, camera: 1.9, printer: 0.95, pc: 0.75 };
 
@@ -45,12 +45,20 @@
       d.ids = [d.entity, ...(d.entities || [])].filter((id) => id && stMap.has(id));
       if (!d.ids.length && d.match) {
         const doms = d.domains || KIND_DOMAINS[d.kind] || [];
-        const hit = allStates.find((st) => {
+        const hits = allStates.filter((st) => {
           if (used.has(st.entity_id) || (doms.length && !doms.includes(st.entity_id.split(".")[0]))) return false;
           const t = (st.entity_id.replace(/_/g, " ") + " " + (st.attributes.friendly_name || "")).toLowerCase();
           return d.match.some((m) => t.includes(m)) && !(d.not || []).some((m) => t.includes(m));
         });
-        if (hit) d.ids = [hit.entity_id];
+        // prefer something you can switch over a reading: the earlier domains in the list win,
+        // and among sensors a power reading beats energy totals and the like
+        const rank = (st) => { const dom = st.entity_id.split(".")[0], i = doms.length ? doms.indexOf(dom) : 0; return i * 10 + (dom === "sensor" && !/power|watt|status|state/i.test(st.entity_id) ? 5 : 0); };
+        const hit = hits.sort((a, b) => rank(a) - rank(b))[0];
+        if (hit) {
+          d.ids = [hit.entity_id];
+          const pw = hits.find((st) => st !== hit && /power|watt/i.test(st.entity_id) && st.entity_id.startsWith("sensor."));
+          if (pw && /^switch\./.test(hit.entity_id)) d.ids.push(pw.entity_id);   // a smart plug's power reading shows when it's actually running
+        }
       }
       d.ids.forEach((id) => used.add(id));
       d.ids.filter((id) => /^(light|switch)\./.test(id) && /light|lamp/.test(d.kind)).forEach((id) => d.roomRef.ents.add(id));
@@ -120,8 +128,10 @@
       } else if (dom === "camera") {
         active = s !== "unavailable"; text = "CAMERA"; color = [0.82, 0.24, 0.17];
       } else {
-        active = /^(on|running|printing|prepare|washing|drying|active|heat|cool|playing)$/i.test(s) || (Number.isFinite(+s) && +s > 5 && /power|watt/i.test(id));
-        text = s.replace(/_/g, " ").toUpperCase();
+        const isPow = Number.isFinite(+s) && /power|watt/i.test(id);
+        active = active || /^(on|running|printing|prepare|washing|drying|active|heat|cool|playing|brewing|ready)$/i.test(s) || (isPow && +s > 5);
+        const t = isPow ? `${Math.round(+s)} W` : s.replace(/_/g, " ").toUpperCase();
+        text = text ? `${text} · ${t}` : t;
       }
     }
     return { active, text, color, bri, linked: true };
@@ -186,6 +196,26 @@
     return building;
   }
 
+  // a room with a sloping ceiling at the street side (loft rooms under the roof): a prism, centred like a box
+  function slopeGeo(w, h, d, knee, run) {
+    const P = [[-d / 2, -h / 2], [-d / 2, -h / 2 + knee], [-d / 2 + run, h / 2], [d / 2, h / 2], [d / 2, -h / 2]];
+    const pos = [], uv = [];
+    const tri = (a, b, c, ua, ub, uc) => { pos.push(...a, ...b, ...c); uv.push(...ua, ...ub, ...uc); };
+    for (let i = 0; i < P.length; i++) {            // walls, floor and ceiling: one quad per edge of the profile
+      const [z0, y0] = P[i], [z1, y1] = P[(i + 1) % P.length];
+      const a = [-w / 2, y0, z0], b = [w / 2, y0, z0], c = [w / 2, y1, z1], e = [-w / 2, y1, z1];
+      tri(a, b, c, [0, 0], [1, 0], [1, 1]); tri(a, c, e, [0, 0], [1, 1], [0, 1]);
+    }
+    for (const x of [-w / 2, w / 2]) {                // the two side walls, fanned from the first corner
+      const q = P.map(([z, y]) => [x, y, z]), quv = P.map(([z, y]) => [(z + d / 2) / d, (y + h / 2) / h]);
+      for (let i = 1; i < P.length - 1; i++) tri(q[0], q[i], q[i + 1], quv[0], quv[i], quv[i + 1]);
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    return g;
+  }
+  // ceiling height at a point in a room (z from the room's front wall)
+  const ceilAt = (r, z) => r.slope ? Math.min(r.h, r.slope.knee + (r.h - r.slope.knee) * Math.max(0, z) / r.slope.run) : r.h;
   // walls glow at their edges and stay clear in the middle
   let _edgeTex = null;
   function edgeTex() {
@@ -253,7 +283,7 @@
       plate.position.y = 0.025; g.add(plate);
       const glow = new T.Mesh(new T.PlaneGeometry(r.w - 0.12, r.d - 0.12), new T.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
       glow.rotation.x = -Math.PI / 2; glow.position.y = 0.06; g.add(glow);
-      const box = new T.BoxGeometry(r.w, r.h, r.d);
+      const box = r.slope ? slopeGeo(r.w, r.h, r.d, r.slope.knee, r.slope.run) : new T.BoxGeometry(r.w, r.h, r.d);
       const faces = new T.Mesh(box, new T.MeshBasicMaterial({ color: C.face, map: edgeTex(), transparent: true, opacity: 0.12, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending }));
       faces.position.y = r.h / 2; faces.userData.room = r; g.add(faces);
       const edges = new T.LineSegments(new T.EdgesGeometry(box), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: r.quiet ? 0.22 : 0.42 }));
@@ -405,7 +435,7 @@
     const segs = (pts) => { const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(pts.flat(), 3)); return g2; };
     for (const d of devices) {
       const r = d.roomRef, g = r.mesh.g;
-      const hgt = d.kind === "climate" && /radiator/i.test(d.name) ? 0.45 : Math.min(KIND_HEIGHT[d.kind] ?? 1, r.h - 0.2);
+      const hgt = d.kind === "climate" && /radiator/i.test(d.name) ? 0.45 : Math.min(KIND_HEIGHT[d.kind] ?? 1, ceilAt(r, d.v * r.d) - 0.2);
       const x = -r.w / 2 + d.u * r.w, z = -r.d / 2 + d.v * r.d;
       const core = new T.Group(); core.position.set(x, hgt, z); core.renderOrder = 20; g.add(core);
       const parts = [];   // role: on = only when running, off = only when idle, both = always; k = opacity
@@ -424,7 +454,8 @@
         add(new T.LineSegments(segs(pts), lmat()), "both", 0.8);                                                 // a view cone
         add(new T.Mesh(new T.SphereGeometry(0.035, 10, 8), mat()), "both", 1);
         faceCentre(); core.rotation.x = 0.4;
-        if (d.u < 0 || d.u > 1 || d.v < 0 || d.v > 1 || d.faceOut) core.rotation.y += Math.PI;   // outdoor cameras (doorbell, garden) look away from the house
+        if (d.look) core.rotation.y = Math.atan2((-r.w / 2 + d.look[0] * r.w) - x, (-r.d / 2 + d.look[1] * r.d) - z);   // aimed at a point (same u/v as the room)
+        else if (d.u < 0 || d.u > 1 || d.v < 0 || d.v > 1 || d.faceOut) core.rotation.y += Math.PI;   // outdoor cameras look away from the house
       } else if (k === "tv") {
         add(new T.Mesh(new T.PlaneGeometry(0.36, 0.21), mat()), "on", 0.55);                                    // a screen that lights up
         add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(0.36, 0.21)), lmat()), "both", 0.9);
@@ -727,7 +758,7 @@
     if (col) h += `<p>COLOUR</p><div class="eddo-house-pop-sw">${["255,147,41", "255,60,40", "255,40,140", "150,60,255", "40,110,255", "40,220,200", "90,255,90"].map((c) => `<button data-house-rgb="${esc(lid)}:${c}" style="--c:rgb(${c})" aria-label="Colour"></button>`).join("")}</div>`;
     if (d.ids.some((x) => x.startsWith("climate."))) h += `<p>HEATING</p><div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button><button data-house-clim="${i}:power">${st.active ? "OFF" : "ON"}</button></div>`;
     if (d.cam) h += `<button class="eddo-house-pop-main" data-house-cam="${esc(d.cam)}">OPEN CAMERA</button>`;
-    if (!canToggle(d) && !lid && !d.cam && !d.ids.length) h += `<p class="wb-muted">Not linked to Home Assistant.</p>`;
+    h += `<p class="eddo-house-pop-ids">${d.ids.length ? esc(d.ids.join(" · ")) : "NOT LINKED TO HOME ASSISTANT"}</p>`;
     if (pop.el.innerHTML !== h) pop.el.innerHTML = h;
   }
   function placePop() {
@@ -961,6 +992,7 @@
   let listEl = null, sliding = null;
   const FLOORS = [["", "ALL"], ["ground", "GROUND"], ["first", "FIRST"], ["second", "SECOND"], ["garden", "OFFICE"]];
   let barEl = null;
+  const EDNET_MARK = `<svg viewBox="0 0 632.25 151.85" aria-label="EDNET" role="img"><path fill="currentColor" d="M56.12 94.51 L102.28 94.51 L108.6 59.28 L62.44 59.28 L65.84 38.87 L115.65 38.87 L128.28 0 L26.72 0 L0 151.85 L102.77 151.85 L109.57 112.97 L52.96 112.97 L56.12 94.51ZM521.22 0 L519.27 0 L419.66 0 L392.94 151.85 L495.71 151.85 L502.51 112.97 L445.9 112.97 L449.06 94.51 L495.22 94.51 L501.54 59.28 L455.38 59.28 L458.78 38.87 L501.03 38.87 L508.58 38.87 L545.51 38.87 L525.83 151.85 L572 151.85 L591.67 38.87 L625.2 38.87 L632.25 0 L521.22 0ZM259.72,46.89c0-16.52-4.41-28.46-13.24-35.84-8.83-7.37-23.69-11.05-44.58-11.05h-64.63l-26.72,151.85h64.63c26.08,0,44.98-5.83,56.73-17.49,11.74-11.66,20.04-31.1,24.9-58.31,1.94-11.01,2.92-20.73,2.92-29.15ZM211.37,51.75l-8.5,48.35c-.97,5.51-3,9.03-6.07,10.57-3.08,1.54-7.77,2.31-14.09,2.31h-19.19l12.88-74.1h19.19c5.5,0,9.55.57,12.15,1.7,2.59,1.14,3.89,3.56,3.89,7.29,0,1.62-.08,2.92-.24,3.89ZM360.87,0l-11.66,65.6h-1.94c.32-2.59.49-4.9.49-6.92s-.24-3.6-.73-4.74L322.24,0h-43.49l-26.73,151.85h46.16l11.42-65.6h1.94c-.33,2.59-.49,4.9-.49,6.92s.32,3.61.97,4.74l24.78,53.94h43.49L407.03,0h-46.16Z"/></svg>`;
   const VIEW_BTNS = [["spin", "SPIN"], ["tour", "TOUR"], ["front", "FRONT"], ["back", "BACK"], ["side", "SIDE"], ["top", "TOP"]];
   // The bar is built once and then only updated, so its sliding highlight can animate between buttons.
   function updateBar() {
@@ -1007,6 +1039,9 @@
       body = `<div class="eddo-house-head"><h3 class="eddo-house-room">What's on</h3>${live.length ? `<button class="eddo-house-off" data-house-off="*">ALL LIGHTS OFF</button>` : ""}</div>` +
         (live.length ? live.map((r) => `<div class="eddo-house-floor"><p>${esc(r.name.toUpperCase())} · <button class="eddo-house-back" data-house-off="${r.id}">ALL OFF</button></p>` +
           devices.filter((d) => d.roomRef === r && devActive(d)).map(devRow).join("") + `</div>`).join("") : `<p class="wb-muted">Everything's off.</p>`);
+    } else if (!floorSel) {
+      const on = rooms.filter((r) => r.on > 0).length;
+      body = `<p class="wb-muted eddo-house-tip">${on ? `${on} room${on > 1 ? "s" : ""} lit · ` : ""}Pick a floor above, or click a room on the model</p>`;
     } else {
       const groups = [...new Set(rooms.filter((r) => !floorSel || r.floor === floorSel).map((r) => r.floorName))];
       body = groups.map((gname) => `<div class="eddo-house-floor"><p>${esc(gname.toUpperCase())}</p>` +
@@ -1061,7 +1096,7 @@
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {
-      c.innerHTML = `<div class="eddo-house-bar"></div><div class="eddo-house-list"></div>`;
+      c.innerHTML = `<div class="eddo-house-hero"><span>${esc(H.address || "11 SHORTLANDS")}</span><span class="eddo-house-pow">POWERED BY ${EDNET_MARK}</span></div><div class="eddo-house-bar"></div><div class="eddo-house-list"></div>`;
       barEl = c.querySelector(".eddo-house-bar");
       listEl = c.querySelector(".eddo-house-list");
       refreshList();

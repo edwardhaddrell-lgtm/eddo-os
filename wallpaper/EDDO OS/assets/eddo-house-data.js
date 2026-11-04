@@ -12,10 +12,8 @@ window.EDDO_HOUSE = {
   shell: {
     main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 6.9, ridge: 11.6, ridgeZ: 3.0 },     // pitched roof, ridge along the street
     dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0 },                          // flat-roofed loft dormer at the back
-    chimneys: [                                                                              // stacks with their pots, from the street photo
+    chimneys: [                                                                              // the one stack, on the left, with its pots
       { x0: 0.25, x1: 1.1, z0: 2.6, z1: 3.4, top: 13.0, pots: 3 },
-      { x0: 1.35, x1: 2.15, z0: 2.6, z1: 3.4, top: 13.1, pots: 3 },
-      { x0: 4.3, x1: 4.6, z0: 2.7, z1: 3.3, top: 12.2, pots: 1 },
     ],
     rooflights: [{ x0: 2.2, x1: 3.1, t0: 0.45, t1: 0.8 }, { x0: 3.95, x1: 4.35, t0: 0.55, t1: 0.85 }],   // on the front slope, t = 0 eaves to 1 ridge
     // front windows (z = 0 face); y is height above the ground in the exploded model. sash = mullion + meeting rail
@@ -59,9 +57,11 @@ window.EDDO_HOUSE = {
     {
       id: "second", name: "Second floor",
       rooms: [
-        { id: "master", name: "Master Bedroom", x: 0, z: 0, w: 3.37, d: 4.84, areas: ["master bedroom", "bedroom", "main bedroom"] },
-        { id: "ensuite", name: "Ensuite", x: 3.37, z: 0, w: 1.02, d: 2.2, areas: ["ensuite", "en-suite"], quiet: true },
-        { id: "stairs2", name: "Stairs", x: 3.37, z: 2.2, w: 1.23, d: 2.64, areas: [], quiet: true },
+        // the loft sits back under the roof; slope = low knee wall at the street side, ceiling rising over `run` metres
+        { id: "master", name: "Master Bedroom", x: 0, z: 1.0, w: 3.37, d: 6.41,   // runs right back to the dormer windows
+          slope: { knee: 0.75, run: 1.2 }, areas: ["master bedroom", "bedroom", "main bedroom"] },
+        { id: "ensuite", name: "Ensuite", x: 3.37, z: 1.0, w: 1.02, d: 2.2, slope: { knee: 0.75, run: 1.2 }, areas: ["ensuite", "en-suite"], quiet: true },
+        { id: "stairs2", name: "Stairs", x: 3.37, z: 3.2, w: 1.23, d: 2.64, areas: [], quiet: true },
       ],
     },
   ],
@@ -96,24 +96,25 @@ window.EDDO_HOUSE = {
     { room: "fox", name: "Star projector", kind: "lamp", u: 0.13, v: 0.89, match: ["star", "projector"] },
     { room: "fox", name: "Nanit", kind: "camera", u: 0.84, v: 0.57, entity: "camera.nanit_nursery", cam: "fox_s_room" },
     { room: "hall", name: "Front door (Ring)", kind: "camera", u: 0.5, v: -0.04, match: ["front door"], domains: ["camera"], cam: "front_door" },
-    { room: "kitchen", name: "Garden (Ring)", kind: "camera", u: 0.5, v: 1.03, match: ["garden"], domains: ["camera"], not: ["office"], cam: "garden" },
+    // on the outside of the dining room's back wall, looking down the decked side return to just past the kitchen
+    { room: "dining", name: "Garden (Ring)", kind: "camera", u: 0.3, v: 1.03, look: [0.3, 2.6], match: ["garden"], domains: ["camera"], not: ["office"], cam: "garden" },
     { room: "fox", name: "Fox's room lights", kind: "light", u: 0.47, v: 0.45, match: ["fox"], domains: ["light", "switch"] },
     // bathroom / spare / master
     { room: "bath", name: "Bathroom lights", kind: "light", u: 0.4, v: 0.43, match: ["bathroom"], domains: ["light", "switch"] },
     { room: "spare", name: "Spare bedroom light", kind: "light", u: 0.53, v: 0.54, match: ["spare", "guest"], domains: ["light", "switch"] },
-    { room: "master", name: "Master bedroom light", kind: "light", u: 0.52, v: 0.4, match: ["master bedroom", "bedroom light", "main bedroom"], not: ["bed light", "bedside", "spare", "guest", "fox"], domains: ["light", "switch"] },
-    { room: "master", name: "Bedroom TV", kind: "tv", u: 0.06, v: 0.3, match: ["bedroom"], domains: ["media_player"] },
-    { room: "master", name: "Bed light", kind: "lamp", u: 0.19, v: 0.07, match: ["bed light", "bedside"] },
-    { room: "master", name: "Bed light", kind: "lamp", u: 0.84, v: 0.07, match: ["bed light", "bedside"], nth: 1 },
+    { room: "master", name: "Master bedroom light", kind: "light", u: 0.52, v: 0.302, match: ["master bedroom", "bedroom light", "main bedroom"], not: ["bed light", "bedside", "spare", "guest", "fox"], domains: ["light", "switch"] },
+    { room: "master", name: "Bedroom TV", kind: "tv", u: 0.06, v: 0.227, match: ["bedroom"], domains: ["media_player"] },
+    { room: "master", name: "Bed light", kind: "lamp", u: 0.19, v: 0.053, match: ["bed light", "bedside"] },
+    { room: "master", name: "Bed light", kind: "lamp", u: 0.84, v: 0.053, match: ["bed light", "bedside"], nth: 1 },
     // garden office
-    { room: "office", name: "3D printer", kind: "printer", u: 0.16, v: 0.9, match: ["print status", "print_status"], domains: ["sensor"], cam: "eddo_print" },
-    { room: "office", name: "Desk Hue · Ed Skadi · monitor", kind: "lamp", u: 0.55, v: 0.9, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
-    { room: "office", name: "Ed PC · Unraid", kind: "pc", u: 0.85, v: 0.87 },
-    { room: "office", name: "Office lights", kind: "light", u: 0.53, v: 0.49, entity: "light.garden_office_lights" },
-    { room: "office", name: "Shelf lights", kind: "lamp", u: 0.12, v: 0.27, match: ["shelf"], entity: "light.hue_play_gradient_lightstrip_1" },
-    { room: "office", name: "AC unit", kind: "climate", u: 0.14, v: 0.08, entity: "climate.garden_office" },
-    { room: "office", name: "Jules Skadi", kind: "lamp", u: 0.5, v: 0.08, match: ["jules"] },
-    { room: "office", name: "Office lamp", kind: "lamp", u: 0.73, v: 0.08, entities: ["switch.office_lamps", "switch.office_lamp_2"] },
+    { room: "office", name: "3D printer", kind: "printer", u: 0.9, v: 0.84, match: ["print status", "print_status"], domains: ["sensor"], cam: "eddo_print" },
+    { room: "office", name: "Desk Hue · Ed Skadi · monitor", kind: "lamp", u: 0.9, v: 0.45, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
+    { room: "office", name: "Ed PC · Unraid", kind: "pc", u: 0.87, v: 0.15 },
+    { room: "office", name: "Office lights", kind: "light", u: 0.49, v: 0.47, entity: "light.garden_office_lights" },
+    { room: "office", name: "Shelf lights", kind: "lamp", u: 0.27, v: 0.88, match: ["shelf"], entity: "light.hue_play_gradient_lightstrip_1" },
+    { room: "office", name: "AC unit", kind: "climate", u: 0.08, v: 0.86, entity: "climate.garden_office" },
+    { room: "office", name: "Jules Skadi", kind: "lamp", u: 0.08, v: 0.5, match: ["jules"] },
+    { room: "office", name: "Office lamp", kind: "lamp", u: 0.08, v: 0.27, entities: ["switch.office_lamps", "switch.office_lamp_2"] },
   ],
   // Furniture outlines, from Edward's room photos. Same u/v as devices (u from the
   // room's left wall on the plan, v from its front), h = height, y = height off the floor.
@@ -139,10 +140,48 @@ window.EDDO_HOUSE = {
     { room: "dining", name: "High chair", kind: "chair", u0: 0.64, u1: 0.76, v0: 0.52, v1: 0.66, h: 0.8 },
     { room: "dining", name: "Radiator cover", u0: 0.48, u1: 0.78, v0: 0.94, v1: 1, h: 0.9 },
     { room: "dining", name: "Bench", kind: "sofa", u0: 0.86, u1: 1, v0: 0.05, v1: 0.5, h: 0.5, back: false },
+    // fox's room (photo from the door, looking at the garden window)
+    { room: "fox", name: "Wardrobe", u0: 0, u1: 0.22, v0: 0.02, v1: 0.42, h: 2.3 },
+    { room: "fox", name: "Chimney breast", u0: 0, u1: 0.14, v0: 0.45, v1: 0.72, h: 2.6 },
+    { room: "fox", name: "Book rack", kind: "shelves", u0: 0.14, u1: 0.17, v0: 0.5, v1: 0.68, y: 0.7, h: 1.0, shelves: 4 },
+    { room: "fox", name: "Alcove shelves", kind: "shelves", u0: 0, u1: 0.1, v0: 0.72, v1: 0.95, y: 1.4, h: 0.65, shelves: 2 },
+    { room: "fox", name: "Nursing chair", kind: "chair", u0: 0.22, u1: 0.42, v0: 0.72, v1: 0.9, h: 0.95 },
+    { room: "fox", name: "Footstool", u0: 0.26, u1: 0.42, v0: 0.56, v1: 0.68, h: 0.4 },
+    { room: "fox", name: "Radiator", u0: 0.3, u1: 0.6, v0: 0.97, v1: 1, y: 0.1, h: 0.5 },
+    { room: "fox", name: "Cot bed", u0: 0.7, u1: 1, v0: 0.45, v1: 0.92, h: 0.95 },
+    { room: "fox", name: "Rug", kind: "rug", u0: 0.22, u1: 0.68, v0: 0.24, v1: 0.68 },
+    // kitchen (galley, photo from the hall end looking at the garden window)
+    { room: "kitchen", name: "Fridge freezer", u0: 0.74, u1: 1, v0: 0.02, v1: 0.22, h: 1.85 },
+    { room: "kitchen", name: "Worktop (hob side)", u0: 0.76, u1: 1, v0: 0.24, v1: 0.72, h: 0.9 },
+    { room: "kitchen", name: "Wall units", u0: 0.84, u1: 1, v0: 0.3, v1: 0.72, y: 1.45, h: 0.75 },
+    { room: "kitchen", name: "Oven tower", u0: 0.76, u1: 1, v0: 0.72, v1: 0.86, h: 2.1 },
+    { room: "kitchen", name: "Worktop (window side)", u0: 0, u1: 0.24, v0: 0.14, v1: 0.62, h: 0.9 },
+    { room: "kitchen", name: "Washer & dryer", u0: 0.02, u1: 0.24, v0: 0.62, v1: 0.8, h: 0.88 },
+    { room: "kitchen", name: "Sink run", u0: 0, u1: 0.72, v0: 0.86, v1: 1, h: 0.9 },
+    { room: "kitchen", name: "Coffee shelf", kind: "shelves", u0: 0, u1: 0.12, v0: 0.62, v1: 0.8, y: 1.3, h: 0.35, shelves: 1 },
+    // master bedroom (photo from the stairs, looking at the bed under the sloping ceiling)
+    { room: "master", name: "Bed", u0: 0.3, u1: 0.72, v0: 0.03, v1: 0.347, h: 0.5 },
+    { room: "master", name: "Headboard", u0: 0.3, u1: 0.72, v0: 0.015, v1: 0.038, h: 0.95 },
+    { room: "master", name: "Bedside crib", u0: 0.74, u1: 0.88, v0: 0.03, v1: 0.166, h: 0.85 },
+    { room: "master", name: "Wardrobe", u0: 0.9, u1: 1, v0: 0.242, v1: 0.468, h: 1.95 },
+    { room: "master", name: "Dressing table", kind: "table", u0: 0, u1: 0.1, v0: 0.468, v1: 0.604, h: 0.75 },
+    { room: "master", name: "Chair", kind: "chair", u0: 0.08, u1: 0.2, v0: 0.589, v1: 0.68, h: 0.6 },
+    // garden office (Ed's desk on one long wall, the craft desk opposite)
+    { room: "office", name: "Ed's desk", kind: "table", u0: 0.8, u1: 1, v0: 0.04, v1: 0.96, h: 0.75 },
+    { room: "office", name: "Pegboard", u0: 0.985, u1: 1, v0: 0.2, v1: 0.85, y: 0.95, h: 1.25 },
+    { room: "office", name: "Monitors", u0: 0.88, u1: 0.93, v0: 0.3, v1: 0.72, y: 0.8, h: 0.55 },
+    { room: "office", name: "PC tower", u0: 0.8, u1: 0.97, v0: 0.06, v1: 0.22, y: 0.75, h: 0.55 },
+    { room: "office", name: "3D printer", u0: 0.84, u1: 0.98, v0: 0.78, v1: 0.94, y: 0.75, h: 0.45 },
+    { room: "office", name: "Filament shelves", kind: "shelves", u0: 0.6, u1: 0.84, v0: 0.95, v1: 1, y: 1.0, h: 0.9, shelves: 3 },
+    { room: "office", name: "Desk chair", kind: "chair", u0: 0.6, u1: 0.74, v0: 0.42, v1: 0.6, h: 1.0 },
+    { room: "office", name: "Craft desk", kind: "table", u0: 0, u1: 0.18, v0: 0.04, v1: 0.96, h: 0.75 },
+    { room: "office", name: "Craft pegboard", u0: 0, u1: 0.015, v0: 0.15, v1: 0.85, y: 0.95, h: 0.7 },
+    { room: "office", name: "Craft drawers", u0: 0.02, u1: 0.16, v0: 0.06, v1: 0.22, h: 0.7 },
+    { room: "office", name: "Craft chair", kind: "chair", u0: 0.2, u1: 0.32, v0: 0.44, v1: 0.58, h: 0.85 },
   ],
   // outbuildings sit on the ground in the garden
   outbuildings: [
-    { id: "office", name: "Garden Office", x: 0.9, z: 16.5, w: 2.75, d: 3.48, h: 2.4,
+    { id: "office", name: "Garden Office", x: 0.535, z: 16.865, w: 3.48, d: 2.75, h: 2.4,   // turned 90° clockwise
       areas: ["office", "garden office", "gym"],
       entities: ["light.garden_office_lights", "light.deskhue", "light.hue_play_gradient_lightstrip_1", "switch.office_lamps", "switch.office_lamp_2"],
       climate: "climate.garden_office", scenes: ["scene.startup", "scene.shutdown"] },
