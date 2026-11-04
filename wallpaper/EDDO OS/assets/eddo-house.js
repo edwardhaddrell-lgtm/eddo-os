@@ -1035,7 +1035,7 @@
   function resize() {
     const stage = document.querySelector("#stage"); if (!stage || !renderer) return;
     const w = stage.offsetWidth, h = stage.offsetHeight, k = stage.getBoundingClientRect().width / w || 1;
-    const pr = Math.min(2, (window.devicePixelRatio || 1) * k);
+    const pr = Math.min(window.EDDO_WEB ? 1.5 : 2, (window.devicePixelRatio || 1) * k);   // a little lower on Retina laptops keeps it smooth
     if (renderer.getPixelRatio() !== pr) renderer.setPixelRatio(pr);
     const sz = renderer.getSize(new T.Vector2());
     if (sz.x !== w || sz.y !== h) renderer.setSize(w, h, false);
@@ -1048,7 +1048,8 @@
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
-    const fps = Math.max(20, Math.min(60, (window.rhineWallpaperHost && window.rhineWallpaperHost.fps) || 30));
+    // Wallpaper Engine sets a frame-rate cap; in a browser (Mac / web edition) draw at the screen's full rate
+    const fps = window.EDDO_WEB ? 240 : Math.max(20, Math.min(60, (window.rhineWallpaperHost && window.rhineWallpaperHost.fps) || 30));
     if (now - lastFrame < 1000 / fps - 8) return;    // follow Wallpaper Engine's frame-rate setting
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     resize();
