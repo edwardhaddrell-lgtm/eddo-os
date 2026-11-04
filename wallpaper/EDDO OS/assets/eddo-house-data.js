@@ -101,7 +101,7 @@ window.EDDO_HOUSE = {
     // on the outside of the garden office (Ring "Side"), looking back at the house
     { room: "office", name: "Shed (Ring)", kind: "camera", u: 0.5, v: -0.04, look: [0.5, -4], match: ["side", "shed"], not: ["outside"], domains: ["camera"], cam: "shed" },
     // in the dining room above the radiator, looking through to the living room
-    { room: "dining", name: "Living room (Ring)", kind: "camera", u: 0.63, v: 0.96, look: [0.5, -0.9], match: ["living room"], domains: ["camera"], cam: "living_room" },
+    { room: "dining", name: "Living room (Ring)", kind: "camera", u: 0.63, v: 0.96, look: [0.5, -0.9], entity: "camera.downstairs_live_view", match: ["downstairs"], domains: ["camera"], cam: "living_room" },
     { room: "fox", name: "Fox's room lights", kind: "light", u: 0.47, v: 0.45, match: ["fox"], domains: ["light", "switch"] },
     // bathroom / spare / master
     { room: "bath", name: "Bathroom lights", kind: "light", u: 0.4, v: 0.43, match: ["bathroom"], domains: ["light", "switch"] },

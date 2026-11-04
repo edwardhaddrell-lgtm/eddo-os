@@ -584,7 +584,7 @@
   // =====================================================================
   const CAMS = { list: [], loaded: false, error: "", live: null };
   // "Label" matches by name; "Label=keyword" matches the keyword against the entity, its device or its integration.
-  const camWords = () => String(cfg().cameras || "Front door, Garden, Shed=side:ring, Living room, Fox's room=camera.nanit_nursery:auto, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
+  const camWords = () => String(cfg().cameras || "Front door, Garden, Shed=side:ring, Living room=downstairs:ring, Fox's room=camera.nanit_nursery:auto, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
   const camMeta = new Map();   // camera entity -> "platform device manufacturer model" (from the HA registries)
   window.addEventListener("eddo-ha-ready", (e) => {
     const { devices, ents } = e.detail; const dev = new Map(devices.map((d) => [d.id, d]));
