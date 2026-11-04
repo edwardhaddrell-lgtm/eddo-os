@@ -12,6 +12,7 @@ window.EDDO_WEB_SETTINGS = {
   devices: {
     mac: {
       uimargintop: 40,       // clears the menu bar and notch
+      bgdim: 60,             // darker background so the text stands out
       burnin: false,         // MacBook screens aren't OLED
       jarvistalk: false,     // the mic button needs the PC controller
       music: false,          // no audio-reactive feed outside Wallpaper Engine

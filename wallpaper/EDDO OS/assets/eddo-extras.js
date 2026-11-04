@@ -430,7 +430,8 @@
   const prompts = () => String(cfg().jarvisprompts || "").split("|").map((x) => x.trim()).filter(Boolean);
   let jEl = null;
   function draw() { if (window.eddoTabs && window.eddoTabs.active() === "jarvis") window.eddoTabs.rerender("jarvis"); }
-  window.eddoTabs && window.eddoTabs.register({
+  // the web edition (Mac / TV) has no Jarvis: the mic needs the PC controller and Plash mutes speech
+  if (!window.EDDO_WEB) window.eddoTabs && window.eddoTabs.register({
     id: "jarvis", label: "Jarvis",
     render(c) {
       jEl = c;
@@ -1010,6 +1011,7 @@
   function hideToastSoon(ms = 2500) { if (toast) { clearTimeout(toast._t); toast._t = setTimeout(() => { toast.dataset.open = "false"; }, ms); } }
   window.addEventListener("eddo-speech-end", () => hideToastSoon());
   async function speakText(text, onStart) {
+    if (window.EDDO_WEB) return false;   // no Jarvis voice in the web edition
     if (!J.pipeline) J.pipeline = await findPipeline().catch(() => null);
     return new Promise((resolve) => {
       let done = false; const finish = (ok) => { if (!done) { done = true; resolve(ok); } };
@@ -1024,7 +1026,7 @@
   async function greet(force) {
     if (greeting) return;
     if (!force) {
-      if (cfg().jarvisgreet === false) return;
+      if (cfg().jarvisgreet === false || window.EDDO_WEB) return;
       let last = 0; try { last = +localStorage.getItem(GREET_KEY) || 0; } catch (_) {}
       const hrs = Number.isFinite(+cfg().greethours) ? +cfg().greethours : 4;
       if (hrs > 0 && Date.now() - last < hrs * 3600e3) return;
