@@ -191,9 +191,13 @@
     try {
       const r = await send({ type: "call_service", domain: "calendar", service: "get_events", target: { entity_id: calEntity }, service_data: { duration: { days: 60 } }, return_response: true });
       const list = ((r && r.response && r.response[calEntity]) || {}).events || [], now = Date.now();
-      const next = list.map((e) => ({ ...e, t: Date.parse(e.start), allDay: !/T/.test(e.start) })).filter((e) => (Date.parse(e.end) || e.t) > now).sort((a, b) => a.t - b.t).slice(0, 3);
-      const day = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).toUpperCase().replace(",", "");
-      window.eddoEventsHtml = next.length ? `<div class="eddo-events"><p class="eddo-events-cap">NEXT UP</p>${next.map((e) => { const d = new Date(e.allDay ? e.start + "T00:00" : e.start); return `<div class="eddo-event"><span>${esc(day(d))}${e.allDay ? "" : " · " + d.toTimeString().slice(0, 5)}</span><b>${esc(e.summary || "Event")}</b></div>`; }).join("")}</div>` : "";
+      const featured = String(calAttrs.message || "").trim();
+      let next = list.map((e) => { const allDay = !/T/.test(e.start); return { ...e, allDay, t: Date.parse(allDay ? e.start + "T00:00" : e.start) }; }).filter((e) => (Date.parse(e.end) || e.t) > now).sort((a, b) => a.t - b.t);
+      if (featured && next.length && String(next[0].summary || "").trim() === featured) next = next.slice(1);   // the countdown already shows the first one
+      next = next.slice(0, 3);
+      const mid = new Date(); mid.setHours(0, 0, 0, 0);
+      const when = (d, allDay) => { const days = Math.round((new Date(d).setHours(0, 0, 0, 0) - mid) / 864e5); const w = days === 0 ? "TODAY" : days === 1 ? "TOMORROW" : days < 7 ? d.toLocaleDateString("en-GB", { weekday: "long" }).toUpperCase() : d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(); return allDay ? `${w} · ALL DAY` : `${w} · ${d.toTimeString().slice(0, 5)}`; };
+      window.eddoEventsHtml = next.length ? `<div class="eddo-events"><p class="eddo-events-cap">AFTER THAT</p>${next.map((e) => { const d = new Date(e.t); return `<div class="eddo-event"><i><b>${d.getDate()}</b>${d.toLocaleDateString("en-GB", { month: "short" }).toUpperCase()}</i><span><b>${esc(e.summary || "Event")}</b><small>${when(d, e.allDay)}</small></span></div>`; }).join("")}</div>` : "";
     } catch (_) { /* keep the last list */ }
     eventsBusy = false;
   }
