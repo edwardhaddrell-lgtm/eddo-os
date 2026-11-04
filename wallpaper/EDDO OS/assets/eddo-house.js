@@ -929,15 +929,23 @@
   }
   // background that follows the real sky: night navy with stars, a warm glow on the sun's side at dawn and dusk, a pale haze by day
   const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  let skyX = null, skyFace = null;
   function updateSky() {
     if (!skyEl || !sunMarker) return;
     const k = dayK, tw = Math.max(0, 1 - Math.abs(k - 0.35) / 0.35);   // twilight peaks around sunrise/sunset
     const top = mix([4, 7, 12], [10, 22, 30], k), hor = mix(mix([8, 14, 22], [24, 44, 52], k), [78, 46, 28], tw * 0.8);
-    const p = sunMarker.getWorldPosition(new T.Vector3()).project(camera);
-    const x = Math.max(-10, Math.min(110, (p.x * 0.5 + 0.5) * 100));
+    // where the sun is relative to where the camera is looking (left/right), worked out from angles so it
+    // can't flip when the sun is behind the camera; the glow fades away when you're facing away from it
+    const sw = sunMarker.getWorldPosition(new T.Vector3()), cp = camera.position, tg = view.target || sw;
+    const aSun = Math.atan2(sw.x - cp.x, sw.z - cp.z), aCam = Math.atan2(tg.x - cp.x, tg.z - cp.z);
+    const diff = ((aCam - aSun + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    const hfov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
+    const want = Math.max(-30, Math.min(130, 50 + diff / (hfov / 2) * 50)), face = Math.max(0, Math.cos(diff));
+    skyX = skyX == null ? want : skyX + (want - skyX) * 0.12; skyFace = skyFace == null ? face : skyFace + (face - skyFace) * 0.12;
+    const x = skyX;
     if (scene.fog) scene.fog.color.setRGB(...mix(top, hor, 0.4).map((v) => v / 255));
     skyEl.style.setProperty("--sky-top", `rgba(${top},.84)`); skyEl.style.setProperty("--sky-hor", `rgba(${hor},.72)`);
-    skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", (0.08 + tw * 0.32 + k * 0.06).toFixed(3));
+    skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", ((0.08 + tw * 0.32 + k * 0.06) * skyFace).toFixed(3));
     skyEl.style.setProperty("--sky-stars", (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
   }
   function placeLabels() {
@@ -1160,7 +1168,7 @@
     if (sunMarker) sunMarker.lookAt(camera.position);
     if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; }
     if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
-    if (now - lastSky > 400) { lastSky = now; updateSky(); }
+    if (now - lastSky > 50) { lastSky = now; updateSky(); }   // often and eased, so the sun glow glides as you turn
     drawWeather(now);
     updateVisuals(dt);
     updateDevices(dt, now);
