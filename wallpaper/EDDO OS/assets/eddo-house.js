@@ -187,6 +187,7 @@
   }
 
   // ------------------------------------------------------------ 3D
+  let wxEl = null;
   let skyEl = null, plinth = null, northEl = null, lastSky = 0;
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   let anim = null, orbitMode = "drift", tour = null;
@@ -222,7 +223,8 @@
       const stars = document.createElement("i"); stars.className = "eddo-house-stars";
       let sh = []; for (let i = 0; i < 90; i++) sh.push(`${(Math.random() * 100).toFixed(2)}vw ${(Math.random() * 55).toFixed(2)}vh 0 ${Math.random() < 0.15 ? 1 : 0}px rgba(220,235,240,${(0.25 + Math.random() * 0.6).toFixed(2)})`);
       stars.style.boxShadow = sh.join(","); skyEl.append(stars);
-      if (anchor) { anchor.after(skyEl); skyEl.after(canvas); canvas.after(labelsEl); } else { stage.prepend(labelsEl); stage.prepend(canvas); stage.prepend(skyEl); }
+      wxEl = document.createElement("canvas"); wxEl.className = "eddo-house-wx";
+      if (anchor) { anchor.after(skyEl); skyEl.after(wxEl); wxEl.after(canvas); canvas.after(labelsEl); } else { stage.prepend(labelsEl); stage.prepend(canvas); stage.prepend(skyEl); }
       renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setClearColor(0x000000, 0);
       scene = new T.Scene(); scene.fog = new T.Fog(0x070b10, 40, 80);   // far lines fade into the background
@@ -844,6 +846,82 @@
       if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * FLOOR_GLOW; }
     }
   }
+  // ---- live weather over the house: clouds, rain, snow, mist and storm glow from the real forecast
+  // On by default in the web edition (Mac); add ?wx=rain|snow|storm|cloudy|fog|clear to the address to preview one.
+  const wxOn = () => { const p = window.rhineWallpaperHost && window.rhineWallpaperHost.properties, v = p && p.liveweather && p.liveweather.value; return v != null ? v !== false : !!window.EDDO_WEB; };
+  const WX_TEST = (location.search.match(/[?&]wx=(\w+)/) || [])[1];
+  const WX = { clouds: [], drops: [], flash: 0, nextFlash: 0, sprites: null, last: 0, w: 0, h: 0 };
+  function wxState() {
+    const o = window.eddoOutside || {}, code = +o.code || 0;
+    let s = { cloud: Number.isFinite(+o.cloud) ? +o.cloud : code >= 3 ? 90 : code >= 1 ? 40 : 5, rain: 0, snow: 0, fog: 0, storm: 0, wind: Number.isFinite(+o.wind) ? +o.wind : 8 };
+    if (code >= 45 && code <= 48) s.fog = 1;
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) s.rain = Math.max(0.25, Math.min(1, (+o.precip || 0) / 4 + (code >= 63 || code === 81 || code === 82 ? 0.5 : 0.2)));
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) s.snow = Math.max(0.3, Math.min(1, (+o.snow || 0) + 0.4));
+    if (code >= 95) { s.rain = 0.9; s.storm = 1; }
+    const T = { rain: { cloud: 95, rain: 0.7 }, snow: { cloud: 90, snow: 0.8 }, storm: { cloud: 100, rain: 1, storm: 1, wind: 30 }, cloudy: { cloud: 85, rain: 0, snow: 0 }, fog: { cloud: 70, fog: 1 }, clear: { cloud: 0, rain: 0, snow: 0, fog: 0, storm: 0 } }[WX_TEST];
+    return T ? { ...s, ...T } : s;
+  }
+  function cloudSprites() {     // a few soft cloud puffs, drawn once
+    const out = [];
+    for (let k = 0; k < 5; k++) {
+      const c = document.createElement("canvas"); c.width = 420; c.height = 160; const g = c.getContext("2d");
+      for (let i = 0; i < 16; i++) {
+        const x = 60 + Math.random() * 300, y = 70 + (Math.random() - 0.5) * 50, r = 30 + Math.random() * 55;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(255,255,255,.55)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+      }
+      out.push(c);
+    }
+    return out;
+  }
+  function drawWeather(now) {
+    if (!wxEl) return;
+    const on = wxOn() || !!WX_TEST;
+    wxEl.style.display = on ? "" : "none"; if (!on) return;
+    const w = wxEl.clientWidth, h = wxEl.clientHeight; if (!w || !h) return;
+    if (WX.w !== w || WX.h !== h) { wxEl.width = w; wxEl.height = h; WX.w = w; WX.h = h; WX.clouds = []; WX.drops = []; }
+    const dt = Math.min(0.1, (now - (WX.last || now)) / 1000); WX.last = now;
+    const s = wxState(), g = wxEl.getContext("2d"); g.clearRect(0, 0, w, h);
+    if (!WX.sprites) WX.sprites = cloudSprites();
+    const night = 1 - dayK, windPx = (8 + s.wind * 2.2) * (w / 1600);
+    // clouds: count and darkness from cloud cover; heavier and greyer when it's raining
+    const want = Math.round(s.cloud / 100 * 14);
+    while (WX.clouds.length < want) WX.clouds.push({ x: WX.clouds.length ? Math.random() * w : -200, y: Math.random() * h * 0.45, s: 0.8 + Math.random() * 1.6, k: Math.floor(Math.random() * 5), z: 0.4 + Math.random() * 0.8, a: 0 });
+    const shade = s.rain || s.storm ? 0.55 : 1;
+    WX.clouds.forEach((c, i) => {
+      c.x += windPx * c.z * dt; c.a = Math.min(1, c.a + dt * 0.3) * (i < want ? 1 : 0.98);
+      if (c.x > w + 50) { c.x = -460 * c.s; c.y = Math.random() * h * 0.45; }
+      g.globalAlpha = c.a * (0.22 + 0.25 * (s.cloud / 100)) * (0.55 + 0.45 * (1 - night)) * shade;
+      g.drawImage(WX.sprites[c.k], c.x, c.y, 420 * c.s, 160 * c.s);
+    });
+    WX.clouds = WX.clouds.filter((c, i) => i < want || c.a > 0.02);
+    if (night > 0.3 || s.rain) { g.globalCompositeOperation = "source-atop"; g.globalAlpha = 0.35 * Math.max(night, s.rain ? 0.6 : 0); g.fillStyle = "#0b1218"; g.fillRect(0, 0, w, h); g.globalCompositeOperation = "source-over"; }
+    // rain streaks / snow flakes, slanted by the wind
+    const nDrops = Math.round((s.rain * 380 + s.snow * 260) * (w / 1600));
+    while (WX.drops.length < nDrops) WX.drops.push({ x: Math.random() * w, y: Math.random() * h, v: 0.6 + Math.random() * 0.6, r: Math.random() });
+    WX.drops.length = Math.min(WX.drops.length, nDrops);
+    const slant = Math.min(0.6, s.wind / 60);
+    g.globalAlpha = 1;
+    if (s.rain) { g.strokeStyle = "rgba(170,200,220,.32)"; g.lineWidth = 1; g.beginPath(); }
+    for (const d of WX.drops) {
+      if (s.rain) {
+        const sp = 900 * d.v * (h / 900); d.y += sp * dt; d.x += sp * slant * dt;
+        g.moveTo(d.x, d.y); g.lineTo(d.x - 14 * slant * d.v, d.y - 14 * d.v);
+      } else {
+        const sp = 60 * d.v * (h / 900); d.y += sp * dt; d.x += (windPx * 0.6 + Math.sin(now / 900 + d.r * 9) * 18) * dt;
+        g.fillStyle = `rgba(235,242,248,${0.35 + d.r * 0.4})`; g.beginPath(); g.arc(d.x, d.y, 1 + d.r * 1.6, 0, Math.PI * 2); g.fill();
+      }
+      if (d.y > h) { d.y = -10; d.x = Math.random() * w; } if (d.x > w + 20) d.x -= w + 40;
+    }
+    if (s.rain) g.stroke();
+    // mist: a soft band low across the model
+    if (s.fog) { const gr = g.createLinearGradient(0, h * 0.35, 0, h); gr.addColorStop(0, "rgba(150,170,180,0)"); gr.addColorStop(0.6, "rgba(150,170,180,.16)"); gr.addColorStop(1, "rgba(150,170,180,.24)"); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    // storm: an occasional soft glow inside the clouds (no hard strobe)
+    if (s.storm) {
+      if (now > WX.nextFlash) { WX.flash = 1; WX.nextFlash = now + 6000 + Math.random() * 12000; WX.fx = Math.random() * w; }
+      if (WX.flash > 0.01) { const gr = g.createRadialGradient(WX.fx, h * 0.15, 0, WX.fx, h * 0.15, w * 0.5); gr.addColorStop(0, `rgba(200,215,255,${0.28 * WX.flash})`); gr.addColorStop(1, "rgba(200,215,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, w, h); WX.flash *= Math.pow(0.02, dt); }
+    }
+  }
   // background that follows the real sky: night navy with stars, a warm glow on the sun's side at dawn and dusk, a pale haze by day
   const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
   function updateSky() {
@@ -1078,6 +1156,7 @@
     if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; }
     if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
     if (now - lastSky > 400) { lastSky = now; updateSky(); }
+    drawWeather(now);
     updateVisuals(dt);
     updateDevices(dt, now);
     updateEnergy(dt, now);
@@ -1381,11 +1460,17 @@
     e.preventDefault(); setBri(sl.dataset.bri, briPct(sl.dataset.bri) + (e.deltaY < 0 ? 5 : -5));
   }, { passive: false });
   setInterval(() => { if (running) refreshList(); }, 1000);
+  const WMO_WORD = { 0: "CLEAR", 1: "MOSTLY CLEAR", 2: "PARTLY CLOUDY", 3: "OVERCAST", 45: "FOG", 48: "FOG", 51: "DRIZZLE", 53: "DRIZZLE", 55: "DRIZZLE", 61: "LIGHT RAIN", 63: "RAIN", 65: "HEAVY RAIN", 71: "LIGHT SNOW", 73: "SNOW", 75: "HEAVY SNOW", 80: "SHOWERS", 81: "SHOWERS", 82: "HEAVY SHOWERS", 95: "THUNDERSTORM", 96: "THUNDERSTORM", 99: "THUNDERSTORM" };
+  setInterval(() => {   // "· 9° LIGHT RAIN" after the address
+    const el = document.querySelector("#stage .eddo-house-wxline"), o = window.eddoOutside; if (!el) return;
+    const t = WX_TEST ? ` · PREVIEW: ${WX_TEST.toUpperCase()}` : o && Number.isFinite(+o.t) ? ` · ${Math.round(o.t)}° ${WMO_WORD[o.code] || ""}${o.wind ? ` · WIND ${Math.round(o.wind)} KM/H` : ""}` : "";
+    if (el.textContent !== t) el.textContent = t;
+  }, 2000);
 
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {
-      c.innerHTML = `<div class="eddo-house-hero"><span>${esc(H.address || "11 SHORTLANDS")}</span><span class="eddo-house-pow">POWERED BY ${EDNET_MARK}</span></div><div class="eddo-house-bar"></div><div class="eddo-house-list"></div>`;
+      c.innerHTML = `<div class="eddo-house-hero"><span>${esc(H.address || "11 SHORTLANDS")}<em class="eddo-house-wxline"></em></span><span class="eddo-house-pow">POWERED BY ${EDNET_MARK}</span></div><div class="eddo-house-bar"></div><div class="eddo-house-list"></div>`;
       barEl = c.querySelector(".eddo-house-bar");
       listEl = c.querySelector(".eddo-house-list");
       refreshList();

@@ -449,10 +449,11 @@
   }
   function fetchOutside() {
     const o = outsideCfg(); if (!o) { outside = null; return renderTemps(); }
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${o.lat}&longitude=${o.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&forecast_days=1&timezone=auto`)
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${o.lat}&longitude=${o.lon}&current=temperature_2m,weather_code,cloud_cover,precipitation,rain,snowfall,wind_speed_10m,wind_direction_10m,is_day&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&forecast_days=1&timezone=auto`)
       .then((r) => r.json()).then((j) => {
         const d = j.daily || {};
-        outside = { label: o.label, t: j.current.temperature_2m, code: j.current.weather_code, max: d.temperature_2m_max?.[0], min: d.temperature_2m_min?.[0], rain: d.precipitation_probability_max?.[0], dayCode: d.weather_code?.[0] };
+        outside = { label: o.label, t: j.current.temperature_2m, code: j.current.weather_code, max: d.temperature_2m_max?.[0], min: d.temperature_2m_min?.[0], rain: d.precipitation_probability_max?.[0], dayCode: d.weather_code?.[0],
+          cloud: j.current.cloud_cover, precip: j.current.precipitation, snow: j.current.snowfall, wind: j.current.wind_speed_10m, windDir: j.current.wind_direction_10m, isDay: j.current.is_day };
         window.eddoOutside = outside;   // shared with the House tab's heat view
         renderTemps();
       })
