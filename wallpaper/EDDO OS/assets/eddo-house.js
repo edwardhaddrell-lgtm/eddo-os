@@ -16,6 +16,10 @@
   (H.outbuildings || []).forEach((o) => rooms.push({ ...o, floor: "garden", floorName: "Garden", y: 0, h: o.h || 2.4 }));
   rooms.forEach((r) => { r.ents = new Set(r.entities || []); r.on = 0; r.color = [1, 0.7, 0.42]; r.bri = 0; r.temp = null; r.glow = 0; });
   const states = new Map();
+  const EN = {};   // Octopus Energy entity ids, found when Home Assistant connects
+  const num = (id) => { const st = id && states.get(id); return st && Number.isFinite(+st.s) ? +st.s : null; };
+  const watts = (id) => { const st = id && states.get(id); if (!st || !Number.isFinite(+st.s)) return null; return /kW/i.test(st.a.unit_of_measurement || "") ? +st.s * 1000 : +st.s; };
+  const devWatts = (d) => { const w = (d.powerIds || []).map(watts).filter((v) => v != null); return w.length ? w.reduce((a, b) => a + b, 0) : null; };
   let dirty = true;
   const devices = (H.devices || []).map((d) => ({ ...d, ids: [], roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
   const KIND_DOMAINS = { light: ["light", "switch"], lamp: ["light", "switch"], appliance: ["switch", "water_heater", "binary_sensor", "select", "sensor"], tv: ["media_player"],
@@ -35,7 +39,7 @@
       const room = rooms.find((r) => (r.areas || []).some((a) => a.toLowerCase() === an)); if (!room) continue;
       const dom = x.entity_id.split(".")[0], st = stMap.get(x.entity_id); if (!st) continue;
       const useful = dom === "light" || dom === "climate" || (dom === "switch" && LIGHTY.test(x.entity_id + " " + (st.attributes.friendly_name || ""))) ||
-        (dom === "sensor" && st.attributes.device_class === "temperature");
+        (dom === "sensor" && (st.attributes.device_class === "temperature" || st.attributes.device_class === "humidity"));
       if (useful) room.ents.add(x.entity_id);
     }
     rooms.forEach((r) => { if (r.climate && stMap.has(r.climate)) r.ents.add(r.climate); });
@@ -73,7 +77,33 @@
       if (room && !room.sceneList.includes(x.entity_id)) room.sceneList.push(x.entity_id);
     }
     rooms.forEach((r) => { r.sceneNames = r.sceneList.map((id) => [id, (stMap.get(id)?.attributes.friendly_name || id.split(".")[1].replace(/_/g, " "))]); });
-    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents]), ...devices.flatMap((d) => d.ids)])];
+    // energy: Octopus Energy integration sensors (BottlecapDave), and power readings for devices and rooms
+    const findE = (re) => { const x = allStates.find((st) => re.test(st.entity_id) && !/_export_/.test(st.entity_id)); return x ? x.entity_id : null; };
+    const el = "^sensor\\.octopus_energy_electricity_.+_";
+    Object.assign(EN, {
+      demand: findE(new RegExp(el + "current_demand$")), kwh: findE(new RegExp(el + "current_accumulative_consumption$")),
+      cost: findE(new RegExp(el + "current_accumulative_cost$")), rate: findE(new RegExp(el + "current_rate$")), next: findE(new RegExp(el + "next_rate$")),
+      yKwh: findE(new RegExp(el + "previous_accumulative_consumption$")), yCost: findE(new RegExp(el + "previous_accumulative_cost$")),
+      rates: findE(/^event\.octopus_energy_electricity_.+_current_day_rates$/),
+      gasKwh: findE(/^sensor\.octopus_energy_gas_.+_current_accumulative_consumption(_kwh)?$/), gasCost: findE(/^sensor\.octopus_energy_gas_.+_current_accumulative_cost$/),
+      gasRate: findE(/^sensor\.octopus_energy_gas_.+_current_rate$/),
+      gasYKwh: findE(/^sensor\.octopus_energy_gas_.+_previous_accumulative_consumption(_kwh)?$/), gasYCost: findE(/^sensor\.octopus_energy_gas_.+_previous_accumulative_cost$/),
+    });
+    const isPower = (st) => st && st.entity_id.startsWith("sensor.") && (st.attributes.device_class === "power" || /^k?W$/.test(st.attributes.unit_of_measurement || "")) && !/octopus_energy/.test(st.entity_id);
+    const entDev = new Map(ents.map((x) => [x.entity_id, x.device_id]));
+    for (const d of devices) {   // a power sensor on the same Home Assistant device as the thing it measures
+      d.powerIds = d.ids.filter((id) => isPower(stMap.get(id)));
+      const dev = d.ids.map((id) => entDev.get(id)).find(Boolean);
+      if (dev) for (const x of ents) if (x.device_id === dev && !d.powerIds.includes(x.entity_id) && isPower(stMap.get(x.entity_id))) d.powerIds.push(x.entity_id);
+    }
+    const taken = new Set(devices.flatMap((d) => d.powerIds));
+    rooms.forEach((r) => { r.powerIds = []; });
+    for (const x of ents) {
+      if (x.disabled_by || taken.has(x.entity_id) || !isPower(stMap.get(x.entity_id))) continue;
+      const an = areaName.get(x.area_id || devArea.get(x.device_id)); if (!an) continue;
+      const room = rooms.find((r) => (r.areas || []).some((a) => a.toLowerCase() === an)); if (room) room.powerIds.push(x.entity_id);
+    }
+    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string")])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); states.set(id, { s: s.state, a: s.attributes }); });
     rooms.forEach(evalRoom); dirty = true;
@@ -89,7 +119,7 @@
   });
 
   function evalRoom(r) {
-    let on = 0, bri = 0, rgb = [0, 0, 0], n = 0, temp = null;
+    let on = 0, bri = 0, rgb = [0, 0, 0], n = 0, temp = null, hum = null, target = null, action = null, tempId = null;
     for (const id of r.ents) {
       const st = states.get(id); if (!st) continue;
       const dom = id.split(".")[0];
@@ -100,10 +130,19 @@
         const c = dom === "light" && Array.isArray(st.a.rgb_color) ? st.a.rgb_color.map((v) => v / 255) : [1, 0.72, 0.45];
         rgb = rgb.map((v, i) => v + c[i]); n++;
       }
-      if (dom === "climate" && Number.isFinite(+st.a.current_temperature)) temp = +st.a.current_temperature;
-      if (dom === "sensor" && temp == null && Number.isFinite(+st.s)) temp = +st.s;
+      if (dom === "climate") {
+        if (Number.isFinite(+st.a.current_temperature)) { temp = +st.a.current_temperature; tempId = id; }
+        if (st.s !== "off" && Number.isFinite(+st.a.temperature)) target = +st.a.temperature;
+        if (Number.isFinite(+st.a.current_humidity)) hum = +st.a.current_humidity;
+        action = st.a.hvac_action || (st.s === "off" ? "off" : null);
+      }
+      if (dom === "sensor" && Number.isFinite(+st.s)) {
+        const dc = st.a.device_class;
+        if (dc === "humidity") { if (hum == null) hum = +st.s; }
+        else if (temp == null && (dc === "temperature" || !dc)) { temp = +st.s; tempId = id; }
+      }
     }
-    r.on = on; r.bri = bri; r.temp = temp;
+    r.on = on; r.bri = bri; r.temp = temp; r.hum = hum; r.target = target; r.action = action; r.tempId = tempId;
     if (n) r.color = rgb.map((v) => v / n);
     const cl = r.climate && states.get(r.climate);
     r.hvac = cl ? cl.s : null;
@@ -162,6 +201,7 @@
   }
   const view = { theta: -0.75, phi: 0.72, dist: 52, target: null, goal: null, t0: performance.now() };
   let focused = null, hovered = null, hoveredDev = null, drag = null, lastFrame = 0;
+  let energyMode = false;
   let floorSel = null, heatMode = false, whatsOn = false, dayK = 1, sunInfo = null;
   const isQuietDev = (d) => d.kind === "camera" || d.kind === "pc";
   const devActive = (d) => !!(d.st && d.st.active && !isQuietDev(d));
@@ -443,7 +483,7 @@
       const faceCentre = () => { core.rotation.order = "YXZ"; core.rotation.y = Math.atan2(-x, -z); };
       const k = d.kind;
       if (k === "light" || k === "lamp") {
-        const rad = k === "light" ? 0.1 : 0.075;
+        const rad = k === "light" ? 0.08 : 0.06;
         add(new T.Mesh(new T.SphereGeometry(rad, 18, 12), mat()), "on", 1);                                    // the bulb
         add(new T.Mesh(new T.SphereGeometry(rad * 2.4, 18, 12), mat({ blending: T.AdditiveBlending })), "on", 0.22); // its halo
         const ring = add(new T.Mesh(new T.RingGeometry(rad * 0.75, rad, 28), mat()), "off", 0.85, false);       // off: a hollow ring
@@ -559,6 +599,93 @@
     sunPath.material.opacity = 0.08 + 0.12 * dayK;
   }
   const tmpC = () => new T.Color();
+  const DAMP = 65;   // % relative humidity where mould becomes a risk
+  const hist = { at: 0, busy: false, series: new Map() };   // tempId -> [[ms, °C], ...]
+  async function loadHistory(force) {
+    if (hist.busy || (!force && Date.now() - hist.at < 15 * 60e3) || !HA()) return;
+    const ids = [...new Set([...rooms.map((r) => r.tempId), EN.demand, EN.gasKwh].filter(Boolean))]; if (!ids.length) return;
+    hist.busy = true;
+    const start = new Date(Date.now() - 24 * 3600e3).toISOString();
+    const pts = (rows, id) => (rows || []).map((x) => [((x.lu ?? x.lc) || 0) * 1000, id.startsWith("climate.") ? +(x.a && x.a.current_temperature) : +x.s * (id === EN.demand && /kW/i.test((states.get(id)?.a || {}).unit_of_measurement || "") ? 1000 : 1)]).filter(([t, v]) => t && Number.isFinite(v));
+    try {
+      const sens = ids.filter((id) => !id.startsWith("climate.")), clim = ids.filter((id) => id.startsWith("climate."));
+      const [a, b] = await Promise.all([
+        sens.length ? HA().send({ type: "history/history_during_period", start_time: start, entity_ids: sens, minimal_response: true, no_attributes: true, significant_changes_only: false }) : {},
+        clim.length ? HA().send({ type: "history/history_during_period", start_time: start, entity_ids: clim, minimal_response: false, no_attributes: false, significant_changes_only: false }) : {},
+      ]);
+      for (const id of ids) { const p = pts((a || {})[id] || (b || {})[id], id); if (p.length) hist.series.set(id, p); }
+      hist.at = Date.now();
+    } catch (_) {}
+    hist.busy = false; refreshList();
+  }
+  // a small line of the last 24 h, with the overnight low marked
+  function spark(r) {
+    const p = r.tempId && hist.series.get(r.tempId); if (!p || p.length < 2) return "";
+    const now = Date.now(), t0 = now - 24 * 3600e3, W = 92, Hh = 22;
+    let all = p.concat([[now, r.temp ?? p[p.length - 1][1]]]).filter(([t]) => t >= t0 - 3600e3);
+    if (all.length > 240) {   // busy sensors (live demand) report every few seconds: average into ~6-minute buckets
+      const B = new Map(); for (const [t, v] of all) { const k = Math.floor((t - t0) / 360e3), e = B.get(k) || [t, 0, 0]; e[1] += v; e[2]++; B.set(k, e); }
+      all = [...B.values()].map(([t, v, n]) => [t, v / n]);
+    }
+    const vs = all.map(([, v]) => v), lo = Math.min(...vs), hi = Math.max(...vs), span = Math.max(1, hi - lo);
+    const X = (t) => Math.max(0, (t - t0) / (now - t0)) * W, Y = (v) => Hh - 2 - (v - lo) / span * (Hh - 4);
+    let d = "";
+    for (const [t, v] of all) d += `${d ? "L" : "M"}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`;
+    if (r.tempId === EN.demand) return `<svg class="eddo-heat-spark eddo-en-spark" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none"><path d="${d}"/></svg>`;
+    const iLo = vs.indexOf(lo);
+    return `<svg class="eddo-heat-spark" viewBox="0 0 ${W} ${Hh}" title="Last 24 hours"><path d="${d}"/><circle cx="${X(all[iLo][0]).toFixed(1)}" cy="${Y(lo).toFixed(1)}" r="1.8"/></svg><small class="eddo-heat-range">${lo.toFixed(1)}–${hi.toFixed(1)}°</small>`;
+  }
+  // today's half-hour prices, from the Octopus "current day rates" event
+  function dayRates() {
+    const st = EN.rates && states.get(EN.rates), rs = st && st.a && st.a.rates;
+    return Array.isArray(rs) ? rs.map((x) => ({ a: Date.parse(x.start), b: Date.parse(x.end), p: +x.value_inc_vat })).filter((x) => x.a && Number.isFinite(x.p)) : [];
+  }
+  function chart(pts, t0, t1, top, kind, colr) {
+    const W = 300, Hh = 64, X = (t) => (t - t0) / (t1 - t0) * W, Y = (v) => Hh - 2 - (v / Math.max(1e-9, top)) * (Hh - 6);
+    let g = "";
+    if (kind === "area") {
+      const line = pts.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`).join("");
+      g = `<path class="a" d="${line}L${X(pts[pts.length - 1][0]).toFixed(1)} ${Hh}L${X(pts[0][0]).toFixed(1)} ${Hh}Z"/><path class="l" d="${line}"/>`;
+    } else {
+      const bw = W / 48 - 1;
+      g = pts.map(([t, v]) => v > 0 ? `<rect x="${(X(t) - bw / 2).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(Hh - Y(v)).toFixed(1)}"/>` : "").join("");
+    }
+    const nowX = Math.min(W, X(Date.now()));
+    const marks = [0, 6, 12, 18, 24].map((hh) => { const t = t0 + hh * 3600e3; return `<span style="left:${(hh / 24 * 100).toFixed(1)}%">${new Date(Math.min(t, t1 - 1)).toTimeString().slice(0, 5)}</span>`; }).join("");
+    return `<div class="eddo-en-chart" style="--c:${colr}"><svg viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none">${[0.25, 0.5, 0.75].map((f) => `<line x1="0" x2="${W}" y1="${(Hh * f).toFixed(1)}" y2="${(Hh * f).toFixed(1)}"/>`).join("")}${g}<line class="now" x1="${nowX.toFixed(1)}" x2="${nowX.toFixed(1)}" y1="0" y2="${Hh}"/></svg><div class="eddo-en-axis">${marks}</div></div>`;
+  }
+  function energyPanel() {
+    if (!EN.demand && !EN.kwh && !EN.rate) return `<p class="wb-muted">No Octopus Energy readings found. Add the Octopus Energy integration (HACS, by BottlecapDave) to Home Assistant, with the Home Mini option ticked.</p>`;
+    const w = watts(EN.demand), rate = num(EN.rate), kwh = num(EN.kwh), cost = num(EN.cost);
+    const gbp = (v) => v == null ? "—" : `£${v.toFixed(2)}`;
+    const k = wCol(w || 0), c = `rgb(${Math.round(k.r * 255)},${Math.round(k.g * 255)},${Math.round(k.b * 255)})`;
+    const perHour = w != null && rate != null ? (w / 1000) * rate : null;
+    // electricity: one live number, today's totals, and the last 24 hours
+    let h = `<div class="eddo-en-live" style="--c:${c}"><b>${w != null ? fmtW(w) : "—"}</b><span>ELECTRICITY NOW${perHour != null ? ` · ${gbp(perHour)}/H` : ""}</span></div>` +
+      `<p class="eddo-en-stats"><span>TODAY <b>${kwh != null ? kwh.toFixed(1) + " kWh" : "—"}</b></span><span><b>${gbp(cost)}</b></span><span>RATE <b>${rate != null ? (rate * 100).toFixed(1) + "p" : "—"}</b></span></p>`;
+    const ps = EN.demand && hist.series.get(EN.demand);
+    if (ps && ps.length > 2) {
+      const t1 = Date.now(), t0 = t1 - 24 * 3600e3, B = new Map();
+      for (const [t, v] of ps) if (t >= t0) { const q = Math.floor((t - t0) / 600e3), e = B.get(q) || [0, 0]; e[0] += v; e[1]++; B.set(q, e); }
+      const pts = [...B.entries()].sort((a, b) => a[0] - b[0]).map(([q, [v, n]]) => [t0 + (q + 0.5) * 600e3, v / n]);
+      if (w != null) pts.push([t1, w]);
+      h += chart(pts, t0, t1, Math.max(...pts.map(([, v]) => v)), "area", "#5fe0a8");
+    }
+    // gas: today's totals, the boiler, and when it was used since midnight
+    if (EN.gasKwh || EN.gasCost) {
+      const gk = num(EN.gasKwh), gc = num(EN.gasCost), burn = gasBurning();
+      h += `<p class="eddo-en-stats eddo-en-gasrow"><span>GAS TODAY <b>${gk != null ? gk.toFixed(1) + " kWh" : "—"}</b></span><span><b>${gbp(gc)}</b></span><span data-on="${!!burn}">${burn ? "BOILER FIRING" : "BOILER IDLE"}</span></p>`;
+      const gs = EN.gasKwh && hist.series.get(EN.gasKwh);
+      if (gs && gs.length > 1) {
+        const mid = new Date(); mid.setHours(0, 0, 0, 0); const t0 = mid.getTime(), t1 = t0 + 24 * 3600e3, slots = new Array(48).fill(0);
+        let prev = null;
+        for (const [t, v] of gs.filter(([t]) => t >= t0).concat(gk != null ? [[Date.now(), gk]] : [])) { if (prev != null && v >= prev) slots[Math.min(47, Math.floor((t - t0) / 1800e3))] += v - prev; prev = v; }
+        const pk = Math.max(...slots);
+        if (pk > 0) h += chart(slots.map((v, i) => [t0 + (i + 0.5) * 1800e3, v]), t0, t1, pk, "bars", "#7fb8ff");
+      }
+    }
+    return h;
+  }
   function tempColour(t) {   // 16° blue → 21° neutral → 26° amber
     const cold = new T.Color(0x6fa8ff), mid = new T.Color(C.edge), hot = new T.Color(0xffa24a);
     if (t == null) return mid;
@@ -567,7 +694,7 @@
   function updateVisuals(dt) {
     for (const r of rooms) {
       const m = r.mesh; if (!m) continue;
-      const want = r.on ? 0.16 + 0.3 * r.bri : 0;
+      const want = r.on && !heatMode && !energyMode ? 0.16 + 0.3 * r.bri : 0;
       r.glow += (want - r.glow) * Math.min(1, dt * 4);
       const lc = new T.Color(r.color[0], r.color[1], r.color[2]);
       m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow;
@@ -575,29 +702,134 @@
       const isFocus = focused === r, isHover = hovered === r, dim = isDim(r);
       const night = 0.6 + 0.4 * dayK;                         // the model darkens after sunset; lit rooms keep glowing
       const base = new T.Color(0x101517).lerp(new T.Color(C.plate), 0.4 + 0.6 * dayK);
-      if (heatMode && r.temp != null && !r.quiet) m.plate.material.color.copy(tempColour(r.temp).multiplyScalar(0.55));
+      if (heatMode && r.temp != null && !r.quiet) {
+        // heating rooms breathe slowly in warm light; others hold their temperature colour
+        const breathe = r.action === "heating" ? 0.5 + 0.5 * Math.sin(performance.now() / 1400) : 0;
+        m.plate.material.color.copy(tempColour(r.temp).multiplyScalar(0.5 + 0.15 * breathe));
+        m.glow.material.color.copy(new T.Color(0xff8a3d)); m.glow.material.opacity = r.action === "heating" ? 0.05 + 0.1 * breathe : 0;
+      }
       else m.plate.material.color.copy(base.lerp(lc, r.glow * 0.7));
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
       m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.2 : r.quiet ? 0.03 : 0.07;
       m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
-      for (const fl of r.furniture || []) fl.material.opacity = dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
+      for (const fl of r.furniture || []) fl.material.opacity = heatMode || energyMode ? 0 : dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
     }
   }
 
+  const fmtW = (w) => w == null ? "—" : w >= 1000 ? `${(w / 1000).toFixed(2)} kW` : `${Math.round(w)} W`;
+  const wCol = (w) => { const k = Math.min(1, Math.log10(1 + (w || 0)) / Math.log10(3000)); return k < 0.5 ? new T.Color(0x5fe0a8).lerp(new T.Color(0xffc25a), k * 2) : new T.Color(0xffc25a).lerp(new T.Color(0xff5a4a), (k - 0.5) * 2); };
+  let flow = null;
+  // Is the boiler burning gas? The thermostat calling for heat says so straight away; otherwise
+  // the gas meter's running total going up in its latest half-hourly reading.
+  function gasBurning() {
+    if (rooms.some((r) => r.action === "heating")) return "HEATING";
+    const gs = EN.gasKwh && hist.series.get(EN.gasKwh), cur = num(EN.gasKwh);
+    if (gs && gs.length && cur != null) { const last = gs[gs.length - 1]; if (cur > last[1] + 0.05 && Date.now() - last[0] < 40 * 60e3) return "HOT WATER / HEATING"; }
+    return null;
+  }
+  const BOILER = H.boiler || { room: "bath", u: 0.88, v: 0.9, y: 1.5 };
+  let boiler = null, boilerLabel = null;
+  function buildBoiler() {
+    const r = rooms.find((x) => x.id === BOILER.room); if (!r || !r.mesh || boiler) return;
+    const g = new T.Group(); g.position.set(-r.w / 2 + BOILER.u * r.w, BOILER.y, -r.d / 2 + BOILER.v * r.d); r.mesh.g.add(g);
+    const box = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.42, 0.68, 0.3)), new T.LineBasicMaterial({ color: 0x7fb8ff, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+    box.position.y = 0.34; g.add(box);
+    const mk = (rad, c) => { const m = new T.Mesh(new T.SphereGeometry(rad, 16, 12), new T.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthTest: false, depthWrite: false, fog: false })); m.renderOrder = 23; g.add(m); return m; };
+    const outer = mk(0.22, 0xff7a2a), mid = mk(0.14, 0xffa64a), inner = mk(0.07, 0xfff1b0), halo = mk(0.6, 0xff6a20);
+    [outer, mid, inner].forEach((m) => { m.position.y = 0.2; }); halo.position.y = 0.25;
+    boiler = { g, box, outer, mid, inner, halo, k: 0, r };
+  }
+  function updateBoiler(dt, now) {
+    if (!boiler) { if (!energyMode && !heatMode) return; buildBoiler(); if (!boiler) return; }
+    const show = (energyMode || heatMode) && !hiddenFloor(boiler.r.floor), burning = show ? gasBurning() : null;
+    boiler.box.material.opacity += ((show ? 0.55 : 0) - boiler.box.material.opacity) * Math.min(1, dt * 4);
+    boiler.k += ((burning ? 1 : 0) - boiler.k) * Math.min(1, dt * 1.5);
+    // a soft flame: stretched glows that flicker a little
+    const f = (a) => 0.85 + 0.15 * Math.sin(now / a) * Math.sin(now / (a * 1.7));
+    boiler.outer.scale.set(1, 1.7 * f(130), 1); boiler.mid.scale.set(1, 1.9 * f(97), 1); boiler.inner.scale.set(1, 1.6 * f(71), 1);
+    boiler.outer.material.opacity = 0.35 * boiler.k * f(160); boiler.mid.material.opacity = 0.5 * boiler.k * f(110); boiler.inner.material.opacity = 0.85 * boiler.k;
+    boiler.halo.material.opacity = 0.08 * boiler.k * f(300);
+    boiler.burning = burning;
+    if (!boilerLabel && labelsEl) { boilerLabel = document.createElement("div"); boilerLabel.className = "eddo-house-dev eddo-boiler-label"; boilerLabel.innerHTML = "<b>BOILER</b><span></span>"; labelsEl.append(boilerLabel); }
+    if (boilerLabel) {
+      boilerLabel.dataset.hidden = String(!show);
+      if (show) {
+        const p = boiler.g.getWorldPosition(new T.Vector3()); p.y += 0.7; p.project(camera);
+        boilerLabel.style.transform = `translate(${((p.x * 0.5 + 0.5) * canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * canvas.clientHeight).toFixed(1)}px)`;
+        const t = burning ? `FIRING · ${burning}` : "IDLE"; const sp = boilerLabel.querySelector("span"); if (sp.textContent !== t) sp.textContent = t;
+        boilerLabel.dataset.on = String(!!burning);
+      }
+    }
+  }
+  function buildEnergy() {
+    if (flow || !T) return;
+    flow = { cols: new Map(), packets: [], meter: null };
+    const hall = rooms.find((r) => r.id === "hall") || rooms[0];
+    const ring = new T.Mesh(new T.RingGeometry(0.22, 0.3, 32), new T.MeshBasicMaterial({ color: 0x5fe0a8, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: T.DoubleSide, fog: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.08, -hall.d / 2 + 0.35); ring.renderOrder = 21; hall.mesh.g.add(ring);
+    const core = new T.Mesh(new T.SphereGeometry(0.11, 14, 10), new T.MeshBasicMaterial({ color: 0x5fe0a8, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false }));
+    core.position.set(0, 0.35, -hall.d / 2 + 0.35); core.renderOrder = 21; hall.mesh.g.add(core);
+    flow.meter = { ring, core };
+    const pg = new T.SphereGeometry(0.05, 8, 6);
+    for (let i = 0; i < 72; i++) {
+      const m = new T.Mesh(pg, new T.MeshBasicMaterial({ color: 0xffc25a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthTest: false, depthWrite: false, fog: false }));
+      m.renderOrder = 22; m.visible = false; scene.add(m); flow.packets.push(m);
+    }
+    for (const d of devices) {
+      if (!d.mesh) continue;
+      const col = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0x5fe0a8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false }));
+      const edge = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(1, 1, 1)), new T.LineBasicMaterial({ color: 0x5fe0a8, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+      const g = new T.Group(); g.add(col, edge); g.position.set(d.mesh.core.position.x, 0, d.mesh.core.position.z); g.scale.set(0.2, 0.001, 0.2); g.visible = false;
+      d.roomRef.mesh.g.add(g); flow.cols.set(d, { g, col, edge, h: 0 });
+    }
+  }
+  function updateEnergy(dt, now) {
+    if (!flow && !energyMode) return;
+    buildEnergy(); if (!flow) return;
+    const on = energyMode ? 1 : 0;
+    const total = watts(EN.demand);
+    const mm = flow.meter; mm.ring.material.opacity += (on * 0.8 - mm.ring.material.opacity) * Math.min(1, dt * 4);
+    mm.core.material.opacity = mm.ring.material.opacity * (0.7 + 0.3 * Math.sin(now / 500));
+    mm.ring.scale.setScalar(1 + 0.25 * Math.sin(now / 700));
+    if (total != null) { const c = wCol(total); mm.ring.material.color.copy(c); mm.core.material.color.copy(c); }
+    const meterW = mm.core.getWorldPosition(new T.Vector3());
+    let pi = 0;
+    for (const [d, c] of flow.cols) {
+      const w = energyMode && !hiddenFloor(d.roomRef.floor) ? devWatts(d) : null;
+      const want = w != null && w >= 3 ? 0.25 + 1.9 * Math.min(1, Math.log10(1 + w) / Math.log10(3000)) : 0;
+      c.h += (want - c.h) * Math.min(1, dt * 3);
+      c.g.visible = c.h > 0.01; if (!c.g.visible) continue;
+      c.g.scale.y = c.h; c.g.position.y = c.h / 2;
+      const col = wCol(w || 0); c.col.material.color.copy(col); c.edge.material.color.copy(col);
+      c.col.material.opacity = 0.22 * Math.min(1, c.h * 3); c.edge.material.opacity = 0.75 * Math.min(1, c.h * 3);
+      // packets run from the meter to anything drawing power; faster for bigger loads
+      if (w != null && w >= 3) {
+        const to = d.mesh.core.getWorldPosition(new T.Vector3()), n = w > 800 ? 3 : w > 100 ? 2 : 1, speed = 0.18 + 0.5 * Math.min(1, Math.log10(1 + w) / Math.log10(3000));
+        for (let k = 0; k < n && pi < flow.packets.length; k++, pi++) {
+          const m = flow.packets[pi], t = ((now / 1000) * speed + k / n + (d.u || 0)) % 1;
+          m.position.lerpVectors(meterW, to, t); m.position.y += Math.sin(t * Math.PI) * 0.8;
+          m.material.color.copy(col); m.material.opacity = 0.9 * Math.sin(t * Math.PI); m.visible = true;
+        }
+      }
+    }
+    for (; pi < flow.packets.length; pi++) flow.packets[pi].visible = false;
+  }
   const _wp = { v: null };
   function updateDevices(dt, now) {
     const tmp = _wp.v || (_wp.v = new T.Vector3());
     for (const d of devices) {
       const m = d.mesh; if (!m) continue;
       const st = devState(d); d.st = st;
-      m.glow += ((st.active ? 1 : 0) - m.glow) * Math.min(1, dt * 3);      // fade over about a second
-      const col = new T.Color(...(st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : d.kind === "camera" ? [1, 0.38, 0.32] : [1, 0.64, 0.29])));
+      // cameras stay red whenever they're linked (a camera that's idle or briefly unavailable is still a camera)
+      const lit = d.kind === "camera" ? st.linked && d.ids.length > 0 : st.active;
+      m.glow += ((lit ? 1 : 0) - m.glow) * Math.min(1, dt * 3);      // fade over about a second
+      const col = new T.Color(...(d.kind === "camera" ? [0.95, 0.26, 0.2] : st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : d.kind === "camera" ? [1, 0.38, 0.32] : [1, 0.64, 0.29])));
       const idle = new T.Color(st.linked ? 0x7d9599 : 0x3c4648);
       const dim = hiddenFloor(d.roomRef.floor) || (whatsOn && !focused && !devActive(d));
       const near = hoveredDev === d || focused === d.roomRef;
-      const base = dim ? 0.12 : near ? 1 : 0.8;
+      const base = heatMode || energyMode ? 0 : dim ? 0.12 : near ? 1 : 0.8;
       for (const p of m.parts) {
         const w = p.role === "on" ? m.glow : p.role === "off" ? 1 - m.glow : 1;
         p.obj.material.opacity = base * p.k * w;
@@ -608,7 +840,7 @@
       m.core.getWorldPosition(tmp);
       const want = Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);
       m.size += (want - m.size) * Math.min(1, dt * 8); m.core.scale.setScalar(m.size);
-      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * (heatMode ? 0.3 : 1); }
+      if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22); }
     }
   }
   // background that follows the real sky: night navy with stars, a warm glow on the sun's side at dawn and dusk, a pale haze by day
@@ -645,19 +877,38 @@
       r.label.dataset.hidden = String(!vis);
       r.label.dataset.on = String(r.on > 0);
       r.label.dataset.active = String(hovered === r || focused === r);
-      const s = r.label.querySelector("span"), txt = heatMode ? (r.temp != null ? `${r.temp.toFixed(1)}°` : "") : (hovered === r || focused === r) ? roomStatus(r) : "";
+      const heat = heatMode && !r.quiet && r.temp != null;
+      if (energyMode) {
+        const rw = [...(r.powerIds || []).map(watts), ...devices.filter((d) => d.roomRef === r).map(devWatts)].filter((v) => v != null);
+        const tot = rw.length ? rw.reduce((a, b) => a + b, 0) : null;
+        r.label.dataset.heat = "false"; r.label.dataset.energy = "true";
+        const s = r.label.querySelector("span"), t = tot != null && tot >= 3 ? fmtW(tot) : ""; if (s.textContent !== t) s.textContent = t;
+        if (r.quiet || !t) r.label.dataset.hidden = "true";
+        const sub = r.label.querySelector("i"); if (sub && sub.textContent) sub.textContent = "";
+        continue;
+      }
+      r.label.dataset.energy = "false";
+      r.label.dataset.heat = String(heatMode);
+      if (heatMode && !heat) r.label.dataset.hidden = "true";
+      const s = r.label.querySelector("span"), txt = heat ? `${r.temp.toFixed(1)}°` : heatMode ? "" : (hovered === r || focused === r) ? roomStatus(r) : "";
       if (s.textContent !== txt) s.textContent = txt;
+      let sub = r.label.querySelector("i"); if (!sub) { sub = document.createElement("i"); r.label.append(sub); }
+      const sxt = heat ? [r.target != null ? `SET ${r.target.toFixed(1)}°` : "", r.action === "heating" ? "HEATING" : r.action === "cooling" ? "COOLING" : "", r.hum != null ? `${Math.round(r.hum)}% RH` : ""].filter(Boolean).join(" · ") : "";
+      r.label.dataset.damp = String(heat && r.hum != null && r.hum >= DAMP);
+      if (sub.textContent !== sxt) sub.textContent = sxt;
+      if (heat) { const c = tempColour(r.temp); r.label.style.setProperty("--tc", `rgb(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)})`); }
     }
     for (const d of devices) {
       if (!d.label || !d.mesh) continue;
-      const show = hoveredDev === d || focused === d.roomRef || (whatsOn && !focused && devActive(d));
+      const ew = energyMode ? devWatts(d) : null;
+      const show = energyMode ? ew != null && ew >= 3 && !hiddenFloor(d.roomRef.floor) : !heatMode && (hoveredDev === d || focused === d.roomRef || (whatsOn && !focused && devActive(d)));
       d.label.dataset.hidden = String(!show);
       if (!show) continue;
       const p = d.mesh.core.getWorldPosition(new T.Vector3()); p.project(camera);
       const tf = `translate(${((p.x * 0.5 + 0.5) * w).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * h).toFixed(1)}px)`;
       if (d.label.style.transform !== tf) d.label.style.transform = tf;
       d.label.dataset.on = String(!!(d.st && d.st.active)); d.label.dataset.hover = String(hoveredDev === d);
-      const s = d.label.querySelector("span"), txt = d.st ? d.st.text : "";
+      const s = d.label.querySelector("span"), txt = energyMode ? fmtW(ew) : d.st ? d.st.text : "";
       if (s.textContent !== txt) s.textContent = txt;
     }
   }
@@ -673,39 +924,53 @@
     if (d) { ringEl.style.setProperty("--ms", ms + "ms"); ringEl.dataset.on = "true"; }
   }
   // hover a camera for 3 s: a ring fills, then its live view appears on a panel in front of it
-  const preview = { dev: null, el: null, timer: null, close: null, ticket: 0 };
+  const previews = new Map();   // camera device -> { el, timer, alive }; any number can be open at once
+  let restoreCams = [];
   let dwellDev = null, dwellTimer = null;
+  const DWELL_MS = 1200;
   function dwell(d) {
     if (d === dwellDev) return;
     dwellDev = d; clearTimeout(dwellTimer);
-    if (preview.dev && d === preview.dev) { clearTimeout(preview.close); return; }
-    if (preview.dev && d !== preview.dev) { clearTimeout(preview.close); preview.close = setTimeout(closePreview, 2500); }
-    if (d && d.cam && !drag) { holdRing(d, 3000); dwellTimer = setTimeout(() => { holdRing(null); openPreview(d); }, 3000); }
+    if (d && d.cam && !drag && !previews.has(d)) { holdRing(d, DWELL_MS); dwellTimer = setTimeout(() => { holdRing(null); openPreview(d); }, DWELL_MS); }
     else if (ringDev && (!drag || !d)) holdRing(null);
   }
+  // The panel opens on a snapshot straight away, then switches to the live feed after 5 s,
+  // keeping the snapshot underneath until the first live frame arrives (so it's never black).
+  // It stays open until its × is clicked (or Esc), and comes back when you return to the tab.
   async function openPreview(d) {
-    closePreview();
-    const ticket = ++preview.ticket;
-    preview.dev = d;
-    if (!preview.el) {
-      preview.el = document.createElement("div"); preview.el.className = "eddo-house-preview";
-      preview.el.innerHTML = `<img alt=""><span></span><em>CONNECTING…</em>`; labelsEl.append(preview.el);
-    }
-    const el = preview.el, img = el.querySelector("img");
-    el.querySelector("span").textContent = (d.name || "").toUpperCase(); el.dataset.state = "loading"; el.dataset.open = "true";
+    if (previews.has(d)) return;
+    const el = document.createElement("div"); el.className = "eddo-house-preview";
+    el.innerHTML = `<img class="still" alt=""><img class="live" alt=""><span></span><em>LOADING…</em><button data-house-preview-close aria-label="Close camera">×</button>`;
+    el.querySelector("button").dataset.housePreviewClose = d.cam; labelsEl.append(el);
+    const pv = { el, timer: null, alive: true }; previews.set(d, pv);
+    const still = el.querySelector(".still"), live = el.querySelector(".live"), em = el.querySelector("em");
+    el.querySelector("span").textContent = (d.name || "").toUpperCase(); el.dataset.state = "loading"; el.dataset.live = "false";
+    requestAnimationFrame(() => { el.dataset.open = "true"; });
     const f = window.eddoCams && await window.eddoCams.feed(d.cam);
-    if (ticket !== preview.ticket) return;
-    if (!f) { el.querySelector("em").textContent = "NO FEED"; return; }
-    img.onload = () => { if (ticket === preview.ticket) { el.dataset.state = "live"; el.querySelector("em").textContent = f.stream ? "● LIVE · CLICK TO OPEN" : "SNAPSHOT · CLICK TO OPEN"; } };
-    img.onerror = () => { if (ticket === preview.ticket && f.stream && img.src !== f.still) img.src = f.still; else if (ticket === preview.ticket) el.querySelector("em").textContent = "NO FEED"; };
-    img.src = f.stream || f.still;
-    preview.timer = setTimeout(closePreview, 120000);
+    if (!pv.alive) return;
+    if (!f) { em.textContent = "NO FEED"; return; }
+    still.onload = () => { if (pv.alive) { el.dataset.state = "live"; if (el.dataset.live !== "true") em.textContent = f.stream ? "SNAPSHOT · LIVE IN A MOMENT" : "SNAPSHOT · CLICK TO OPEN"; } };
+    still.onerror = () => { if (pv.alive && el.dataset.live !== "true") em.textContent = "NO SNAPSHOT"; };
+    still.src = f.still;
+    if (f.stream) pv.timer = setTimeout(() => {
+      if (!pv.alive) return;
+      live.onload = () => { if (pv.alive) { el.dataset.state = "live"; el.dataset.live = "true"; em.textContent = "● LIVE · CLICK CAMERA TO OPEN"; } };
+      live.onerror = () => { if (pv.alive) { el.dataset.live = "false"; em.textContent = "SNAPSHOT · LIVE UNAVAILABLE"; } };
+      live.src = f.stream;
+    }, 5000);
   }
-  function closePreview() {
-    preview.ticket++; clearTimeout(preview.timer); clearTimeout(preview.close);
-    preview.dev = null;
-    if (preview.el) { preview.el.dataset.open = "false"; const img = preview.el.querySelector("img"); img.onload = img.onerror = null; img.removeAttribute("src"); }
+  function closePreview(d) {
+    const pv = previews.get(d); if (!pv) return;
+    pv.alive = false; clearTimeout(pv.timer); previews.delete(d);
+    pv.el.querySelectorAll("img").forEach((img) => { img.onload = img.onerror = null; img.removeAttribute("src"); });   // stops the stream
+    pv.el.dataset.open = "false"; setTimeout(() => pv.el.remove(), 500);
   }
+  // close them all; keep = reopen the same ones when you come back to the tab
+  function closeAllPreviews(keep) {
+    restoreCams = keep ? [...previews.keys()] : [];
+    [...previews.keys()].forEach(closePreview);
+  }
+
   // the panel sits at the end of the camera's view cone; a CSS 3-D transform maps it onto that rectangle
   function homography(w, h, q) {
     const src = [[0, 0], [w, 0], [w, h], [0, h]], A = [], b = [];
@@ -723,8 +988,8 @@
     const H = b.map((v, i) => v / A[i][i]);
     return `matrix3d(${[H[0], H[3], 0, H[6], H[1], H[4], 0, H[7], 0, 0, 1, 0, H[2], H[5], 0, 1].map((v) => v.toFixed(6)).join(",")})`;
   }
-  function placePreview() {
-    const d = preview.dev, el = preview.el; if (!d || !el || el.dataset.open !== "true") return;
+  function placePreview() { for (const [d, pv] of previews) placeOne(d, pv.el); }
+  function placeOne(d, el) {
     const W = 0.62, Hh = 0.36, Z = 0.85, w = 320, h = 186;          // panel in the marker's own space (it scales with the marker)
     const pts = [[-W, Hh, Z], [W, Hh, Z], [W, -Hh, Z], [-W, -Hh, Z]].map(([x, y, z]) => {
       const p = d.mesh.core.localToWorld(new T.Vector3(x, y, z)).project(camera);
@@ -740,7 +1005,7 @@
   // ---- settings menu for a device (press and hold a marker, or right-click if Windows lets it through)
   let pop = null;
   function openPop(d) {
-    closePop(); closePreview();
+    closePop();
     pop = { dev: d, el: document.createElement("div") };
     pop.el.className = "eddo-house-pop"; labelsEl.append(pop.el);
     renderPop();
@@ -813,6 +1078,8 @@
     if (now - lastSky > 400) { lastSky = now; updateSky(); }
     updateVisuals(dt);
     updateDevices(dt, now);
+    updateEnergy(dt, now);
+    updateBoiler(dt, now);
     renderer.render(scene, camera);
     placeLabels();
     if (ringEl && ringDev) { const p = screenOf(ringDev); ringEl.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
@@ -863,6 +1130,7 @@
     back();
   }
   function pickDevice(ev) {
+    if (heatMode || energyMode) return null;
     const rect = canvas.getBoundingClientRect();
     const ray = new T.Raycaster(), v = new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     ray.setFromCamera(v, camera);
@@ -899,7 +1167,7 @@
     const t = (+st.a.temperature || +st.a.current_temperature || 20) + delta;
     call("climate", "set_temperature", { target: { entity_id: id }, service_data: { temperature: Math.round(t * 2) / 2 } });
   }
-  const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, .eddo-house-pop, button, a"));
+  const overUi = (el) => !!(el && el.closest && el.closest(".workbench, .eddo-ha, .eddo-srv, .eddo-quick, .eddo-dlg, .system-footer, .brand, .eddo-cam-overlay, .eddo-house-pop, .eddo-house-preview, button, a"));
   let lastInput = performance.now();
   function stopTour() { if (tour) { clearInterval(tour.timer); tour = null; } }
   function back() {
@@ -933,7 +1201,7 @@
     const stage = document.querySelector("#stage");
     ["mousemove", "mousedown", "wheel"].forEach((t) => window.addEventListener(t, () => { lastInput = performance.now(); }, { passive: true }));
     stage.addEventListener("contextmenu", (e) => { if (!running || overUi(e.target)) return; e.preventDefault(); const d = pickDevice(e); if (d) openPop(d); else back(); });
-    window.addEventListener("keydown", (e) => { if (running && e.key === "Escape") { if (pop) closePop(); else back(); } });
+    window.addEventListener("keydown", (e) => { if (running && e.key === "Escape") { if (pop) closePop(); else if (previews.size) closePreview([...previews.keys()].pop()); else back(); } });
     stage.addEventListener("mousedown", (e) => {
       if (!running || overUi(e.target) || e.button !== 0) return;
       stopTour(); anim = null; clearTimeout(dwellTimer);
@@ -963,7 +1231,7 @@
       if (dr.held || moved || overUi(e.target)) return;
       if (pop) { closePop(); return; }
       const d = pickDevice(e);
-      if (d && d.cam && window.eddoCams && (focused === d.roomRef || preview.dev === d)) { closePreview(); window.eddoCams.open(d.cam); return; }
+      if (d && d.cam && window.eddoCams && (focused === d.roomRef || previews.has(d))) { window.eddoCams.open(d.cam); return; }
       if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
       if (d) return focus(d.roomRef);
       clickRoom(e);
@@ -981,9 +1249,10 @@
     const s = document.querySelector("#stage");
     s && s.setAttribute("data-eddo-house", "true");
     requestAnimationFrame(frame);
+    if (restoreCams.length) { const ds = restoreCams; restoreCams = []; setTimeout(() => running && ds.forEach(openPreview), 300); }
   }
   function stop() {
-    stopTour(); closePop(); closePreview(); dwell(null);
+    stopTour(); closePop(); closeAllPreviews(true); dwell(null);
     running = false; hovered = null; hoveredDev = null; drag = null;
     document.querySelector("#stage")?.removeAttribute("data-eddo-house");
   }
@@ -1002,15 +1271,16 @@
       barEl.innerHTML =
         `<div class="eddo-house-tabs" data-group="floor"><i class="eddo-house-ind"></i>${FLOORS.map(([id, l]) => `<button data-house-floor="${id}">${l}</button>`).join("")}</div>` +
         `<div class="eddo-house-views"><span class="eddo-house-cap">VIEW</span>${VIEW_BTNS.map(([id, l]) => `<button data-house-view="${id}">${l}</button>`).join("")}</div>` +
-        `<div class="eddo-house-views"><span class="eddo-house-cap">SHOW</span><button data-house-mode="heat">HEAT</button><button data-house-mode="on">WHAT'S ON</button><span class="eddo-house-sun"></span></div>`;
+        `<div class="eddo-house-views"><span class="eddo-house-cap">SHOW</span><button data-house-mode="heat">HEAT</button><button data-house-mode="energy">ENERGY</button><button data-house-mode="on">WHAT'S ON</button><span class="eddo-house-sun"></span></div>`;
     }
     const cur = focused ? focused.floor : floorSel || "";
     barEl.querySelectorAll("[data-house-floor]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.houseFloor === cur && (!!focused || !!floorSel || (!cur && orbitMode !== "off" && !tour)))));
     const ind = barEl.querySelector(".eddo-house-ind"), on = barEl.querySelector('[data-house-floor][aria-pressed="true"]');
-    if (on) { ind.style.width = on.offsetWidth + "px"; ind.style.transform = `translateX(${on.offsetLeft}px)`; ind.style.opacity = "1"; } else ind.style.opacity = "0";
+    if (on) { ind.style.width = on.offsetWidth + "px"; ind.style.left = on.offsetLeft + "px"; ind.style.opacity = "1"; } else ind.style.opacity = "0";
     const vOn = tour ? "tour" : orbitMode === "spin" ? "spin" : null;
     barEl.querySelectorAll("[data-house-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.houseView === vOn)));
     barEl.querySelector('[data-house-mode="heat"]').setAttribute("aria-pressed", String(heatMode));
+    barEl.querySelector('[data-house-mode="energy"]').setAttribute("aria-pressed", String(energyMode));
     barEl.querySelector('[data-house-mode="on"]').setAttribute("aria-pressed", String(whatsOn));
     const sun = sunInfo ? `${sunInfo.up ? "☀" : "☾"} ${sunInfo.rise}–${sunInfo.set}` : "", se = barEl.querySelector(".eddo-house-sun");
     if (se.textContent !== sun) se.textContent = sun;
@@ -1034,11 +1304,26 @@
         `<p class="wb-muted eddo-house-sub">${esc(roomStatus(focused))}</p>` + (scenes ? `<div class="eddo-house-scenes">${scenes}</div>` : "") +
         (ds.length ? ds.map(devRow).join("") : `<p class="wb-muted">No devices placed in this room.</p>`) + `</div>` +
         `<p class="wb-muted eddo-house-tip">Drag a slider or scroll on a light to dim it · click empty space to zoom out</p>`;
+    } else if (energyMode) {
+      body = energyPanel();
+    } else if (heatMode) {
+      // short and calm: inside vs outside, then one line per room (warmest first)
+      loadHistory(false);
+      const rs = rooms.filter((r) => !r.quiet && r.temp != null && (!floorSel || r.floor === floorSel)).sort((a, b) => b.temp - a.temp);
+      const avg = rs.length ? rs.reduce((a, r) => a + r.temp, 0) / rs.length : null;
+      const out = window.eddoOutside && Number.isFinite(+window.eddoOutside.t) ? +window.eddoOutside.t : null;
+      const col = (t) => { const c = tempColour(t); return `rgb(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)})`; };
+      body = `<p class="eddo-en-stats"><span>INSIDE <b>${avg != null ? avg.toFixed(1) + "°" : "—"}</b></span><span>OUTSIDE <b>${out != null ? out.toFixed(1) + "°" : "—"}</b></span></p>` +
+        (rs.length ? rs.map((r) => `<div class="eddo-house-item"><button class="eddo-house-row" data-house-room="${r.id}"><i style="background:${col(r.temp)};border-color:${col(r.temp)}"></i><span>${esc(r.name)}${r.hum != null && r.hum >= DAMP ? ` <mark>DAMP</mark>` : ""}</span><em>${spark(r)}<b style="color:${col(r.temp)}">${r.temp.toFixed(1)}°</b></em></button></div>`).join("")
+          : `<p class="wb-muted">No temperature sensors found for these rooms.</p>`);
     } else if (whatsOn) {
-      const live = rooms.filter(roomActive);
+      // just what's on, one tap each to switch off
+      const live = devices.filter((d) => devActive(d) && !hiddenFloor(d.roomRef.floor));
       body = `<div class="eddo-house-head"><h3 class="eddo-house-room">What's on</h3>${live.length ? `<button class="eddo-house-off" data-house-off="*">ALL LIGHTS OFF</button>` : ""}</div>` +
-        (live.length ? live.map((r) => `<div class="eddo-house-floor"><p>${esc(r.name.toUpperCase())} · <button class="eddo-house-back" data-house-off="${r.id}">ALL OFF</button></p>` +
-          devices.filter((d) => d.roomRef === r && devActive(d)).map(devRow).join("") + `</div>`).join("") : `<p class="wb-muted">Everything's off.</p>`);
+        (live.length ? live.slice(0, 10).map((d) => { const i = devices.indexOf(d), act = d.cam ? ` data-house-cam="${d.cam}"` : canToggle(d) ? ` data-house-dev="${i}"` : " data-static";
+          return `<div class="eddo-house-item" data-on="true"><button class="eddo-house-row"${act}><i style="--c:#ffb36b"></i><span>${esc(d.name)}</span><em>${esc(d.roomRef.name.toUpperCase())}</em></button></div>`; }).join("") +
+          (live.length > 10 ? `<p class="wb-muted">+ ${live.length - 10} more</p>` : "")
+          : `<p class="wb-muted">Everything's off.</p>`);
     } else if (!floorSel) {
       const on = rooms.filter((r) => r.on > 0).length;
       body = `<p class="wb-muted eddo-house-tip">${on ? `${on} room${on > 1 ? "s" : ""} lit · ` : ""}Pick a floor above, or click a room on the model</p>`;
@@ -1058,13 +1343,15 @@
     const q = (sel) => e.target.closest(sel);
     let b;
     if (q("[data-house-pop-close]")) return closePop();
+    if ((b = q("[data-house-preview-close]"))) { const d = devices.find((x) => x.cam === b.dataset.housePreviewClose); return d && closePreview(d); }
     if ((b = q("[data-house-view]"))) return setView(b.dataset.houseView);
     if ((b = q("[data-house-ct]"))) { const [id, k] = b.dataset.houseCt.split(":"); return call("light", "turn_on", { target: { entity_id: id }, service_data: { color_temp_kelvin: +k } }); }
     if ((b = q("[data-house-rgb]"))) { const [id, c] = b.dataset.houseRgb.split(":"); return call("light", "turn_on", { target: { entity_id: id }, service_data: { rgb_color: c.split(",").map(Number) } }); }
     if ((b = q("[data-house-floor]"))) { stopTour(); closePop(); whatsOn = false; if (!b.dataset.houseFloor) orbitMode = "drift"; return setFloor(b.dataset.houseFloor); }
     if ((b = q("[data-house-mode]"))) {
-      if (b.dataset.houseMode === "heat") heatMode = !heatMode;
-      else { whatsOn = !whatsOn; if (whatsOn) { stopTour(); focused = null; floorSel = null; setFloor(null); } }
+      if (b.dataset.houseMode === "energy") { energyMode = !energyMode; if (energyMode) { heatMode = false; whatsOn = false; loadHistory(true); closePop(); closeAllPreviews(); dwell(null); hoveredDev = null; } return refreshList(); }
+      if (b.dataset.houseMode === "heat") { heatMode = !heatMode; if (heatMode) { energyMode = false; loadHistory(true); whatsOn = false; closePop(); closeAllPreviews(); dwell(null); hoveredDev = null; } }
+      else { whatsOn = !whatsOn; if (whatsOn) { heatMode = false; energyMode = false; stopTour(); focused = null; floorSel = null; setFloor(null); } }
       return refreshList();
     }
     if (q("[data-house-back]") && !q("[data-house-off]")) { stopTour(); return focus(null); }

@@ -453,6 +453,7 @@
       .then((r) => r.json()).then((j) => {
         const d = j.daily || {};
         outside = { label: o.label, t: j.current.temperature_2m, code: j.current.weather_code, max: d.temperature_2m_max?.[0], min: d.temperature_2m_min?.[0], rain: d.precipitation_probability_max?.[0], dayCode: d.weather_code?.[0] };
+        window.eddoOutside = outside;   // shared with the House tab's heat view
         renderTemps();
       })
       .catch(() => {});

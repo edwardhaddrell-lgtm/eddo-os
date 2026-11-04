@@ -1,0 +1,44 @@
+# Builds the Mac / web edition of EDDO OS from the wallpaper folder on every push to main,
+# and publishes just the built site to the `web` branch. Eddo-NAS serves that branch.
+name: Build web edition
+
+on:
+  push:
+    branches: [main]
+    paths: ["wallpaper/**", "tools/web/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the web edition
+        run: python tools/web/build_web.py "wallpaper/EDDO OS" site
+
+      - name: Check no secrets slipped in
+        run: |
+          ! find site -name "bridge-key*" | grep -q . || { echo "bridge key found"; exit 1; }
+          ! grep -rqE '"hatoken"\s*:\s*"[^"]+' site || { echo "token found"; exit 1; }
+
+      - name: Publish to the web branch
+        run: |
+          cd site
+          git init -q -b web
+          git config user.name "eddo-os build"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Web edition built from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" web

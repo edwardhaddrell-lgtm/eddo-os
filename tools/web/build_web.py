@@ -3,8 +3,7 @@
 
     python build_web.py <wallpaper folder> <output folder>
 
-The output folder is what Eddo-NAS serves. eddo-web-settings.js is only written
-if it doesn't exist yet, so your edits to it survive a rebuild.
+The output folder is what Eddo-NAS serves (via the `web` branch, built by GitHub Actions).
 """
 import json, re, shutil, sys, time
 from pathlib import Path
@@ -31,9 +30,8 @@ boot = (HERE / "eddo-web.template.js").read_text()
 boot = boot.replace("/*DEFAULTS*/{}", json.dumps(defaults, ensure_ascii=False, indent=None))
 (out / "assets" / "eddo-web.js").write_text(boot)
 
-# 2. shared settings file (kept if already customised)
-if not (out / "eddo-web-settings.js").exists():
-    shutil.copy2(HERE / "eddo-web-settings.js", out / "eddo-web-settings.js")
+# 2. shared settings file (from the repo; the HA token is never in it)
+shutil.copy2(HERE / "eddo-web-settings.js", out / "eddo-web-settings.js")
 
 # 3. entry page: feed settings straight after the host shim; no PC controller key
 html = (src / "index.html").read_text()
