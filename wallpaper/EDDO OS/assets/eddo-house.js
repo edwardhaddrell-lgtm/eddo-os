@@ -866,8 +866,8 @@
     for (let k = 0; k < 5; k++) {
       const c = document.createElement("canvas"); c.width = 420; c.height = 160; const g = c.getContext("2d");
       for (let i = 0; i < 16; i++) {
-        const x = 60 + Math.random() * 300, y = 70 + (Math.random() - 0.5) * 50, r = 30 + Math.random() * 55;
-        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(255,255,255,.55)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        const r = 26 + Math.random() * 40, x = r + 4 + Math.random() * (420 - 2 * r - 8), y = 80 + (Math.random() - 0.5) * Math.max(0, 160 - 2 * r - 8);
+        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(255,255,255,.45)"); gr.addColorStop(0.6, "rgba(255,255,255,.18)"); gr.addColorStop(1, "rgba(255,255,255,0)");
         g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
       }
       out.push(c);
@@ -885,16 +885,21 @@
     if (!WX.sprites) WX.sprites = cloudSprites();
     const night = 1 - dayK, windPx = (8 + s.wind * 2.2) * (w / 1600);
     // clouds: count and darkness from cloud cover; heavier and greyer when it's raining
-    const want = Math.round(s.cloud / 100 * 14);
-    while (WX.clouds.length < want) WX.clouds.push({ x: WX.clouds.length ? Math.random() * w : -200, y: Math.random() * h * 0.45, s: 0.8 + Math.random() * 1.6, k: Math.floor(Math.random() * 5), z: 0.4 + Math.random() * 0.8, a: 0 });
+    const want = Math.round(s.cloud / 100 * 9);
+    while (WX.clouds.length < want) WX.clouds.push({ x: WX.clouds.length ? Math.random() * w : -200, y: -h * 0.04 + Math.random() * h * 0.1, s: 0.7 + Math.random() * 1.1, k: Math.floor(Math.random() * 5), z: 0.4 + Math.random() * 0.8, a: 0 });
     const shade = s.rain || s.storm ? 0.55 : 1;
     WX.clouds.forEach((c, i) => {
       c.x += windPx * c.z * dt; c.a = Math.min(1, c.a + dt * 0.3) * (i < want ? 1 : 0.98);
-      if (c.x > w + 50) { c.x = -460 * c.s; c.y = Math.random() * h * 0.45; }
-      g.globalAlpha = c.a * (0.22 + 0.25 * (s.cloud / 100)) * (0.55 + 0.45 * (1 - night)) * shade;
+      if (c.x > w + 50) { c.x = -460 * c.s; c.y = -h * 0.04 + Math.random() * h * 0.1; }
+      g.globalAlpha = c.a * (0.08 + 0.12 * (s.cloud / 100)) * (0.55 + 0.45 * (1 - night)) * shade;
       g.drawImage(WX.sprites[c.k], c.x, c.y, 420 * c.s, 160 * c.s);
     });
     WX.clouds = WX.clouds.filter((c, i) => i < want || c.a > 0.02);
+    { // fade the clouds out well above the house so they never sit on it
+      g.globalCompositeOperation = "destination-out"; g.globalAlpha = 1;
+      const fm = g.createLinearGradient(0, h * 0.1, 0, h * 0.26); fm.addColorStop(0, "rgba(0,0,0,0)"); fm.addColorStop(1, "rgba(0,0,0,1)");
+      g.fillStyle = fm; g.fillRect(0, h * 0.1, w, h); g.globalCompositeOperation = "source-over";
+    }
     if (night > 0.3 || s.rain) { g.globalCompositeOperation = "source-atop"; g.globalAlpha = 0.35 * Math.max(night, s.rain ? 0.6 : 0); g.fillStyle = "#0b1218"; g.fillRect(0, 0, w, h); g.globalCompositeOperation = "source-over"; }
     // rain streaks / snow flakes, slanted by the wind
     const nDrops = Math.round((s.rain * 380 + s.snow * 260) * (w / 1600));
