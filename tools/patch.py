@@ -85,6 +85,8 @@ rep('Py(this.root.querySelector(".wb-content"),t,!this.stage.classList.contains(
 rep('''a=(i.getTime()-r)/(s-r)*100;t=$`<div class="wb-large">''', '''a=(i.getTime()-r)/(s-r)*100;t='<div class="eddo-time-slot"></div>'+$`<div class="wb-large">''')
 # default operator name
 rep('const xh="JOYCE MOORE",$x=24;','const xh="EDDO",$x=24;')
+# ---------- 03 Upcoming event: a short list of the next few events under the countdown (filled by eddo-ha.js)
+rep("""目标日期。</p>')}if(this.lane===3){""", """目标日期。</p>'),t+=window.eddoEventsHtml||""}if(this.lane===3){""")
 open(OUT+JS,'w',encoding='utf-8').write(s)
 
 # ---------- CSS ----------

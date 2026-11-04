@@ -559,3 +559,9 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-house-wx{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
 #stage[data-eddo-house] .eddo-house-wx{display:block}
 .eddo-house-wxline{font-style:normal;letter-spacing:1.6px;opacity:.8}
+/* 03 Upcoming event: next three events */
+.eddo-events{margin-top:16px;border-top:1px solid var(--theme-line,#3a3f3d)}
+.eddo-events-cap{margin:10px 0 4px;font-size:9px;letter-spacing:1.8px;color:var(--theme-muted,#8f8c84)}
+.eddo-event{display:grid;grid-template-columns:118px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--theme-line,#3a3f3d);font-size:12px;align-items:baseline}
+.eddo-event span{font-size:9.5px;letter-spacing:1.3px;color:var(--theme-muted,#8f8c84);font-variant-numeric:tabular-nums}
+.eddo-event b{font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

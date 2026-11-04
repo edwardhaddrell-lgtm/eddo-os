@@ -177,13 +177,26 @@
         const v = (ev.a || {})[calEntity] || (ev.c || {})[calEntity]; if (!v) return;
         if (v.a) calAttrs = v.a; else if (v["+"] && v["+"].a) Object.assign(calAttrs, v["+"].a);
         if (v["-"] && v["-"].a) for (const k of v["-"].a) delete calAttrs[k];
-        pushEvent(calAttrs);
+        pushEvent(calAttrs); loadEvents();
       }).catch(() => {});
+      loadEvents(); clearInterval(eventsTimer); eventsTimer = setInterval(loadEvents, 10 * 60 * 1000);
     } else if (cfg.hacalendar) linkNote = (linkNote ? linkNote + " " : "") + `No calendar matching “${cfg.hacalendar}” in HA yet.`;
     render();
     if (cfg.hatasks && todoEntity) subscribe({ type: "todo/item/subscribe", entity_id: todoEntity }, (ev) => { todoItems = ev.items || []; tasksLoaded = true; pushTasks(); }).catch(() => {});
   }
-  let calAttrs = {};
+  let calAttrs = {}, eventsTimer = null, eventsBusy = false;
+  // 03 Upcoming event: the next three events from the calendar, listed under the countdown
+  async function loadEvents() {
+    if (!calEntity || eventsBusy) return; eventsBusy = true;
+    try {
+      const r = await send({ type: "call_service", domain: "calendar", service: "get_events", target: { entity_id: calEntity }, service_data: { duration: { days: 60 } }, return_response: true });
+      const list = ((r && r.response && r.response[calEntity]) || {}).events || [], now = Date.now();
+      const next = list.map((e) => ({ ...e, t: Date.parse(e.start), allDay: !/T/.test(e.start) })).filter((e) => (Date.parse(e.end) || e.t) > now).sort((a, b) => a.t - b.t).slice(0, 3);
+      const day = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).toUpperCase().replace(",", "");
+      window.eddoEventsHtml = next.length ? `<div class="eddo-events"><p class="eddo-events-cap">NEXT UP</p>${next.map((e) => { const d = new Date(e.allDay ? e.start + "T00:00" : e.start); return `<div class="eddo-event"><span>${esc(day(d))}${e.allDay ? "" : " · " + d.toTimeString().slice(0, 5)}</span><b>${esc(e.summary || "Event")}</b></div>`; }).join("")}</div>` : "";
+    } catch (_) { /* keep the last list */ }
+    eventsBusy = false;
+  }
   function findEntity(allStates, domain, want) {
     want = String(want || "").trim().toLowerCase(); if (!want) return "";
     const pool = allStates.filter((x) => x.entity_id.startsWith(domain + "."));
