@@ -1141,7 +1141,9 @@
     if (!running) return;
     requestAnimationFrame(frame);
     // Wallpaper Engine sets a frame-rate cap; in a browser (Mac / web edition) draw at the screen's full rate
-    const fps = window.EDDO_WEB ? 240 : Math.max(20, Math.min(60, (window.rhineWallpaperHost && window.rhineWallpaperHost.fps) || 30));
+    // In a browser (Mac): 60 fps while you're moving the model or it's easing, 24 fps when it's just sitting there.
+    const busy = drag || anim || performance.now() - lastInput < 3000;
+    const fps = window.EDDO_WEB ? (busy ? 60 : 24) : Math.max(20, Math.min(60, (window.rhineWallpaperHost && window.rhineWallpaperHost.fps) || 30));
     if (now - lastFrame < 1000 / fps - 8) return;    // follow Wallpaper Engine's frame-rate setting
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     resize();

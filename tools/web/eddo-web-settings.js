@@ -13,6 +13,8 @@ window.EDDO_WEB_SETTINGS = {
     mac: {
       uimargintop: 40,       // clears the menu bar and notch
       bgdim: 60,             // darker background so the text stands out
+      superperformance: true,      // the background's lighter mode (keeps its animations) — far less CPU in a browser
+      renderquality: "performance",
       showgame: false,             // "Ripple relay" game entry doesn't work in Plash
       showworkbenchbutton: false,  // "Open full workspace" toggle doesn't work in Plash
       burnin: false,         // MacBook screens aren't OLED
