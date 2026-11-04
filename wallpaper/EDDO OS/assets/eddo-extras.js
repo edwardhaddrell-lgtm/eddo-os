@@ -584,7 +584,7 @@
   // =====================================================================
   const CAMS = { list: [], loaded: false, error: "", live: null };
   // "Label" matches by name; "Label=keyword" matches the keyword against the entity, its device or its integration.
-  const camWords = () => String(cfg().cameras || "Front door, Garden, Fox's room=camera.nanit_nursery:auto, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
+  const camWords = () => String(cfg().cameras || "Front door, Garden, Shed=side:ring, Living room, Fox's room=camera.nanit_nursery:auto, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
   const camMeta = new Map();   // camera entity -> "platform device manufacturer model" (from the HA registries)
   window.addEventListener("eddo-ha-ready", (e) => {
     const { devices, ents } = e.detail; const dev = new Map(devices.map((d) => [d.id, d]));
@@ -600,6 +600,13 @@
         const [w, kwRaw] = entry.split("=").map((t) => t.trim());
         const [kw, ...flags] = String(kwRaw || "").split(":").map((t) => t.trim().toLowerCase());
         const k = slug(w);
+        if (kw && flags.includes("ring")) {
+          const kk = slug(kw), mine = cams.filter((x) => x.entity_id.includes(kk) || slug(x.attributes.friendly_name || "").includes(kk));
+          const live = mine.find((x) => /live/.test(x.entity_id)) || null;
+          const still = mine.find((x) => /last_recording|recording|snapshot/.test(x.entity_id)) || mine.find((x) => x !== live) || live;
+          const pics = [still && still.attributes.entity_picture, live && live.attributes.entity_picture, ...mine.map((x) => x.attributes.entity_picture)].filter(Boolean);
+          return { key: k, label: w, rtc: true, live: live && live.entity_id, still: still && still.entity_id, pics: [...new Set(pics)], picture: pics[0] };
+        }
         if (kw) {
           const q = kw.toLowerCase(), cam = q.startsWith("camera.") ? cams.find((x) => x.entity_id === q) : cams.find((x) => x.entity_id.includes(slug(q)) || slug(x.attributes.friendly_name || "").includes(slug(q)) || (camMeta.get(x.entity_id) || "").includes(q));
           const pic = cam && cam.attributes.entity_picture;
