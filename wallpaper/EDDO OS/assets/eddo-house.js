@@ -117,7 +117,7 @@
     const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds)])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
-    rooms.forEach(evalRoom); dirty = true;
+    rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
     if (ids.length) HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, (ev) => {
       for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000 });
       for (const [id, v] of Object.entries(ev.c || {})) {
@@ -125,10 +125,16 @@
         if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
         states.set(id, cur);
       }
-      rooms.forEach(evalRoom); dirty = true;
+      rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
     }).catch(() => {});
   });
 
+  // a room without its own sensor can show another room's temperature (tempFrom: "<room id>")
+  function borrowTemp(r) {
+    if (!r.tempFrom || r.temp != null) return;
+    const src = rooms.find((x) => x.id === r.tempFrom); if (!src || src.temp == null) return;
+    r.temp = src.temp; r.hum = src.hum; r.tempId = src.tempId; r.tempVia = src.name;
+  }
   function evalRoom(r) {
     let on = 0, bri = 0, rgb = [0, 0, 0], n = 0, temp = null, hum = null, target = null, action = null, tempId = null;
     for (const id of r.ents) {
@@ -1123,7 +1129,7 @@
       const s = r.label.querySelector("span"), txt = heat ? `${r.temp.toFixed(1)}°` : heatMode ? "" : (hovered === r || focused === r) ? roomStatus(r) : "";
       if (s.textContent !== txt) s.textContent = txt;
       let sub = r.label.querySelector("i"); if (!sub) { sub = document.createElement("i"); r.label.append(sub); }
-      const sxt = heat ? [r.target != null ? `SET ${r.target.toFixed(1)}°` : "", r.action === "heating" ? "HEATING" : r.action === "cooling" ? "COOLING" : "", r.hum != null ? `${Math.round(r.hum)}% RH` : ""].filter(Boolean).join(" · ") : "";
+      const sxt = heat ? [r.tempVia ? `VIA ${r.tempVia.toUpperCase()}` : "", r.target != null ? `SET ${r.target.toFixed(1)}°` : "", r.action === "heating" ? "HEATING" : r.action === "cooling" ? "COOLING" : "", r.hum != null ? `${Math.round(r.hum)}% RH` : ""].filter(Boolean).join(" · ") : "";
       r.label.dataset.damp = String(heat && r.hum != null && r.hum >= DAMP);
       if (sub.textContent !== sxt) sub.textContent = sxt;
       if (heat) { const c = tempColour(r.temp); r.label.style.setProperty("--tc", `rgb(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)})`); }

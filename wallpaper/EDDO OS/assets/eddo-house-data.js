@@ -30,6 +30,7 @@ window.EDDO_HOUSE = {
     extension: { x0: 2.08, x1: 4.6, z0: 9.87, z1: 12.0, high: 3.5, low: 2.95 },          // single-storey kitchen end, lean-to roof
     bay: { x0: 0.5, x1: 2.9, depth: 0.45, top: 2.2, roof: 2.75 },                         // front bay window and its little tiled roof
   },
+  boiler: { room: "bath", u: 0.92, v: 0.2, y: 1.3 },   // in the tall cupboard by the bathroom door
   floorHeight: 2.6,
   floorGap: 1.3,                 // extra space between floors so each level reads clearly
   floors: [
@@ -46,9 +47,9 @@ window.EDDO_HOUSE = {
       ],
     },
     {
-      id: "first", name: "First floor",
+      id: "first", name: "First floor",   // the spare room has no sensor yet, so it shows Fox's room temperature (tempFrom)
       rooms: [
-        { id: "spare", name: "Spare Room", x: 0, z: 0, w: 4.6, d: 3.43, areas: ["spare room", "guest room", "bedroom 2"] },
+        { id: "spare", name: "Spare Room", x: 0, z: 0, w: 4.6, d: 3.43, tempFrom: "fox", areas: ["spare room", "guest room", "bedroom 2"] },
         { id: "fox", name: "Fox's Room", x: 0, z: 3.43, w: 2.63, d: 3.37, areas: ["fox's room", "fox room", "foxs room", "nursery"] },
         { id: "landing", name: "Landing", x: 2.63, z: 3.43, w: 1.97, d: 3.37, areas: ["landing", "stairs"], quiet: true },
         { id: "bath", name: "Bathroom", x: 2.1, z: 6.8, w: 2.5, d: 3.07, areas: ["bathroom"] },
@@ -154,6 +155,24 @@ window.EDDO_HOUSE = {
     { room: "fox", name: "Radiator", u0: 0.3, u1: 0.6, v0: 0.97, v1: 1, y: 0.1, h: 0.5 },
     { room: "fox", name: "Cot bed", u0: 0.7, u1: 1, v0: 0.45, v1: 0.92, h: 0.95 },
     { room: "fox", name: "Rug", kind: "rug", u0: 0.22, u1: 0.68, v0: 0.24, v1: 0.68 },
+    // bathroom (photo from the door, looking at the frosted window over the bath)
+    { room: "bath", name: "Vanity & basin", u0: 0, u1: 0.18, v0: 0.16, v1: 0.46, h: 0.85 },
+    { room: "bath", name: "Boxed-in cistern & ledge", u0: 0, u1: 0.1, v0: 0.46, v1: 0.8, h: 1.05 },
+    { room: "bath", name: "Toilet", u0: 0.1, u1: 0.25, v0: 0.55, v1: 0.71, h: 0.42 },
+    { room: "bath", name: "Bath", u0: 0.18, u1: 0.64, v0: 0.77, v1: 1, h: 0.55 },
+    { room: "bath", name: "Shower", u0: 0.64, u1: 1, v0: 0.69, v1: 1, h: 2.0 },
+    { room: "bath", name: "Shower shelves", kind: "shelves", u0: 0.97, u1: 1, v0: 0.74, v1: 0.9, y: 1.1, h: 0.5, shelves: 2 },
+    { room: "bath", name: "Boiler cupboard", u0: 0.84, u1: 1, v0: 0.02, v1: 0.42, h: 2.2 },
+    // spare room (photo from the door, looking at the chimney breast; window on the left)
+    { room: "spare", name: "Chimney breast", u0: 0, u1: 0.08, v0: 0.34, v1: 0.63, h: 2.6 },
+    { room: "spare", name: "Desk", kind: "table", u0: 0, u1: 0.13, v0: 0.08, v1: 0.32, h: 0.76 },
+    { room: "spare", name: "Desk shelves", kind: "shelves", u0: 0, u1: 0.06, v0: 0.06, v1: 0.33, y: 1.35, h: 0.85, shelves: 3 },
+    { room: "spare", name: "Desk chair", kind: "chair", u0: 0.13, u1: 0.24, v0: 0.12, v1: 0.27, h: 1.15 },
+    { room: "spare", name: "Chest of drawers", u0: 0, u1: 0.11, v0: 0.64, v1: 0.88, h: 0.85 },
+    { room: "spare", name: "Alcove shelves", kind: "shelves", u0: 0, u1: 0.07, v0: 0.63, v1: 0.95, y: 1.1, h: 1.15, shelves: 4 },
+    { room: "spare", name: "Bed", u0: 0.38, u1: 0.68, v0: 0.42, v1: 1, h: 0.55 },
+    { room: "spare", name: "Brass headboard", kind: "shelves", u0: 0.38, u1: 0.68, v0: 0.97, v1: 1, h: 1.25, shelves: 2 },
+    { room: "spare", name: "Radiator", u0: 0.08, u1: 0.5, v0: 0, v1: 0.03, y: 0.1, h: 0.55 },
     // kitchen (galley, photo from the hall end looking at the garden window)
     { room: "kitchen", name: "Fridge freezer", u0: 0.74, u1: 1, v0: 0.02, v1: 0.22, h: 1.85 },
     { room: "kitchen", name: "Worktop (hob side)", u0: 0.76, u1: 1, v0: 0.24, v1: 0.72, h: 0.9 },
