@@ -554,6 +554,47 @@
         L([f.x0, 0, f.z], [f.x0, 0, m ? m.z0 - 0.5 : 0], det);
         for (const x of f.piers || []) box(x, x + 0.3, f.z - 0.05, f.z + 0.25, 0, f.h + 0.15);
       }
+      // finished roofs: faint filled slopes (tiles as courses), so the house reads as solid from above
+      { const rf = [];
+        const face = (pts) => { for (let i = 1; i + 1 < pts.length; i++) rf.push(...pts[0], ...pts[i], ...pts[i + 1]); };
+        const courses = (a0, a1, b0, b1, step) => {   // lines across a quad from edge a (eaves) to edge b (ridge)
+          const len = Math.hypot(b0[0] - a0[0], b0[1] - a0[1], b0[2] - a0[2]), n = Math.max(2, Math.round(len / step));
+          const lerp = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
+          for (let i = 1; i < n; i++) L(lerp(a0, b0, i / n), lerp(a1, b1, i / n), det);
+        };
+        const ov = 0.28;
+        if (m) {
+          face([[m.x0, m.eaves, m.z0 - ov], [m.x1, m.eaves, m.z0 - ov], [m.x1, m.ridge, m.ridgeZ], [m.x0, m.ridge, m.ridgeZ]]);
+          if (S.dormer) { const d = S.dormer;
+            face([[m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], [m.x1, d.top, d.z0 + 0.25], [m.x0, d.top, d.z0 + 0.25]]);   // short back slope above the dormer
+            L([m.x0, m.ridge, m.ridgeZ], [m.x0, d.top, d.z0 + 0.25]); L([m.x1, m.ridge, m.ridgeZ], [m.x1, d.top, d.z0 + 0.25]);
+            face([[d.x0, d.top, d.z0 + 0.25], [d.x1, d.top, d.z0 + 0.25], [d.x1, d.top, d.z1 + 0.1], [d.x0, d.top, d.z1 + 0.1]]);   // the dormer's flat roof
+            L([d.x0, d.top, d.z1 + 0.1], [d.x1, d.top, d.z1 + 0.1]); L([d.x0, d.top - 0.18, d.z1 + 0.1], [d.x1, d.top - 0.18, d.z1 + 0.1], det);   // fascia
+            for (const x of [m.x0, m.x1]) face([[x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ], [x, d.top, d.z0 + 0.25], [x, d.top, m.z1], [x, m.eaves, m.z1]]);   // gable walls
+          } else {
+            face([[m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], [m.x1, m.eaves, m.z1 + ov], [m.x0, m.eaves, m.z1 + ov]]);
+            courses([m.x0, m.eaves, m.z1 + ov], [m.x1, m.eaves, m.z1 + ov], [m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], 0.45);
+          }
+        }
+        if (S.outrigger) { const o = S.outrigger, mx = (o.x0 + o.x1) / 2, e = 0.2;
+          const l0 = [o.x0 - e, o.eaves - 0.1, o.z0], l1 = [o.x0 - e, o.eaves - 0.1, o.z1 + e], r0 = [o.x1 + e, o.eaves - 0.1, o.z0], r1 = [o.x1 + e, o.eaves - 0.1, o.z1 + e], t0 = [mx, o.ridge, o.z0], t1 = [mx, o.ridge, o.z1 + e];
+          face([l0, l1, t1, t0]); face([r0, r1, t1, t0]); face([[o.x0, o.eaves, o.z1], [mx, o.ridge, o.z1], [o.x1, o.eaves, o.z1]]);
+          L(l0, l1); L(r0, r1); L(l1, t1); L(t1, r1); L(t0, t1);
+          courses(l0, l1, t0, t1, 0.3); courses(r0, r1, t0, t1, 0.3);
+        }
+        if (S.extension) { const x = S.extension, e = 0.15;
+          const a0 = [x.x0 - e, x.low - 0.05, x.z1 + e], a1 = [x.x1, x.low - 0.05, x.z1 + e], b0 = [x.x0 - e, x.high, x.z0], b1 = [x.x1, x.high, x.z0];
+          face([a0, a1, b1, b0]); L(a0, a1); L(a0, b0); L([a0[0], a0[1] - 0.18, a0[2]], [a1[0], a1[1] - 0.18, a1[2]], det);   // gutter line
+          courses(a0, a1, b0, b1, 0.25);
+        }
+        if (S.bay) { const b = S.bay, z = -b.depth, o = 0.15, hi = 0.35;
+          const e0 = [b.x0 - o, b.top, z - o], e1 = [b.x1 + o, b.top, z - o], e2 = [b.x1 + o, b.top, 0], e3 = [b.x0 - o, b.top, 0], r0 = [b.x0 + hi, b.roof, 0], r1 = [b.x1 - hi, b.roof, 0];
+          face([e0, e1, r1, r0]); face([e0, r0, e3]); face([e1, e2, r1]);
+        }
+        const rg = new T.BufferGeometry(); rg.setAttribute("position", new T.Float32BufferAttribute(rf, 3));
+        shellRoof = new T.Mesh(rg, new T.MeshBasicMaterial({ color: C.face, transparent: true, opacity: 0.08, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending }));
+        root.add(shellRoof);
+      }
       if (H.garden) { const G = H.garden;
         for (const poly of G.decks || []) {
           const P = poly.map(([x, z]) => [x, 0.06, z]); rect(P);
@@ -738,7 +779,7 @@
     const f = (t) => t ? t.toTimeString().slice(0, 5) : "—";
     return { rise: f(rise), set: f(set) };
   }
-  let shellLines = null, shellDetail = null;
+  let shellLines = null, shellDetail = null, shellRoof = null;
   let sunGroup = null, shadowGroup = null, sunMarker = null, sunPath = null, lastSun = 0;
   function hull(pts) {
     pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -1368,7 +1409,7 @@
     if (scene.fog) { scene.fog.near = view.dist - 6; scene.fog.far = view.dist + 32; }
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
-    if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; }
+    if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; if (shellRoof) shellRoof.material.opacity += ((focused || floorSel ? 0 : want * 0.25) - shellRoof.material.opacity) * k; }
     if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
     if (now - lastSky > 50) { lastSky = now; updateSky(); }   // often and eased, so the sun glow glides as you turn
     drawWeather(now);
