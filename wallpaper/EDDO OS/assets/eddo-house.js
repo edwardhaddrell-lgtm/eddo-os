@@ -408,11 +408,12 @@
     let fuel = pct("fuel"); if (fuel == null && fuelL != null) fuel = Math.max(0, Math.min(100, Math.round(fuelL / tank * 100)));
     const rangeEv = milesOf(sv(V.rangeEv)), rangeFuel = milesOf(sv(V.rangeFuel));
     const appRange = miles("range");   // the car app's "range remaining" (kept as a fallback)
-    const range = rangeEv != null && rangeFuel != null ? rangeEv + rangeFuel : appRange != null ? appRange : rangeEv != null || rangeFuel != null ? (rangeEv || 0) + (rangeFuel || 0) : null;
+    // range comes from the car app's "range remaining" first; the Volvo readings only fill in if it has none
+    const range = appRange != null ? appRange : rangeEv != null || rangeFuel != null ? (rangeEv || 0) + (rangeFuel || 0) : null;
     const lk = sv(V.lock), locked = live(lk) ? lk.s === "locked" : null;
     const allIds = [...Object.values(I), ...(V.all || [])], last = Math.max(0, ...allIds.map((id) => (sv(id) || {}).t || 0));
     const svc = sv(V.serviceTime);
-    const fuelRange = rangeFuel != null ? rangeFuel : rangeEv == null ? appRange : null;
+    const fuelRange = appRange != null ? appRange : rangeFuel;
     return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, appRange, fuelRange, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
       chargeEta: word("chargeEta") && V.chargeEta ? `${sv(V.chargeEta).s} ${sv(V.chargeEta).a.unit_of_measurement || ""}`.trim() : null,
       chargePower: V.chargePower && live(sv(V.chargePower)) ? `${sv(V.chargePower).s} ${sv(V.chargePower).a.unit_of_measurement || ""}`.trim() : null,
@@ -2064,7 +2065,7 @@
     const btn = (act, label, cls = "") => `<button data-car-act="${act}"${cls ? ` class="${cls}"` : ""}>${label}</button>`;
     let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
       `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
-    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>${c.rangeEv != null && c.rangeFuel != null ? `RANGE · ${c.rangeFuel} PETROL + ${c.rangeEv} ELECTRIC` : "RANGE REMAINING"}</span></div>`;
+    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>RANGE REMAINING</span></div>`;
     h += row("Fuel range", c.fuelRange != null ? c.fuelRange + " mi" : null) + row("Electric range", c.rangeEv != null ? c.rangeEv + " mi" : null);
     h += meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? ` <small>${Math.round(c.fuelL)} L</small>` : "") + meter("BATTERY", c.battery, 10, "#5fe0a8");
     if (c.volvo) {
