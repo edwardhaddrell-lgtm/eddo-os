@@ -662,3 +662,6 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-kv em{font-style:normal;color:var(--theme-ink,#ece9e2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .eddo-car-kv em[data-warn=true]{color:#ffb36b}
 .eddo-car-panel .eddo-car-src{margin-top:8px}
+
+/* Mac edition: Home systems panel shows on tab 01 only */
+#stage[data-eddo-ha-away] .eddo-ha{opacity:0!important;visibility:hidden;pointer-events:none!important;transition:opacity .35s,visibility 0s .35s}

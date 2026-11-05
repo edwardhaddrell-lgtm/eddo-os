@@ -667,6 +667,15 @@
       .catch(() => { note && (note.textContent = "Start the Loupedeck controller to launch Steam from the wallpaper."); });
   });
 
+  // ---------- Mac edition: the Home systems panel only on tab 01 ----------
+  if (window.EDDO_WEB) setInterval(() => {
+    const stage = document.querySelector("#stage"); if (!stage) return;
+    const lanes = [...stage.querySelectorAll(".wb-nav [data-wb-lane]:not([hidden])")];
+    const first = lanes[0], onFirst = !window.eddoTabs.active() && !!first && first.getAttribute("aria-pressed") === "true";
+    const want = onFirst ? "" : "true";
+    if ((stage.dataset.eddoHaAway || "") !== want) { if (want) stage.dataset.eddoHaAway = want; else delete stage.dataset.eddoHaAway; }
+  }, 250);
+
   // ---------- background darkening ----------
   // A black veil between the 3D scene / custom image and the interface.
   function applyDim() {
