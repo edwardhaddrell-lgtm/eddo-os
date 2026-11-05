@@ -1048,7 +1048,7 @@
       const want = r.on && !heatMode && !energyMode ? 0.16 + 0.3 * r.bri : 0;
       r.glow += (want - r.glow) * Math.min(1, dt * 4);
       const lc = new T.Color(r.color[0], r.color[1], r.color[2]);
-      m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow * FLOOR_GLOW;
+      m.glow.material.color.copy(lc); m.glow.material.opacity = r.glow * FLOOR_GLOW * SOLID;
       m.plate.material.color.copy(new T.Color(C.plate).lerp(lc, r.glow * 0.7));
       const isFocus = focused === r, isHover = hovered === r, dim = isDim(r);
       const night = 0.6 + 0.4 * dayK;                         // the model darkens after sunset; lit rooms keep glowing
@@ -1064,8 +1064,8 @@
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
       if (r.roofLines) r.roofLines.material.opacity = Math.min(0.6, m.edges.material.opacity);   // roof stays neutral; only the walls take the temperature tint
-      m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.2 : r.quiet ? 0.03 : 0.07;
-      m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
+      m.faces.material.opacity = (dim ? 0.01 : isHover || isFocus ? 0.2 : r.quiet ? 0.03 : 0.07) * SOLID;
+      m.plate.material.opacity = (dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62) * SOLID;
       for (const fl of r.furniture || []) fl.material.opacity = heatMode || energyMode ? 0 : dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
     }
   }
@@ -1169,6 +1169,7 @@
     for (; pi < flow.packets.length; pi++) flow.packets[pi].visible = false;
   }
   const _wp = { v: null };
+  const SOLID = 0.8;   // floors and walls: 20% more see-through
   const FLOOR_GLOW = window.EDDO_WEB ? 0.5 : 1;   // lit floors glow half as strongly on the Mac (its screen makes them look brighter)
   function updateDevices(dt, now) {
     const tmp = _wp.v || (_wp.v = new T.Vector3());
