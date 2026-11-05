@@ -253,7 +253,7 @@
   // ---- the car: a stylised plug-in hybrid SUV at real size (4.71 m long, 1.90 m wide, 1.66 m tall),
   // proportions taken from side, front and back photos. Drawn in outline like the house; no badges.
   function buildCar(root) {
-    const cfg = H.car || {}, at = cfg.at || { x: 2.3, z: -3.6 }, heading = cfg.heading ?? Math.PI;   // kerbside, along the road
+    const cfg = H.car || {}, at = cfg.at || { x: 2.3, z: -4.8 }, heading = cfg.heading ?? Math.PI;   // kerbside, along the road
     const g = new T.Group(); g.position.set(at.x, 0, at.z); g.rotation.y = heading; root.add(g);
     const seg = [], det = [], L = (a, b, out = seg) => out.push(...a, ...b);
     const poly = (pts, out = seg, close = false) => { for (let i = 0; i < pts.length - 1; i++) L(pts[i], pts[i + 1], out); if (close) L(pts[pts.length - 1], pts[0], out); };
