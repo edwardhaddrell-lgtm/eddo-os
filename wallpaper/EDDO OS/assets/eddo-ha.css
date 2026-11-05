@@ -613,3 +613,4 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-acts button{min-width:calc(50% - 2px)}
 .eddo-car-acts button.warn{color:#ffb36b;border-color:rgba(255,166,74,.6)}
 .eddo-car-row em[data-warn=true]{color:#ffb36b}
+.eddo-car-card small.split{font-size:8.5px;letter-spacing:1.3px;color:var(--theme-muted,#9a978f)}

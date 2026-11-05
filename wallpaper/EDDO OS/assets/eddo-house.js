@@ -111,7 +111,7 @@
     // the official Volvo integration: richer and more reliable than the companion app, so its readings win
     const vol = ents.filter((x) => x.platform === "volvo" && !x.disabled_by && stMap.has(x.entity_id));
     const V = { doors: [], windows: [], tyres: [], warn: [], btn: {}, all: vol.map((x) => x.entity_id) };
-    const VK = { battery: /battery_charge_level$/, rangeEv: /distance_to_empty_battery$/, rangeFuel: /distance_to_empty_tank$/, fuelL: /fuel_amount$/, odometer: /odometer$/,
+    const VK = { battery: /battery_charge_level$/, rangeEv: /distance_to_empty_battery$|electric_range$|battery_range$|ev_range$/, rangeFuel: /distance_to_empty_tank$|distance_to_empty_fuel$|fuel_range$|tank_range$|^distance_to_empty$/, fuelL: /fuel_amount$/, odometer: /odometer$/,
       charging: /charging_status$/, connector: /charging_connection_status$/, chargeEta: /estimated_charging_time$/, chargePower: /charging_power$/, chargeTarget: /target_battery_charge_level$/,
       serviceDist: /distance_to_service$/, serviceTime: /^time_to_service$|[^_]time_to_service$/, avgFuel: /average_fuel_consumption$/, avgEnergy: /average_energy_consumption$/, connection: /car_connection$|availability$/ };
     for (const x of vol) {
@@ -131,7 +131,6 @@
     }
     CAR.V = V;
     for (const k of ["battery", "odometer", "charging", "connector", "tracker"]) if (V[k]) carIds[k] = V[k];
-    if (V.rangeFuel || V.rangeEv) delete carIds.range;
     const carDev = Object.values(carIds).map((id) => entDev.get(id)).find(Boolean);
     if (carDev) {
       const tr = ents.find((x) => x.device_id === carDev && x.entity_id.startsWith("device_tracker.")); if (tr && !carIds.tracker) carIds.tracker = tr.entity_id;
@@ -402,11 +401,12 @@
     const tank = (H.car && H.car.tank) || 71;   // XC60 T8 tank, litres
     let fuel = pct("fuel"); if (fuel == null && fuelL != null) fuel = Math.max(0, Math.min(100, Math.round(fuelL / tank * 100)));
     const rangeEv = milesOf(sv(V.rangeEv)), rangeFuel = milesOf(sv(V.rangeFuel));
-    const range = rangeEv != null || rangeFuel != null ? (rangeEv || 0) + (rangeFuel || 0) : miles("range");
+    const appRange = miles("range");   // the car app's "range remaining" (kept as a fallback)
+    const range = rangeEv != null && rangeFuel != null ? rangeEv + rangeFuel : appRange != null ? appRange : rangeEv != null || rangeFuel != null ? (rangeEv || 0) + (rangeFuel || 0) : null;
     const lk = sv(V.lock), locked = live(lk) ? lk.s === "locked" : null;
     const allIds = [...Object.values(I), ...(V.all || [])], last = Math.max(0, ...allIds.map((id) => (sv(id) || {}).t || 0));
     const svc = sv(V.serviceTime);
-    return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
+    return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, appRange, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
       chargeEta: word("chargeEta") && V.chargeEta ? `${sv(V.chargeEta).s} ${sv(V.chargeEta).a.unit_of_measurement || ""}`.trim() : null,
       chargePower: V.chargePower && live(sv(V.chargePower)) ? `${sv(V.chargePower).s} ${sv(V.chargePower).a.unit_of_measurement || ""}`.trim() : null,
       locked, openDoors: onIds(V.doors).map(label), openWindows: onIds(V.windows).map(label), tyreWarn: onIds(V.tyres).map(label), warnings: onIds(V.warn).map(label),
@@ -1275,6 +1275,7 @@
         (c.fuel != null ? `<span>FUEL ${bar(c.fuel, 15)}<small>${c.fuel}%</small></span>` : "") +
         (c.battery != null ? `<span>BATT ${bar(c.battery, 10)}<small>${c.battery}%</small></span>` : "") +
         (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
+        (c.rangeFuel != null || c.rangeEv != null ? `<small class="split">${[c.rangeFuel != null ? c.rangeFuel + " PETROL" : "", c.rangeEv != null ? c.rangeEv + " ELECTRIC" : ""].filter(Boolean).join(" · ")}</small>` : "") +
         (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "")
       : `<b>${esc(c.name.toUpperCase())} <em>AWAY</em></b>${c.where ? `<span class="rng"><small>${esc(c.where.toUpperCase())}</small></span>` : ""}`;
     if (carCard.innerHTML !== html) carCard.innerHTML = html;
@@ -2057,7 +2058,8 @@
     const btn = (act, label, cls = "") => `<button data-car-act="${act}"${cls ? ` class="${cls}"` : ""}>${label}</button>`;
     let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
       `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
-    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>${c.rangeEv != null && c.rangeFuel != null ? `RANGE · ${c.rangeEv} ELECTRIC + ${c.rangeFuel} PETROL` : "RANGE REMAINING"}</span></div>`;
+    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>${c.rangeEv != null && c.rangeFuel != null ? `RANGE · ${c.rangeFuel} PETROL + ${c.rangeEv} ELECTRIC` : "RANGE REMAINING"}</span></div>`;
+    h += row("Fuel range", c.rangeFuel != null ? c.rangeFuel + " mi" : c.rangeEv == null && c.appRange != null ? c.appRange + " mi" : null) + row("Electric range", c.rangeEv != null ? c.rangeEv + " mi" : null);
     h += meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? ` <small>${Math.round(c.fuelL)} L</small>` : "") + meter("BATTERY", c.battery, 10, "#5fe0a8");
     if (c.volvo) {
       h += `<div class="eddo-car-chips">` + (c.locked != null ? chip(c.locked, "LOCKED", "UNLOCKED") : "") + chip(!c.openDoors.length, "DOORS SHUT", "DOOR OPEN") +
