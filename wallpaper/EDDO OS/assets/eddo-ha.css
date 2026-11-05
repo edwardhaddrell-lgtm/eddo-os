@@ -636,3 +636,29 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-health em{margin-left:auto;font-style:normal;color:#5fe0a8}
 .eddo-car-health span[data-ok=false] i{background:#ffa64a;box-shadow:0 0 6px rgba(255,166,74,.7);animation:eddo-live-warn 1.2s ease-in-out infinite}
 .eddo-car-health span[data-ok=false] em{color:#ffb36b}
+
+/* car panel, compact layout */
+.eddo-car-panel{max-height:min(62vh,640px);overflow-y:auto;overflow-x:hidden;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(143,185,194,.3) transparent}
+.eddo-car-panel .eddo-house-sub{margin-bottom:8px}
+.eddo-car-top{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 22px;padding-bottom:10px;border-bottom:1px solid var(--theme-line,#3a3f3d)}
+.eddo-car-rng b{display:block;font-size:30px;font-weight:300;line-height:1;color:#8fb9c2}
+.eddo-car-rng b small{font-size:11px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-rng span{font-size:8.5px;letter-spacing:1.6px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-ms{display:flex;flex-direction:column;gap:7px}
+.eddo-car-m{display:grid;grid-template-columns:34px 1fr 34px auto;align-items:center;gap:8px;font-size:8.5px;letter-spacing:1.4px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-m i{height:5px;background:linear-gradient(90deg,var(--c) var(--v),rgba(143,185,194,.15) var(--v))}
+.eddo-car-m[data-low=true] i{--c:#ffa64a}
+.eddo-car-m b{text-align:right;font-size:12px;font-weight:400;color:var(--theme-ink,#ece9e2)}
+.eddo-car-m small{font-size:8.5px;min-width:30px}
+.eddo-car-panel .eddo-car-chips{margin:10px 0 8px;gap:4px}
+.eddo-car-panel .eddo-car-chip{padding:3px 6px;font-size:8px}
+.eddo-car-acts{display:flex;gap:4px;margin:0 0 10px}
+.eddo-car-acts button{flex:1;min-width:0;padding:6px 4px;font-size:8.5px;letter-spacing:1.4px}
+.eddo-car-acts button.warn{color:#ffb36b;border-color:rgba(255,166,74,.6)}
+.eddo-car-panel .eddo-car-health{grid-template-columns:repeat(3,1fr);gap:0 12px;margin-bottom:8px;font-size:8.5px}
+.eddo-car-panel .eddo-car-health span{padding:4px 0}
+.eddo-car-kv{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:5px 10px;font-size:8.5px;letter-spacing:1.2px;padding-top:8px;border-top:1px solid rgba(143,185,194,.12)}
+.eddo-car-kv span{color:var(--theme-muted,#8f8c84);white-space:nowrap;text-transform:uppercase}
+.eddo-car-kv em{font-style:normal;color:var(--theme-ink,#ece9e2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eddo-car-kv em[data-warn=true]{color:#ffb36b}
+.eddo-car-panel .eddo-car-src{margin-top:8px}

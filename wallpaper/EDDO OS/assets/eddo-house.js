@@ -2088,39 +2088,38 @@
     const c = carData();
     if (!c.linked) return `<div class="eddo-house-head"><h3 class="eddo-house-room">Car</h3><button class="eddo-house-off" data-house-back>BACK</button></div><p class="wb-muted">No car found. Add the Volvo integration in Home Assistant, or turn on the car sensors in the Home Assistant app on the car.</p>`;
     const ago = c.last ? Math.round((Date.now() - c.last) / 60000) : null;
-    const meter = (label, v, warn, col, extra = "") => v == null ? "" : `<div class="eddo-car-meter" data-low="${v < warn}"><span>${label}</span><i style="--v:${v}%;--c:${col}"></i><b>${v}%${extra}</b></div>`;
-    const row = (k, v, warn) => v == null || v === "" ? "" : `<div class="eddo-house-item"><div class="eddo-house-row eddo-car-row"><span>${k}</span><em${warn ? ' data-warn="true"' : ""}>${esc(String(v).toUpperCase())}</em></div></div>`;
-    const chip = (ok, good, bad) => `<span class="eddo-car-chip" data-ok="${ok}">${ok ? good : bad}</span>`;
     const tidy = (t) => t ? String(t).replace(/_/g, " ") : t;
+    const mi = (v) => v != null ? v.toLocaleString("en-GB") + " mi" : null;
+    // compact meters: label, bar, % (+ litres / electric miles when they add something)
+    const meter = (label, v, warn, col, extra) => v == null ? "" : `<div class="eddo-car-m" data-low="${v < warn}"><span>${label}</span><i style="--v:${v}%;--c:${col}"></i><b>${v}%</b>${extra ? `<small>${extra}</small>` : ""}</div>`;
+    const kv = (k, v, warn) => v == null || v === "" ? "" : `<span>${k}</span><em${warn ? ' data-warn="true"' : ""}>${esc(String(v).toUpperCase())}</em>`;
+    const chip = (ok, good, bad) => `<span class="eddo-car-chip" data-ok="${ok}">${ok ? good : bad}</span>`;
     const btn = (act, label, cls = "") => `<button data-car-act="${act}"${cls ? ` class="${cls}"` : ""}>${label}</button>`;
-    let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
+    let h = `<div class="eddo-car-panel"><div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
       `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
-    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>RANGE REMAINING</span></div>`;
-    // each meter carries its own range, so there's no separate range list
-    const sub = (...a) => { const t = a.filter(Boolean).join(" · "); return t ? `<small>${t}</small>` : ""; };
-    h += `<div class="eddo-car-meters">` + meter("FUEL", c.fuel, 15, "#ffc25a", sub(c.fuelRange != null ? c.fuelRange + " MI" : "", c.fuelL != null ? Math.round(c.fuelL) + " L" : "")) +
-      meter("BATTERY", c.battery, 10, "#5fe0a8", sub(c.rangeEv != null ? c.rangeEv + " MI" : "")) + `</div>`;
+    // range on the left, fuel / battery on the right
+    h += `<div class="eddo-car-top">` + (c.range != null ? `<div class="eddo-car-rng"><b>${c.range}<small> mi</small></b><span>RANGE</span></div>` : "") +
+      `<div class="eddo-car-ms">${meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? Math.round(c.fuelL) + " L" : "")}${meter("BATT", c.battery, 10, "#5fe0a8", c.rangeEv != null && c.rangeEv !== c.range ? c.rangeEv + " MI" : "")}</div></div>`;
     if (c.volvo) {
       h += `<div class="eddo-car-chips">` + (c.locked != null ? chip(c.locked, "LOCKED", "UNLOCKED") : "") + chip(!c.openDoors.length, "DOORS SHUT", "DOOR OPEN") +
-        chip(!c.openWindows.length, "WINDOWS SHUT", "WINDOW OPEN") + (CAR.V.tyres.length ? chip(!c.tyreWarn.length, "TYRES OK", "CHECK TYRES") : "") + `</div>`;
-      const acts = [c.lockId ? (c.locked ? btn("unlock", CAR.confirmUnlock ? "TAP AGAIN TO UNLOCK" : "UNLOCK", CAR.confirmUnlock ? "warn" : "") : btn("lock", "LOCK")) : "",
-        c.btn.climaStart ? btn("climaStart", "CLIMATE ON") : "", c.btn.climaStop ? btn("climaStop", "CLIMATE OFF") : "", c.btn.flash ? btn("flash", "FLASH LIGHTS") : ""].filter(Boolean);
-      if (acts.length) h += `<div class="eddo-house-pop-row eddo-car-acts">${acts.join("")}</div>`;
+        chip(!c.openWindows.length, "WINDOWS SHUT", "WINDOW OPEN") + (CAR.V.tyres.length ? chip(!c.tyreWarn.length, "TYRES OK", "CHECK TYRES") : "") +
+        (c.engine != null ? chip(!c.engine, "ENGINE OFF", "ENGINE ON") : "") + `</div>`;
+      const acts = [c.lockId ? (c.locked ? btn("unlock", CAR.confirmUnlock ? "TAP AGAIN" : "UNLOCK", CAR.confirmUnlock ? "warn" : "") : btn("lock", "LOCK")) : "",
+        c.btn.climaStart ? btn("climaStart", "CLIMATE ON") : "", c.btn.climaStop ? btn("climaStop", "CLIMATE OFF") : "", c.btn.flash ? btn("flash", "FLASH") : ""].filter(Boolean);
+      if (acts.length) h += `<div class="eddo-car-acts">${acts.join("")}</div>`;
     }
-    h += row("Charging", tidy(c.chargeText)) + row("Cable", tidy(c.connector)) + (c.charging ? row("Full in", c.chargeEta) + row("Power", c.chargePower) : "") +
-      row("Open", [...c.openDoors, ...c.openWindows].join(", ") || null, true) + row("Tyres", c.tyreWarn.join(", ") || null, true) +
-      (c.health.length ? `<p class="eddo-car-h">HEALTH</p><div class="eddo-car-health">${c.health.map((x) => `<span data-ok="${x.ok}" title="${esc(x.bad.join(", "))}"><i></i>${x.name}<em>${x.ok ? "OK" : "CHECK"}</em></span>`).join("")}</div>` : row("Warnings", c.warnings.join(", ") || null, true)) +
-      (c.engine != null ? row("Engine", c.engine ? "Running" : "Off") : "") +
-      `<p class="eddo-car-h">TRIPS</p>` +
-      row("Mileage", c.odometer != null ? c.odometer.toLocaleString("en-GB") + " mi" : null) +
-      row("Service in", [c.serviceMiles != null ? c.serviceMiles.toLocaleString("en-GB") + " mi" : null, c.serviceTime].filter(Boolean).join(" · ") || null) +
-      row("Engine service in", c.engineHours) +
-      row("Trip", c.trip != null ? c.trip.toLocaleString("en-GB") + " mi" : null) + row("Trip (manual)", c.tripManual != null ? c.tripManual.toLocaleString("en-GB") + " mi" : null) +
-      row("Avg speed", c.avgSpeed) + row("Avg fuel", c.avgFuel) + (!c.home && c.where ? row("Location", c.where) : "");
+    if (c.health.length) h += `<div class="eddo-car-health">${c.health.map((x) => `<span data-ok="${x.ok}" title="${esc(x.bad.join(", "))}"><i></i>${x.name}</span>`).join("")}</div>`;
+    else if (c.warnings.length) h += `<div class="eddo-car-kv">${kv("Warnings", c.warnings.join(", "), true)}</div>`;
+    const svc = [c.serviceMiles != null ? mi(c.serviceMiles) : null, c.serviceTime, c.engineHours].filter(Boolean).join(" · ") || null;
+    const facts = kv("Open", [...c.openDoors, ...c.openWindows].join(", ") || null, true) + kv("Tyres", c.tyreWarn.join(", ") || null, true) +
+      kv("Charging", tidy(c.chargeText)) + kv("Cable", tidy(c.connector)) + (c.charging ? kv("Full in", c.chargeEta) + kv("Power", c.chargePower) : "") +
+      kv("Mileage", mi(c.odometer)) + kv("Service", svc) + kv("Trip", mi(c.trip)) + kv("Trip B", mi(c.tripManual)) +
+      kv("Avg speed", c.avgSpeed) + kv("Avg fuel", c.avgFuel) + (!c.home && c.where ? kv("Location", c.where) : "");
+    if (facts) h += `<div class="eddo-car-kv">${facts}</div>`;
     // which Home Assistant sensors feed the card, with their current values (to check the links)
     const V = CAR.V || {}, src = { ...CAR.ids };
     for (const k of ["battery", "fuelL", "rangeEv", "rangeFuel", "odometer", "charging", "connector", "lock", "tracker"]) if (V[k]) src["volvo " + k] = V[k];
-    h += `<details class="eddo-car-src"><summary>SENSORS</summary>${Object.entries(src).map(([k, id]) => { const x = states.get(id); return `<p><span>${esc(k)}</span><em>${esc(id)}</em><b>${esc(x ? String(x.s) + (x.a.unit_of_measurement ? " " + x.a.unit_of_measurement : "") : "NOT FOUND")}</b></p>`; }).join("") || "<p>NONE</p>"}</details>`;
+    h += `<details class="eddo-car-src"><summary>SENSORS</summary>${Object.entries(src).map(([k, id]) => { const x = states.get(id); return `<p><span>${esc(k)}</span><em>${esc(id)}</em><b>${esc(x ? String(x.s) + (x.a.unit_of_measurement ? " " + x.a.unit_of_measurement : "") : "NOT FOUND")}</b></p>`; }).join("") || "<p>NONE</p>"}</details></div>`;
     return h;
   }
   function carAction(act) {
