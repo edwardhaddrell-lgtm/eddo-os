@@ -2316,7 +2316,7 @@
     g.globalCompositeOperation = "lighter";
     // stars: thousands of faint pin-pricks, denser along the band, with a few bright ones carrying a small halo
     const tints = ["255,255,255", "210,225,255", "255,238,215", "225,235,255", "255,220,200"];
-    const n = Math.round(fw * fh / 260);
+    const n = Math.round(fw * fh / 420);
     for (let i = 0; i < n; i++) {
       const inBand = Math.random() < 0.45, x = R(0, fw), y = inBand ? band(x) + (Math.random() - 0.5) * fh * 0.12 * (Math.random() + 0.3) : R(0, fh);
       const m = Math.random() ** 3.2;                     // most are faint
@@ -2337,9 +2337,9 @@
       const base = Hh * (0.78 + 0.08 * Math.sin(u * 5 + t * 0.2)), top = base - Hh * (0.35 + 0.35 * (0.5 + 0.5 * wave));
       const a = edge * (0.25 + 0.75 * Math.max(0, 0.5 + 0.5 * Math.sin(u * 37 + t * 0.9 + Math.sin(u * 7 + t * 0.3) * 2)));
       const gr = g.createLinearGradient(0, base, 0, top);
-      gr.addColorStop(0, `rgba(80,255,170,${(0.55 * a).toFixed(3)})`); gr.addColorStop(0.35, `rgba(60,230,190,${(0.35 * a).toFixed(3)})`);
+      gr.addColorStop(0, "rgba(80,255,170,0)"); gr.addColorStop(0.12, `rgba(80,255,170,${(0.5 * a).toFixed(3)})`); gr.addColorStop(0.4, `rgba(60,230,190,${(0.35 * a).toFixed(3)})`);
       gr.addColorStop(0.75, `rgba(110,120,255,${(0.16 * a).toFixed(3)})`); gr.addColorStop(1, "rgba(150,90,255,0)");
-      g.fillStyle = gr; g.fillRect(x, top, 1, base - top + 2);
+      g.fillStyle = gr; g.fillRect(x, top, 1, base - top);
     }
   }
   function updateStars(dt, now) {
@@ -2356,7 +2356,12 @@
     const g = NS.ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, Hh);
     // pan with the camera: turning sweeps the field sideways (one full turn = the whole field), tilting moves it up/down
     const tg = view.target || new T.Vector3(), az = Math.atan2(camera.position.x - tg.x, camera.position.z - tg.z), el = Math.asin(Math.max(-1, Math.min(1, (camera.position.y - tg.y) / camera.position.distanceTo(tg))));
-    const ox = (((az / (Math.PI * 2)) * NS.fw) % NS.fw + NS.fw) % NS.fw, oy = Math.max(0, Math.min(NS.fh - Hh, (NS.fh - Hh) * (0.2 + el * 0.6)));
+    const ox = (((az / (Math.PI * 2)) * NS.fw) % NS.fw + NS.fw) % NS.fw;
+    // the horizon: a point far away at ground level, straight ahead. The sky sits above it, like a sky box
+    const fwd0 = tg.clone().sub(camera.position).setY(0); if (fwd0.lengthSq() < 1e-6) fwd0.set(0, 0, -1);
+    const hp = camera.position.clone().add(fwd0.normalize().multiplyScalar(300)).setY(0).project(camera);
+    const hy = Math.max(-Hh, Math.min(Hh * 2, (-hp.y * 0.5 + 0.5) * Hh)), oy = NS.fh - hy;   // field's bottom edge sits on the horizon
+    if (hy <= 0) { NS.el.style.opacity = "0"; return; }   // looking straight down: no sky in view
     for (const sx of [-ox, NS.fw - ox]) if (sx < W && sx + NS.fw > 0) g.drawImage(NS.field, 0, 0, NS.field.width, NS.field.height, sx, -oy, NS.fw, NS.fh);
     // twinkles
     g.globalCompositeOperation = "lighter";
@@ -2374,9 +2379,9 @@
       const vis = Math.max(0, facing + 0.35) / 1.35;
       if (vis > 0.02) {
         if (now - (NS.aT || 0) > 80) { nsAurora(now / 1000); NS.aT = now; }   // the curtains move slowly: redraw them ~12 times a second
-        const aw = W * 1.15, cx = W / 2 - side * W * 0.55, by = Hh * (0.42 + 0.2 * el);
+        const aw = W * 1.15, cx = W / 2 - side * W * 0.55, ah = Math.min(hy, Hh * 0.45);
         g.globalAlpha = Math.min(1, vis * 1.3) * 0.85; g.imageSmoothingEnabled = true;
-        g.drawImage(NS.aur, cx - aw / 2, by - Hh * 0.42, aw, Hh * 0.5);
+        g.drawImage(NS.aur, cx - aw / 2, hy - ah * 0.86, aw, ah);   // its base (86% down the curtain canvas) on the horizon
         g.globalAlpha = 1;
       }
     }
@@ -2388,6 +2393,9 @@
       g.strokeStyle = gr; g.lineWidth = 1.2; g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
       if (s.t >= 1) NS.shoot = null;
     }
+    g.globalCompositeOperation = "destination-out";
+    const fade = g.createLinearGradient(0, hy - Hh * 0.08, 0, hy + 2); fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(1, "rgba(0,0,0,1)");
+    g.fillStyle = fade; g.fillRect(0, hy - Hh * 0.08, W, Hh * 0.08 + 2); g.fillStyle = "#000"; g.fillRect(0, hy + 2, W, Hh);
     g.globalCompositeOperation = "source-over";
   }
   function updateSmoke(dt, now) {
