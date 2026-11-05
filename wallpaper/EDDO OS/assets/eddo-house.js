@@ -114,7 +114,8 @@
       const geo = ents.find((x) => x.device_id === carDev && /geocoded_location$/.test(x.entity_id)); if (geo && !carIds.place) carIds.place = geo.entity_id;
     }
     CAR.ids = carIds;
-    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds)])];
+    const liveIds = discoverLive(allStates, ents, areaName, devArea);
+    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...liveIds])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
@@ -620,14 +621,14 @@
             L([it.x, 0, it.z], [it.x, top, it.z]);
             const ring = []; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; ring.push([it.x + Math.cos(a) * r, top - 0.2, it.z + Math.sin(a) * r]); L([it.x, top, it.z], ring[i], det); L([it.x, top - 0.9, it.z], ring[i], det); }
             rect(ring, det);
-          } else if (it.kind === "tree") {   // canopy as a few stacked rings on a trunk
-            const r = it.r || 1.5, y0 = it.y0 || 1.6, top = it.h || 4;
-            L([it.x, 0, it.z], [it.x, y0, it.z], det);
+          } else if (it.kind === "tree") {   // canopy as a few stacked rings on a trunk (its own group, so the wind can sway it)
+            const r = it.r || 1.5, y0 = it.y0 || 1.6, top = it.h || 4, tp = [];
+            tp.push(0, 0, 0, 0, y0, 0);
             for (const [t, k] of [[0, 0.6], [0.3, 1], [0.65, 0.85], [1, 0.4]]) {
-              const y = y0 + (top - y0) * t, rr = r * k, c = [];
-              for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; c.push([it.x + Math.cos(a) * rr, y, it.z + Math.sin(a) * rr]); }
-              rect(c, det);
+              const y = y0 + (top - y0) * t, rr = r * k;
+              for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2, b2 = (i + 1) / 20 * Math.PI * 2; tp.push(Math.cos(a) * rr, y, Math.sin(a) * rr, Math.cos(b2) * rr, y, Math.sin(b2) * rr); }
             }
+            LIVE.treeDefs.push({ x: it.x, z: it.z, pts: tp });
           } else if (it.kind === "bbq") {   // kettle-ish grill under its cover: body, rounded lid, legs
             box(x0, x1, z0, z1, 0.25, h - 0.25, det);
             for (const zz of [z0, z1]) { let prev = null; for (let i = 0; i <= 8; i++) { const a = Math.PI * i / 8, p = [cx + Math.cos(a) * (x1 - x0) / 2, h - 0.25 + Math.sin(a) * 0.25, zz]; if (prev) L(prev, p, det); prev = p; } }
@@ -655,6 +656,7 @@
     sunPath = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: 0xffd08a, transparent: true, opacity: 0.15 }));
     sunGroup.add(sunPath);
     updateSun(true);
+    buildLive(root, maxX, maxZ);
 
     // furniture: edge outlines only, so the model stays light
     const FUR = { color: 0x9cc2c9 };
@@ -1431,7 +1433,7 @@
     if (scene.fog) { scene.fog.near = view.dist - 6; scene.fog.far = view.dist + 32; }
     updateSun(false);
     if (sunMarker) sunMarker.lookAt(camera.position);
-    if (shellLines) { const want = focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK); const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; if (shellRoof) shellRoof.material.opacity += ((focused || floorSel ? 0 : want * 0.25) - shellRoof.material.opacity) * k; }
+    if (shellLines) { const want = (focused || floorSel ? 0.04 : whatsOn ? 0.1 : 0.34 * (0.75 + 0.25 * dayK)) * LIVE.bootShell; const k = Math.min(1, dt * 4); shellLines.material.opacity += (want - shellLines.material.opacity) * k; shellDetail.material.opacity += (want * 0.55 - shellDetail.material.opacity) * k; if (shellRoof) shellRoof.material.opacity += ((focused || floorSel ? 0 : want * 0.25) - shellRoof.material.opacity) * k; }
     if (plinth) for (const a of plinth.arcs) a.arc.rotation.y += a.speed * dt;
     if (now - lastSky > 50) { lastSky = now; updateSky(); }   // often and eased, so the sun glow glides as you turn
     drawWeather(now);
@@ -1440,8 +1442,11 @@
     updateEnergy(dt, now);
     updateBoiler(dt, now);
     updateCar(dt, now);
+    updateLive(dt, now);
+    bootStep(now);
     renderer.render(scene, camera);
     placeLabels();
+    placeLive();
     if (ringEl && ringDev) { const p = screenOf(ringDev); ringEl.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
     placePreview(); placePop();
   }
@@ -1620,6 +1625,8 @@
 
   function start() {
     running = true; lastFrame = 0;
+    LIVE.bootT = performance.now(); LIVE.bootShell = 0;
+    for (const l of [shellLines, shellDetail, shellRoof]) if (l) l.material.opacity = 0;
     const s = document.querySelector("#stage");
     s && s.setAttribute("data-eddo-house", "true");
     requestAnimationFrame(frame);
@@ -1629,6 +1636,268 @@
     stopTour(); closePop(); closeAllPreviews(true); dwell(null);
     running = false; hovered = null; hoveredDev = null; drag = null;
     document.querySelector("#stage")?.removeAttribute("data-eddo-house");
+  }
+
+  // ------------------------------------------------------------ live extras
+  // doors & windows (contact sensors), music (media players), weather (rain/snow, wind in the trees),
+  // bin day and parcels out front, and the holographic boot-up when the tab opens.
+  const LIVE = { doors: [], players: [], bins: [], parcels: [], trees: [], treeDefs: [], rain: null, root: null, tags: new Map(), bootT: null, bootShell: 1, scan: null, binMeshes: [], parcel: null, wxK: 0 };
+  const DOOR_CLASSES = ["door", "garage_door", "opening", "window"];
+  const isOpenSt = (id) => { const st = id && states.get(id); return !!st && st.s === "on"; };
+  function discoverLive(allStates, ents, areaName, devArea) {
+    const entOf = new Map(ents.map((x) => [x.entity_id, x]));
+    const roomOf = (x) => { const an = x && areaName.get(x.area_id || devArea.get(x.device_id)); return an ? rooms.find((r) => (r.areas || []).some((a) => a.toLowerCase() === an)) || null : null; };
+    const text = (st) => (st.entity_id.replace(/_/g, " ") + " " + (st.attributes.friendly_name || "")).toLowerCase();
+    const live = (st) => { const x = entOf.get(st.entity_id); return !x || !(x.disabled_by || x.hidden_by); };
+    // doors & windows: matched to the model's doors by name, otherwise put on their room's back wall
+    const conf = (H.doors || []).map((d) => ({ ...d, ids: [], roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
+    for (const st of allStates) {
+      if (!st.entity_id.startsWith("binary_sensor.") || !DOOR_CLASSES.includes(st.attributes.device_class) || !live(st)) continue;
+      const t = text(st), hit = conf.find((d) => !d.auto && (d.match || []).some((m) => t.includes(m)));
+      if (hit) { hit.ids.push(st.entity_id); continue; }
+      const r = roomOf(entOf.get(st.entity_id)); if (!r) continue;
+      const n = conf.filter((d) => d.roomRef === r && d.auto).length, win = st.attributes.device_class === "window";
+      conf.push({ name: st.attributes.friendly_name || st.entity_id, room: r.id, roomRef: r, wall: "back", at: 0.25 + (n % 3) * 0.25, w: win ? 0.9 : 0.8, window: win, auto: true, ids: [st.entity_id] });
+    }
+    LIVE.doors = conf.filter((d) => d.ids.length);
+    for (const d of LIVE.doors) { const lk = allStates.find((st) => st.entity_id.startsWith("lock.") && (d.match || []).some((m) => text(st).includes(m))); d.lockId = lk ? lk.entity_id : null; }
+    // music & TV: media players, grouped onto the TV they belong to or the room they're in
+    const tvs = devices.filter((d) => d.kind === "tv"), groups = new Map();
+    for (const st of allStates) {
+      if (!st.entity_id.startsWith("media_player.") || !live(st)) continue;
+      const t = text(st), d = tvs.find((v) => v.ids.includes(st.entity_id) || (v.match || []).some((m) => t.includes(m)));
+      const r = d ? d.roomRef : roomOf(entOf.get(st.entity_id)); if (!r) continue;
+      const key = d ? "tv:" + devices.indexOf(d) : "room:" + r.id;
+      if (!groups.has(key)) groups.set(key, { dev: d || null, roomRef: r, ids: [], k: 0 });
+      groups.get(key).ids.push(st.entity_id);
+    }
+    LIVE.players = [...groups.values()];
+    // bin day (e.g. Waste Collection Schedule) and parcels due (e.g. Mail and Packages, Parcel)
+    LIVE.bins = allStates.filter((st) => /^(sensor|calendar)\./.test(st.entity_id) && /\b(bins?|waste|recycl\w*|refuse|rubbish|food caddy)\b/.test(text(st)) && live(st)).map((st) => st.entity_id);
+    LIVE.parcels = allStates.filter((st) => st.entity_id.startsWith("sensor.") && /parcel|package|deliver/.test(text(st)) && !/delivered|update|last|image|exception|camera/.test(text(st)) && live(st) && Number.isFinite(+st.state)).map((st) => st.entity_id);
+    LIVE.needBuild = true;
+    return [...LIVE.doors.flatMap((d) => [...d.ids, d.lockId].filter(Boolean)), ...LIVE.players.flatMap((p) => p.ids), ...LIVE.bins, ...LIVE.parcels];
+  }
+
+  // where a door sits: hinge point, direction along the wall, and which way is into the room (plan x, z)
+  function doorFrame(d) {
+    const r = d.roomRef, at = d.at ?? 0.5, w = d.w || 0.85;
+    let p, a, n;
+    if (d.wall === "front") { p = [r.x + at * r.w - w / 2, r.z]; a = [1, 0]; n = [0, 1]; }
+    else if (d.wall === "back") { p = [r.x + at * r.w - w / 2, r.z + r.d]; a = [1, 0]; n = [0, -1]; }
+    else if (d.wall === "left") { p = [r.x, r.z + at * r.d - w / 2]; a = [0, 1]; n = [1, 0]; }
+    else { p = [r.x + r.w, r.z + at * r.d - w / 2]; a = [0, 1]; n = [-1, 0]; }
+    if (d.inset) p = [p[0] + n[0] * d.inset, p[1] + n[1] * d.inset];
+    if (d.hinge === "far") { p = [p[0] + a[0] * w, p[1] + a[1] * w]; a = [-a[0], -a[1]]; }
+    if (d.out) n = [-n[0], -n[1]];
+    return { p, a, n, w };
+  }
+  const lineGeo = (pts) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); return g; };
+  const lineMat = (color, opacity) => new T.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+
+  function buildLive(root, maxX, maxZ) {
+    LIVE.root = root;
+    LIVE.dyn = new T.Group(); root.add(LIVE.dyn); buildLiveDyn();
+    buildLiveStatic(root, maxX, maxZ);
+  }
+  // doors and players depend on what Home Assistant has, so they're rebuilt whenever it (re)connects
+  function buildLiveDyn() {
+    const root = LIVE.dyn; if (!root) return;
+    LIVE.needBuild = false;
+    while (root.children.length) root.remove(root.children[0]);
+    LIVE.tags.forEach((el) => { el.dataset.hidden = "true"; });
+    // doors & windows
+    for (const d of LIVE.doors) {
+      const { p, a, n, w } = doorFrame(d), r = d.roomRef, h = d.window ? 1.1 : 2.0, y0 = r.y + (d.window ? 0.95 : 0.02);
+      const g = new T.Group(); g.position.set(p[0], y0, p[1]); g.rotation.y = Math.atan2(-a[1], a[0]); root.add(g);
+      const sz = Math.sin(g.rotation.y) * n[0] + Math.cos(g.rotation.y) * n[1] > 0 ? 1 : -1;   // local +z is into the room?
+      const frame = new T.LineSegments(lineGeo([0, 0, 0, 0, h, 0, 0, h, 0, w, h, 0, w, h, 0, w, 0, 0]), lineMat(C.edge, 0.45)); g.add(frame);
+      const leaf = new T.Group(); g.add(leaf);
+      const leafLines = new T.LineSegments(lineGeo([0, 0, 0, w, 0, 0, w, 0, 0, w, h, 0, w, h, 0, 0, h, 0, 0, h, 0, 0, 0, 0, w * 0.82, h * 0.48, 0, w * 0.82, h * 0.52, 0]), lineMat(C.edge, 0.45)); leaf.add(leafLines);
+      const fill = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending }));
+      fill.position.set(w / 2, h / 2, 0); leaf.add(fill);
+      const ap = []; if (!d.window) for (let i = 0; i < 16; i++) { const t0 = i / 16 * 1.4, t1 = (i + 1) / 16 * 1.4; ap.push(w * Math.cos(t0), 0.01, sz * w * Math.sin(t0), w * Math.cos(t1), 0.01, sz * w * Math.sin(t1)); }
+      const arc = new T.LineSegments(lineGeo(ap.length ? ap : [0, 0, 0, 0, 0, 0]), lineMat(0xffb36b, 0)); g.add(arc);
+      d.mesh = { g, frame, leaf, leafLines, fill, arc, sz, k: 0, h };
+    }
+    // music: three rings that ripple out from the speaker or TV while it plays
+    for (const pl of LIVE.players) {
+      const r = pl.roomRef, d = pl.dev;
+      const x = r.x + (d ? d.u : 0.5) * r.w, z = r.z + (d ? d.v : 0.5) * r.d, y = r.y + (d ? (d.y ?? KIND_HEIGHT.tv) : 1.0);
+      const g = new T.Group(); g.position.set(x, y, z); root.add(g);
+      pl.rings = [0, 1, 2].map(() => { const m = new T.Mesh(new T.RingGeometry(0.93, 1, 48), new T.MeshBasicMaterial({ color: 0x9fdcff, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending })); m.rotation.x = -Math.PI / 2; g.add(m); return m; });
+      pl.g = g;
+    }
+  }
+  function buildLiveStatic(root, maxX, maxZ) {
+    // weather: rain/snow streaks over the whole site
+    {
+      const N = 700, seed = [];
+      for (let i = 0; i < N; i++) seed.push([-3 + Math.random() * (maxX + 6), Math.random() * 15, -5 + Math.random() * (maxZ + 9)]);
+      const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(new Float32Array(N * 6), 3)); geo.setDrawRange(0, 0);
+      const pos = geo.attributes.position.array;
+      const ln = new T.LineSegments(geo, new T.LineBasicMaterial({ color: 0xa9d8ff, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }));
+      seed.maxX = maxX + 6; ln.frustumCulled = false; root.add(ln); LIVE.rain = { ln, geo, pos, seed, N };
+    }
+    // trees: their own groups so the wind can move them (pivot at the trunk)
+    for (const t of LIVE.treeDefs) {
+      const g = new T.Group(); g.position.set(t.x, 0, t.z); root.add(g);
+      g.add(new T.LineSegments(lineGeo(t.pts), shellDetail ? shellDetail.material : lineMat(C.edge, 0.16)));
+      LIVE.trees.push({ g, ph: Math.random() * 6 });
+    }
+    // bins by the front wall, parcel by the front door
+    const box = (w, h, d, x, y, z, op = 0.7) => { const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(w, h, d)), lineMat(C.edge, op)); e.position.set(x, y + h / 2, z); return e; };
+    for (let i = 0; i < 3; i++) {
+      const g = new T.Group(); g.position.set(0.45 + i * 0.75, 0, -1.15); g.visible = false; root.add(g);
+      g.add(box(0.58, 0.95, 0.7, 0, 0.08, 0)); g.add(box(0.62, 0.06, 0.76, 0, 1.03, 0.02));          // body, lid
+      g.add(box(0.5, 0.04, 0.04, 0, 1.0, 0.4));                                                     // handle
+      for (const sx of [-1, 1]) { const c = []; for (let k = 0; k < 12; k++) { const a0 = k / 12 * Math.PI * 2, a1 = (k + 1) / 12 * Math.PI * 2; c.push(sx * 0.3, 0.1 + Math.sin(a0) * 0.1, 0.32 + Math.cos(a0) * 0.1, sx * 0.3, 0.1 + Math.sin(a1) * 0.1, 0.32 + Math.cos(a1) * 0.1); } g.add(new T.LineSegments(lineGeo(c), lineMat(C.edge, 0.7))); }
+      LIVE.binMeshes.push(g);
+    }
+    {
+      const g = new T.Group(); g.position.set(4.25, 0, -0.75); g.visible = false; root.add(g);
+      g.add(box(0.45, 0.3, 0.35, 0, 0, 0)); g.add(new T.LineSegments(lineGeo([-0.225, 0.3, 0, 0.225, 0.3, 0, 0, 0.3, -0.175, 0, 0.3, 0.175, -0.225, 0.3, 0, -0.225, 0, 0, 0.225, 0.3, 0, 0.225, 0, 0]), lineMat(0xffd08a, 0.8)));
+      LIVE.parcel = g;
+    }
+    // boot-up: a scan plane that sweeps up the house as the floors build
+    {
+      const x0 = -1, x1 = maxX + 1, z0 = -2, z1 = maxZ + 1;
+      const g = new T.Group(); root.add(g);
+      g.add(new T.LineSegments(lineGeo([x0, 0, z0, x1, 0, z0, x1, 0, z0, x1, 0, z1, x1, 0, z1, x0, 0, z1, x0, 0, z1, x0, 0, z0]), lineMat(0x9fe8ff, 0)));
+      const pl = new T.Mesh(new T.PlaneGeometry(x1 - x0, z1 - z0), new T.MeshBasicMaterial({ color: 0x5fd0ff, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending }));
+      pl.rotation.x = -Math.PI / 2; pl.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); g.add(pl); g.visible = false; LIVE.scan = g;
+    }
+  }
+
+  // bins: days until collection, from whatever the sensor gives
+  const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  function binDays(id) {
+    const st = states.get(id); if (!st) return null;
+    const a = st.a || {}, s = String(st.s).trim();
+    if (Number.isFinite(+a.daysTo)) return +a.daysTo;
+    if (id.startsWith("calendar.")) { const t = Date.parse(a.start_time); return Number.isFinite(t) ? Math.round((dayStart(t) - dayStart(Date.now())) / 864e5) : null; }
+    if (/^today$/i.test(s)) return 0; if (/^tomorrow$/i.test(s)) return 1;
+    const m = s.match(/in (\d+) days?/i); if (m) return +m[1];
+    if (/^\d+(\.\d+)?$/.test(s)) return /day|^$/i.test(a.unit_of_measurement || "") ? Math.round(+s) : null;
+    const t = Date.parse(s); return Number.isFinite(t) ? Math.round((dayStart(t) - dayStart(Date.now())) / 864e5) : null;
+  }
+  const binName = (id) => { const st = states.get(id); return String((st && st.a.friendly_name) || id.split(".")[1]).replace(/_/g, " ").replace(/\b(next|collection|bins?|day)\b/gi, "").replace(/\s+/g, " ").trim() || "Bins"; };
+  const binColour = (n) => /recycl|paper|glass|blue/i.test(n) ? 0x6fd6ff : /garden|green/i.test(n) ? 0x7fe08a : /food|caddy/i.test(n) ? 0xffc25a : 0xb8c4c8;
+
+  function updateLive(dt, now) {
+    if (!LIVE.root) return;
+    if (LIVE.needBuild) buildLiveDyn();
+    const wall = Date.now(), k = Math.min(1, dt * 4), boot = LIVE.bootShell;
+    // doors & windows
+    for (const d of LIVE.doors) {
+      const m = d.mesh; if (!m) continue;
+      const openIds = d.ids.filter(isOpenSt), open = openIds.length > 0;
+      d.since = open ? Math.max(...openIds.map((id) => states.get(id).t || wall)) : 0;
+      d.long = open && wall - d.since > 10 * 60e3;
+      d.unlocked = !!d.lockId && (states.get(d.lockId) || {}).s === "unlocked";
+      m.k += ((open ? 1 : 0) - m.k) * k;
+      const hide = hiddenFloor(d.roomRef.floor) || energyMode, pulse = d.long || d.unlocked ? 0.5 + 0.5 * Math.sin(now / 260) : 0;
+      if (!d.window) m.leaf.rotation.y = -m.sz * m.k * 1.4;
+      const col = open ? 0xffb36b : d.unlocked ? 0xff6a5a : C.edge;
+      for (const l of [m.frame, m.leafLines]) { l.material.color.setHex(col); l.material.opacity = (hide ? 0.04 : open || d.unlocked ? 0.7 + 0.3 * pulse : 0.4) * boot; }
+      m.fill.material.opacity = hide ? 0 : m.k * (d.window ? 0.18 : 0.1) + pulse * 0.08;
+      m.arc.material.opacity = hide ? 0 : m.k * 0.45 * boot;
+    }
+    // music
+    for (const pl of LIVE.players) {
+      if (!pl.rings) continue;
+      const playing = pl.ids.some((id) => (states.get(id) || {}).s === "playing"), hide = hiddenFloor(pl.roomRef.floor) || heatMode || energyMode;
+      pl.k += ((playing && !hide ? 1 : 0) - pl.k) * k;
+      pl.rings.forEach((m, i) => { const ph = (now / 1000 * 0.55 + i / 3) % 1; m.scale.setScalar(0.15 + ph * 1.3); m.material.opacity = pl.k * (1 - ph) * 0.4; });
+      pl.playing = playing;
+    }
+    // weather
+    const o = window.eddoOutside, code = o ? +o.code : -1;
+    const snowy = !!o && (o.snow > 0 || [71, 73, 75, 77, 85, 86].includes(code)), rainy = !!o && !snowy && (o.precip > 0 || [51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code));
+    const wet = (rainy || snowy) && !heatMode && !energyMode;
+    LIVE.wxK += ((wet ? 1 : 0) - LIVE.wxK) * Math.min(1, dt * 1.5);
+    const wind = o ? (o.wind || 0) / 3.6 : 0, [wx, wz] = o ? planDir(((o.windDir || 0) + 180) * Math.PI / 180) : [0, 0];
+    if (LIVE.rain) {
+      const R = LIVE.rain, mat = R.ln.material;
+      mat.opacity = LIVE.wxK * (snowy ? 0.55 : 0.35);
+      if (LIVE.wxK > 0.01) {
+        const inten = snowy ? 0.6 : Math.max(0.3, Math.min(1, 0.3 + (o.precip || 0) * 0.35)), n = Math.round(R.N * inten);
+        const fall = snowy ? 1.1 : 9, drift = Math.min(6, wind * (snowy ? 0.35 : 0.25)), len = snowy ? 0.07 : 0.42;
+        const vx = wx * drift, vz = wz * drift, vl = Math.hypot(vx, fall, vz) || 1;
+        for (let i = 0; i < n; i++) {
+          const s = R.seed[i];
+          s[1] -= fall * dt; s[0] += vx * dt; s[2] += vz * dt;
+          if (snowy) s[0] += Math.sin(now / 900 + i) * 0.2 * dt;
+          if (s[1] < 0) { s[1] += 15; s[0] = -3 + Math.random() * (R.seed.maxX || 12); }
+          const j = i * 6; R.pos[j] = s[0]; R.pos[j + 1] = s[1]; R.pos[j + 2] = s[2];
+          R.pos[j + 3] = s[0] - vx / vl * len; R.pos[j + 4] = s[1] + fall / vl * len; R.pos[j + 5] = s[2] - vz / vl * len;
+        }
+        R.geo.setDrawRange(0, n * 2); R.geo.attributes.position.needsUpdate = true;
+      }
+    }
+    // wind in the trees
+    const amp = 0.004 + Math.min(0.05, wind * 0.006);
+    for (const t of LIVE.trees) { const s = 0.6 + 0.4 * Math.sin(now / 650 + t.ph); t.g.rotation.z = -wx * amp * s; t.g.rotation.x = wz * amp * s; }
+    // bins & parcels out front (all-house or ground floor view)
+    const front = !heatMode && !energyMode && (!floorSel || floorSel === "ground") && !focused, hr = new Date().getHours();
+    LIVE.binsDue = LIVE.bins.map((id) => ({ id, days: binDays(id), name: binName(id) })).filter((b) => b.days === 0 && hr < 14 || b.days === 1 && hr >= 16);
+    LIVE.binMeshes.forEach((g, i) => {
+      const b = LIVE.binsDue[i]; g.visible = !!b && front;
+      if (b) g.children.forEach((c) => { c.material.color.setHex(binColour(b.name)); c.material.opacity = 0.75 * boot; });
+    });
+    LIVE.parcelCount = LIVE.parcels.reduce((a, id) => a + Math.max(0, +((states.get(id) || {}).s) || 0), 0);
+    if (LIVE.parcel) { LIVE.parcel.visible = LIVE.parcelCount > 0 && front; LIVE.parcel.position.y = 0.05 + Math.sin(now / 500) * 0.05; LIVE.parcel.rotation.y = now / 3000; }
+  }
+
+  // floating tags in the labels layer (projected from model coordinates)
+  function liveTag(key, x, y, z, html, show, cls = "") {
+    let el = LIVE.tags.get(key);
+    if (!show) { if (el) el.dataset.hidden = "true"; return; }
+    if (!el) { el = document.createElement("div"); el.className = "eddo-live-tag " + cls; labelsEl.append(el); LIVE.tags.set(key, el); }
+    const p = LIVE.root.localToWorld(new T.Vector3(x, y, z)).project(camera);
+    if (p.z > 1) { el.dataset.hidden = "true"; return; }
+    el.dataset.hidden = "false";
+    const tf = `translate(${((p.x * 0.5 + 0.5) * canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * canvas.clientHeight).toFixed(1)}px)`;
+    if (el.style.transform !== tf) el.style.transform = tf;
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
+  const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 1 ? "JUST NOW" : m < 60 ? `${m} MIN` : `${Math.floor(m / 60)} H ${m % 60} MIN`; };
+  function placeLive() {
+    if (!LIVE.root || !labelsEl) return;
+    const wall = Date.now(), quiet = heatMode || energyMode;
+    for (const [i, d] of LIVE.doors.entries()) {
+      if (!d.mesh) continue;
+      const { p, a, w } = doorFrame(d), show = !energyMode && !hiddenFloor(d.roomRef.floor) && (d.mesh.k > 0.5 || d.unlocked);
+      const what = d.mesh.k > 0.5 ? `OPEN · ${mins(wall - d.since)}` : "UNLOCKED";
+      liveTag("door" + i, p[0] + a[0] * w / 2, d.roomRef.y + (d.window ? 2.3 : 2.4), p[1] + a[1] * w / 2, `<b>${esc(d.name.toUpperCase())}</b><span data-warn="${!!(d.long || d.unlocked)}">${what}</span>`, show);
+    }
+    for (const [i, pl] of LIVE.players.entries()) {
+      if (!pl.g) continue;
+      const show = pl.playing && pl.k > 0.3 && !quiet;
+      const id = pl.ids.find((x) => (states.get(x) || {}).s === "playing"), a = id ? states.get(id).a : {};
+      const title = a.media_series_title || a.media_title || a.app_name || "Playing", sub = a.media_series_title ? a.media_title : a.media_artist || "";
+      let pic = pl.dev && a.entity_picture ? String(a.entity_picture) : "";
+      if (pic && !/^https?:/i.test(pic)) pic = (HA() && HA().baseUrl ? HA().baseUrl() : "") + pic;
+      const html = (pic ? `<img src="${esc(pic)}" alt="">` : `<i class="eddo-live-note">♪</i>`) + `<b>${esc(String(title).toUpperCase())}</b>${sub ? `<span>${esc(String(sub))}</span>` : ""}`;
+      const g = pl.g; liveTag("media" + i, g.position.x, g.position.y + (pic ? 1.0 : 0.6), g.position.z, html, show, pic ? "eddo-live-poster" : "");
+    }
+    const bins = LIVE.binsDue || [];
+    liveTag("bins", 0.45 + (Math.max(1, bins.length) - 1) * 0.375, 1.6, -1.15, `<b>${bins.some((b) => b.days === 0) ? "BIN DAY" : "BINS OUT TONIGHT"}</b><span>${esc(bins.map((b) => b.name.toUpperCase()).join(" · "))}</span>`, bins.length > 0 && LIVE.binMeshes[0] && LIVE.binMeshes[0].visible);
+    liveTag("parcel", 4.25, 0.9, -0.75, `<b>${LIVE.parcelCount} PARCEL${LIVE.parcelCount === 1 ? "" : "S"} DUE</b>`, LIVE.parcel && LIVE.parcel.visible);
+  }
+
+  // boot-up: floors rise from the plan as a scan plane sweeps up, then the shell and roof fade in
+  function bootStep(now) {
+    if (LIVE.bootT == null) return;
+    const b = (now - LIVE.bootT) / 2600, top = 12.5;
+    const ease = (x) => x <= 0 ? 0.001 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3);
+    for (const r of rooms) if (r.mesh) r.mesh.g.scale.y = ease((b - (r.y / top) * 0.7) / 0.3);
+    LIVE.bootShell = Math.max(0, Math.min(1, (b - 0.6) / 0.4));
+    if (LIVE.scan) {
+      LIVE.scan.visible = b < 1.05; LIVE.scan.position.y = Math.min(1, b / 0.95) * top;
+      const op = Math.max(0, 1 - b) ; LIVE.scan.children[0].material.opacity = 0.6 * op; LIVE.scan.children[1].material.opacity = 0.05 * op;
+    }
+    if (b >= 1.05) { LIVE.bootT = null; LIVE.bootShell = 1; rooms.forEach((r) => r.mesh && r.mesh.g.scale.set(1, 1, 1)); if (LIVE.scan) LIVE.scan.visible = false; }
   }
 
   // ------------------------------------------------------------ tab

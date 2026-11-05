@@ -593,3 +593,12 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-meter b{text-align:right;font-size:13px;font-weight:400;color:var(--theme-ink,#ece9e2)}
 .eddo-car-row{cursor:default}
 .eddo-car-row span{font-size:12px}
+/* House tab: live tags (open doors, music, bins, parcels) */
+.eddo-live-tag{position:absolute;left:0;top:0;translate:-50% -100%;display:flex;flex-direction:column;align-items:center;gap:2px;font:9px/1.2 MiSans,system-ui,sans-serif;letter-spacing:1.3px;color:var(--theme-muted,#9a978f);text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap;transition:opacity .4s}
+.eddo-live-tag[data-hidden=true]{opacity:0}
+.eddo-live-tag b{font-weight:500;color:var(--theme-ink,#ece9e2);letter-spacing:1.8px}
+.eddo-live-tag span[data-warn=true]{color:#ffb36b;animation:eddo-live-warn 1.2s ease-in-out infinite}
+@keyframes eddo-live-warn{50%{opacity:.45}}
+.eddo-live-tag .eddo-live-note{font-style:normal;font-size:13px;color:#9fdcff}
+.eddo-live-poster img{width:46px;height:68px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(159,220,255,.35),0 4px 14px rgba(0,0,0,.6);margin-bottom:3px}
+.eddo-live-poster b{max-width:150px;overflow:hidden;text-overflow:ellipsis}
