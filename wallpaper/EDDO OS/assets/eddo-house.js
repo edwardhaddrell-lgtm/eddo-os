@@ -116,7 +116,13 @@
       serviceDist: /distance_to_service$/, serviceTime: /^time_to_service$|[^_]time_to_service$/, avgFuel: /average_fuel_consumption$/, avgEnergy: /average_energy_consumption$/, connection: /car_connection$|availability$/ };
     for (const x of vol) {
       const dom = x.entity_id.split(".")[0], k = String(x.translation_key || x.entity_id.split(".")[1]).toLowerCase(), st = stMap.get(x.entity_id);
-      if (dom === "sensor") { for (const [n, re] of Object.entries(VK)) if (!V[n] && re.test(k)) { V[n] = x.entity_id; break; } }
+      if (dom === "sensor") {
+        let hit = false; for (const [n, re] of Object.entries(VK)) if (!V[n] && re.test(k)) { V[n] = x.entity_id; hit = true; break; }
+        // fall back to the name for the two ranges ("Distance to empty tank", "Fuel range", "Electric range" …)
+        const nm = (k + " " + String(st.attributes.friendly_name || "")).toLowerCase().replace(/_/g, " "), dist = /^(km|mi|m)$/i.test(st.attributes.unit_of_measurement || "");
+        if (!hit && dist && !V.rangeFuel && /(empty|range).*(tank|fuel|petrol)|(tank|fuel|petrol).*(range|empty)/.test(nm)) V.rangeFuel = x.entity_id;
+        else if (!hit && dist && !V.rangeEv && /(empty|range).*(battery|electric)|(battery|electric).*(range|empty)/.test(nm)) V.rangeEv = x.entity_id;
+      }
       else if (dom === "lock") V.lock = V.lock || x.entity_id;
       else if (dom === "device_tracker") V.tracker = V.tracker || x.entity_id;
       else if (dom === "binary_sensor") {
@@ -406,7 +412,8 @@
     const lk = sv(V.lock), locked = live(lk) ? lk.s === "locked" : null;
     const allIds = [...Object.values(I), ...(V.all || [])], last = Math.max(0, ...allIds.map((id) => (sv(id) || {}).t || 0));
     const svc = sv(V.serviceTime);
-    return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, appRange, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
+    const fuelRange = rangeFuel != null ? rangeFuel : rangeEv == null ? appRange : null;
+    return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, appRange, fuelRange, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
       chargeEta: word("chargeEta") && V.chargeEta ? `${sv(V.chargeEta).s} ${sv(V.chargeEta).a.unit_of_measurement || ""}`.trim() : null,
       chargePower: V.chargePower && live(sv(V.chargePower)) ? `${sv(V.chargePower).s} ${sv(V.chargePower).a.unit_of_measurement || ""}`.trim() : null,
       locked, openDoors: onIds(V.doors).map(label), openWindows: onIds(V.windows).map(label), tyreWarn: onIds(V.tyres).map(label), warnings: onIds(V.warn).map(label),
@@ -1272,10 +1279,9 @@
     const bar = (v, warn) => v == null ? "" : `<i style="--v:${v}%" data-low="${v < warn}"></i>`;
     const html = c.home
       ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>` +
-        (c.fuel != null ? `<span>FUEL ${bar(c.fuel, 15)}<small>${c.fuel}%</small></span>` : "") +
-        (c.battery != null ? `<span>BATT ${bar(c.battery, 10)}<small>${c.battery}%</small></span>` : "") +
+        (c.fuel != null || c.fuelRange != null ? `<span>FUEL ${c.fuel != null ? bar(c.fuel, 15) : "<i></i>"}<small>${c.fuel != null ? c.fuel + "%" : ""}</small><small class="mi">${c.fuelRange != null ? c.fuelRange + " MI" : ""}</small></span>` : "") +
+        (c.battery != null || c.rangeEv != null ? `<span>BATT ${c.battery != null ? bar(c.battery, 10) : "<i></i>"}<small>${c.battery != null ? c.battery + "%" : ""}</small><small class="mi">${c.rangeEv != null ? c.rangeEv + " MI" : ""}</small></span>` : "") +
         (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
-        (c.rangeFuel != null || c.rangeEv != null ? `<small class="split">${[c.rangeFuel != null ? c.rangeFuel + " PETROL" : "", c.rangeEv != null ? c.rangeEv + " ELECTRIC" : ""].filter(Boolean).join(" · ")}</small>` : "") +
         (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "")
       : `<b>${esc(c.name.toUpperCase())} <em>AWAY</em></b>${c.where ? `<span class="rng"><small>${esc(c.where.toUpperCase())}</small></span>` : ""}`;
     if (carCard.innerHTML !== html) carCard.innerHTML = html;
@@ -2059,7 +2065,7 @@
     let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
       `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
     if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>${c.rangeEv != null && c.rangeFuel != null ? `RANGE · ${c.rangeFuel} PETROL + ${c.rangeEv} ELECTRIC` : "RANGE REMAINING"}</span></div>`;
-    h += row("Fuel range", c.rangeFuel != null ? c.rangeFuel + " mi" : c.rangeEv == null && c.appRange != null ? c.appRange + " mi" : null) + row("Electric range", c.rangeEv != null ? c.rangeEv + " mi" : null);
+    h += row("Fuel range", c.fuelRange != null ? c.fuelRange + " mi" : null) + row("Electric range", c.rangeEv != null ? c.rangeEv + " mi" : null);
     h += meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? ` <small>${Math.round(c.fuelL)} L</small>` : "") + meter("BATTERY", c.battery, 10, "#5fe0a8");
     if (c.volvo) {
       h += `<div class="eddo-car-chips">` + (c.locked != null ? chip(c.locked, "LOCKED", "UNLOCKED") : "") + chip(!c.openDoors.length, "DOORS SHUT", "DOOR OPEN") +

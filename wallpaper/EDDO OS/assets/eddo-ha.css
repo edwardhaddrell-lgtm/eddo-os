@@ -581,7 +581,8 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-card b{font-weight:500;color:var(--theme-ink,#ece9e2);letter-spacing:1.8px}
 .eddo-car-card em{font-style:normal;color:#ffb36b;margin-left:4px}
 .eddo-car-card em.chg{color:#5fe0a8}
-.eddo-car-card span{display:grid;grid-template-columns:32px 70px 30px;align-items:center;gap:6px}
+.eddo-car-card span{display:grid;grid-template-columns:32px 70px 30px 44px;align-items:center;gap:6px}
+.eddo-car-card span small.mi{text-align:left;color:var(--theme-muted,#9a978f)}
 .eddo-car-card span i{height:2px;background:linear-gradient(90deg,#8fb9c2 var(--v),rgba(143,185,194,.18) var(--v));box-shadow:0 0 6px rgba(0,0,0,.6)}
 .eddo-car-card span i[data-low=true]{background:linear-gradient(90deg,#ffa64a var(--v),rgba(255,166,74,.2) var(--v))}
 .eddo-car-card span small{text-align:right;color:var(--theme-ink,#ece9e2);font-size:9px}
