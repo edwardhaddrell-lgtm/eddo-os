@@ -108,6 +108,30 @@
     const carIds = {}, carKeys = { fuel: /_car_fuel$/, battery: /_car_battery$/, range: /_car_range_remaining$/, odometer: /_car_odometer$/, charging: /_car_charging_status$/, connector: /_car_ev_connector_type$/, fueltype: /_car_fuel_type$/, name: /_car_name$/ };
     for (const [k, re] of Object.entries(carKeys)) { const st = allStates.find((x) => x.entity_id.startsWith("sensor.") && re.test(x.entity_id)); if (st) carIds[k] = st.entity_id; }
     if (H.car && H.car.entities) Object.assign(carIds, H.car.entities);
+    // the official Volvo integration: richer and more reliable than the companion app, so its readings win
+    const vol = ents.filter((x) => x.platform === "volvo" && !x.disabled_by && stMap.has(x.entity_id));
+    const V = { doors: [], windows: [], tyres: [], warn: [], btn: {}, all: vol.map((x) => x.entity_id) };
+    const VK = { battery: /battery_charge_level$/, rangeEv: /distance_to_empty_battery$/, rangeFuel: /distance_to_empty_tank$/, fuelL: /fuel_amount$/, odometer: /odometer$/,
+      charging: /charging_status$/, connector: /charging_connection_status$/, chargeEta: /estimated_charging_time$/, chargePower: /charging_power$/, chargeTarget: /target_battery_charge_level$/,
+      serviceDist: /distance_to_service$/, serviceTime: /^time_to_service$|[^_]time_to_service$/, avgFuel: /average_fuel_consumption$/, avgEnergy: /average_energy_consumption$/, connection: /car_connection$|availability$/ };
+    for (const x of vol) {
+      const dom = x.entity_id.split(".")[0], k = String(x.translation_key || x.entity_id.split(".")[1]).toLowerCase(), st = stMap.get(x.entity_id);
+      if (dom === "sensor") { for (const [n, re] of Object.entries(VK)) if (!V[n] && re.test(k)) { V[n] = x.entity_id; break; } }
+      else if (dom === "lock") V.lock = V.lock || x.entity_id;
+      else if (dom === "device_tracker") V.tracker = V.tracker || x.entity_id;
+      else if (dom === "binary_sensor") {
+        if (/door|hood|tailgate|tank_lid|bonnet/.test(k)) V.doors.push(x.entity_id);
+        else if (/window|sunroof/.test(k)) V.windows.push(x.entity_id);
+        else if (/tyre|tire/.test(k)) V.tyres.push(x.entity_id);
+        else if (st.attributes.device_class === "problem" || /fluid|service|light|warning|coolant|oil/.test(k)) V.warn.push(x.entity_id);
+      } else if (dom === "button") {
+        if (/climat\w*start|start\w*climat/.test(k)) V.btn.climaStart = x.entity_id; else if (/climat\w*stop|stop\w*climat/.test(k)) V.btn.climaStop = x.entity_id;
+        else if (/flash/.test(k)) V.btn.flash = x.entity_id;
+      }
+    }
+    CAR.V = V;
+    for (const k of ["battery", "odometer", "charging", "connector", "tracker"]) if (V[k]) carIds[k] = V[k];
+    if (V.rangeFuel || V.rangeEv) delete carIds.range;
     const carDev = Object.values(carIds).map((id) => entDev.get(id)).find(Boolean);
     if (carDev) {
       const tr = ents.find((x) => x.device_id === carDev && x.entity_id.startsWith("device_tracker.")); if (tr && !carIds.tracker) carIds.tracker = tr.entity_id;
@@ -115,7 +139,7 @@
     }
     CAR.ids = carIds;
     const liveIds = discoverLive(allStates, ents, areaName, devArea);
-    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...liveIds])];
+    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...((CAR.V && CAR.V.all) || []), ...liveIds])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
@@ -361,16 +385,35 @@
   }
   // car readings, in friendly units
   function carData() {
-    const I = CAR.ids, st = (k) => I[k] && states.get(I[k]);
-    const pct = (k) => { const x = st(k); return x && Number.isFinite(+x.s) ? Math.round(+x.s) : null; };
-    const miles = (k) => { const x = st(k); if (!x || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "m").toLowerCase(); const v = +x.s; return Math.round(u === "mi" ? v : u === "km" ? v * 0.621371 : v / 1609.34); };
-    const word = (k) => { const x = st(k); return x && !/^(unknown|unavailable)$/.test(x.s) ? String(x.s) : null; };
+    const I = CAR.ids, V = CAR.V || { doors: [], windows: [], tyres: [], warn: [], btn: {} };
+    const sv = (id) => id && states.get(id), st = (k) => sv(I[k] || V[k]);
+    const live = (x) => x && !/^(unknown|unavailable)$/.test(x.s);
+    const pct = (k) => { const x = st(k); return live(x) && Number.isFinite(+x.s) ? Math.round(+x.s) : null; };
+    const milesOf = (x) => { if (!live(x) || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "m").toLowerCase(); const v = +x.s; return Math.round(u === "mi" ? v : u === "km" ? v * 0.621371 : v / 1609.34); };
+    const miles = (k) => milesOf(st(k));
+    const word = (k) => { const x = st(k); return live(x) ? String(x.s) : null; };
+    const label = (id) => { const x = sv(id); return String((x && x.a.friendly_name) || id.split(".")[1]).replace(/^(volvo\s+)?(xc\d+|v\d+|s\d+|ex\d+|c\d+)\s+/i, "").replace(/_/g, " "); };
+    const onIds = (list) => list.filter((id) => { const x = sv(id); return x && x.s === "on"; });
     const tr = st("tracker"), home = tr ? tr.s === "home" : true;
-    const charging = /^(charging|true|on)$/i.test(word("charging") || "");
-    const plugged = charging || /connected|plugged|done|complete/i.test(word("charging") || "");
-    const times = Object.keys(I).map((k) => (st(k) || {}).t || 0), last = Math.max(0, ...times);
-    return { fuel: pct("fuel"), battery: pct("battery"), range: miles("range"), odometer: miles("odometer"), charging, plugged, chargeText: word("charging"), connector: word("connector"),
-      home, where: word("place") || (tr && tr.s !== "home" ? (tr.a.friendly_name ? tr.s : tr.s) : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 };
+    const conn = word("connector") || "", chg = word("charging") || "";
+    const charging = /^(charging|true|on)$/i.test(chg);
+    const plugged = charging || (/connected|plugged|done|complete/i.test(conn || chg) && !/disconnected|unplugged|not/i.test(conn || chg));
+    const fuelL = (() => { const x = sv(V.fuelL); return live(x) && Number.isFinite(+x.s) ? +x.s : null; })();
+    const tank = (H.car && H.car.tank) || 71;   // XC60 T8 tank, litres
+    let fuel = pct("fuel"); if (fuel == null && fuelL != null) fuel = Math.max(0, Math.min(100, Math.round(fuelL / tank * 100)));
+    const rangeEv = milesOf(sv(V.rangeEv)), rangeFuel = milesOf(sv(V.rangeFuel));
+    const range = rangeEv != null || rangeFuel != null ? (rangeEv || 0) + (rangeFuel || 0) : miles("range");
+    const lk = sv(V.lock), locked = live(lk) ? lk.s === "locked" : null;
+    const allIds = [...Object.values(I), ...(V.all || [])], last = Math.max(0, ...allIds.map((id) => (sv(id) || {}).t || 0));
+    const svc = sv(V.serviceTime);
+    return { fuel, fuelL, battery: pct("battery"), range, rangeEv, rangeFuel, odometer: miles("odometer"), charging, plugged, chargeText: chg || null, connector: conn || null,
+      chargeEta: word("chargeEta") && V.chargeEta ? `${sv(V.chargeEta).s} ${sv(V.chargeEta).a.unit_of_measurement || ""}`.trim() : null,
+      chargePower: V.chargePower && live(sv(V.chargePower)) ? `${sv(V.chargePower).s} ${sv(V.chargePower).a.unit_of_measurement || ""}`.trim() : null,
+      locked, openDoors: onIds(V.doors).map(label), openWindows: onIds(V.windows).map(label), tyreWarn: onIds(V.tyres).map(label), warnings: onIds(V.warn).map(label),
+      serviceMiles: milesOf(sv(V.serviceDist)), serviceTime: live(svc) ? `${svc.s} ${svc.a.unit_of_measurement || ""}`.trim() : null,
+      avgFuel: V.avgFuel && live(sv(V.avgFuel)) ? `${sv(V.avgFuel).s} ${sv(V.avgFuel).a.unit_of_measurement || ""}`.trim() : null,
+      btn: V.btn, lockId: V.lock || null, volvo: !!(V.all && V.all.length),
+      home, where: word("place") || (tr && tr.s !== "home" ? tr.s : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 || !!(V.all && V.all.length) };
   }
   function updateCar(dt, now) {
     const m = CAR.mesh; if (!m) return;
@@ -382,7 +425,7 @@
     const lit = !ghost && !strip ? 1 : 0; m.glow += (lit - m.glow) * Math.min(1, dt * 2);
     m.front.material.opacity = (m.dense ? 0.35 : 0.55) * m.glow * (0.4 + 0.6 * (1 - dayK)); m.back.material.opacity = (m.dense ? 0.45 : 0.6) * m.glow * (0.4 + 0.6 * (1 - dayK));
     m.chg.material.opacity = c.plugged && !strip ? (c.charging ? 0.35 + 0.35 * Math.sin(now / 600) : 0.25) : 0;
-    const low = (c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged);
+    const low = (c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged) || c.openDoors.length > 0 || c.locked === false && c.home;
     m.lines.material.color.set(low ? 0xffa64a : C.edge);
   }
   function slopeGeo(w, h, d, knee, run) {
@@ -1231,7 +1274,8 @@
       ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>` +
         (c.fuel != null ? `<span>FUEL ${bar(c.fuel, 15)}<small>${c.fuel}%</small></span>` : "") +
         (c.battery != null ? `<span>BATT ${bar(c.battery, 10)}<small>${c.battery}%</small></span>` : "") +
-        (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "")
+        (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
+        (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "")
       : `<b>${esc(c.name.toUpperCase())} <em>AWAY</em></b>${c.where ? `<span class="rng"><small>${esc(c.where.toUpperCase())}</small></span>` : ""}`;
     if (carCard.innerHTML !== html) carCard.innerHTML = html;
   }
@@ -2004,17 +2048,38 @@
   }
   function carPanel() {
     const c = carData();
-    if (!c.linked) return `<div class="eddo-house-head"><h3 class="eddo-house-room">Car</h3><button class="eddo-house-off" data-house-back>BACK</button></div><p class="wb-muted">No car sensors found. In the Home Assistant app on the car, turn on its sensors (Fuel, Battery, Range remaining…).</p>`;
+    if (!c.linked) return `<div class="eddo-house-head"><h3 class="eddo-house-room">Car</h3><button class="eddo-house-off" data-house-back>BACK</button></div><p class="wb-muted">No car found. Add the Volvo integration in Home Assistant, or turn on the car sensors in the Home Assistant app on the car.</p>`;
     const ago = c.last ? Math.round((Date.now() - c.last) / 60000) : null;
-    const meter = (label, v, warn, col) => v == null ? "" : `<div class="eddo-car-meter" data-low="${v < warn}"><span>${label}</span><i style="--v:${v}%;--c:${col}"></i><b>${v}%</b></div>`;
-    const row = (k, v) => v == null || v === "" ? "" : `<div class="eddo-house-item"><div class="eddo-house-row eddo-car-row"><span>${k}</span><em>${esc(String(v).toUpperCase())}</em></div></div>`;
-    return `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
-      `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>` +
-      (c.range != null ? `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>RANGE REMAINING</span></div>` : "") +
-      meter("FUEL", c.fuel, 15, "#ffc25a") + meter("BATTERY", c.battery, 10, "#5fe0a8") +
-      row("Charging", c.chargeText) + row("Connector", c.connector) +
+    const meter = (label, v, warn, col, extra = "") => v == null ? "" : `<div class="eddo-car-meter" data-low="${v < warn}"><span>${label}</span><i style="--v:${v}%;--c:${col}"></i><b>${v}%${extra}</b></div>`;
+    const row = (k, v, warn) => v == null || v === "" ? "" : `<div class="eddo-house-item"><div class="eddo-house-row eddo-car-row"><span>${k}</span><em${warn ? ' data-warn="true"' : ""}>${esc(String(v).toUpperCase())}</em></div></div>`;
+    const chip = (ok, good, bad) => `<span class="eddo-car-chip" data-ok="${ok}">${ok ? good : bad}</span>`;
+    const tidy = (t) => t ? String(t).replace(/_/g, " ") : t;
+    const btn = (act, label, cls = "") => `<button data-car-act="${act}"${cls ? ` class="${cls}"` : ""}>${label}</button>`;
+    let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
+      `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
+    if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>${c.rangeEv != null && c.rangeFuel != null ? `RANGE · ${c.rangeEv} ELECTRIC + ${c.rangeFuel} PETROL` : "RANGE REMAINING"}</span></div>`;
+    h += meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? ` <small>${Math.round(c.fuelL)} L</small>` : "") + meter("BATTERY", c.battery, 10, "#5fe0a8");
+    if (c.volvo) {
+      h += `<div class="eddo-car-chips">` + (c.locked != null ? chip(c.locked, "LOCKED", "UNLOCKED") : "") + chip(!c.openDoors.length, "DOORS SHUT", "DOOR OPEN") +
+        chip(!c.openWindows.length, "WINDOWS SHUT", "WINDOW OPEN") + (CAR.V.tyres.length ? chip(!c.tyreWarn.length, "TYRES OK", "CHECK TYRES") : "") + `</div>`;
+      const acts = [c.lockId ? (c.locked ? btn("unlock", CAR.confirmUnlock ? "TAP AGAIN TO UNLOCK" : "UNLOCK", CAR.confirmUnlock ? "warn" : "") : btn("lock", "LOCK")) : "",
+        c.btn.climaStart ? btn("climaStart", "CLIMATE ON") : "", c.btn.climaStop ? btn("climaStop", "CLIMATE OFF") : "", c.btn.flash ? btn("flash", "FLASH LIGHTS") : ""].filter(Boolean);
+      if (acts.length) h += `<div class="eddo-house-pop-row eddo-car-acts">${acts.join("")}</div>`;
+    }
+    h += row("Charging", tidy(c.chargeText)) + row("Cable", tidy(c.connector)) + (c.charging ? row("Full in", c.chargeEta) + row("Power", c.chargePower) : "") +
+      row("Open", [...c.openDoors, ...c.openWindows].join(", ") || null, true) + row("Tyres", c.tyreWarn.join(", ") || null, true) + row("Warnings", c.warnings.join(", ") || null, true) +
       row("Mileage", c.odometer != null ? c.odometer.toLocaleString("en-GB") + " mi" : null) +
-      (!c.home && c.where ? row("Location", c.where) : "");
+      row("Service in", [c.serviceMiles != null ? c.serviceMiles.toLocaleString("en-GB") + " mi" : null, c.serviceTime].filter(Boolean).join(" · ") || null) +
+      row("Avg fuel", c.avgFuel) + (!c.home && c.where ? row("Location", c.where) : "");
+    return h;
+  }
+  function carAction(act) {
+    const c = carData();
+    if (act === "unlock" && !CAR.confirmUnlock) { CAR.confirmUnlock = true; refreshList(); setTimeout(() => { CAR.confirmUnlock = false; refreshList(); }, 4000); return; }
+    CAR.confirmUnlock = false;
+    if ((act === "lock" || act === "unlock") && c.lockId) call("lock", act, { target: { entity_id: c.lockId } });
+    else if (c.btn[act]) call("button", "press", { target: { entity_id: c.btn[act] } });
+    setTimeout(refreshList, 1500);
   }
   function refreshList() {
     if (!listEl || !listEl.isConnected || sliding) return;
@@ -2083,6 +2148,7 @@
     if ((b = q("[data-house-off]"))) { const id = b.dataset.houseOff; roomOff(id === "*" ? rooms : rooms.filter((r) => r.id === id)); return; }
     if ((b = q("[data-house-scene]"))) return call("scene", "turn_on", { target: { entity_id: b.dataset.houseScene } });
     if ((b = q("[data-house-cam]"))) { window.eddoCams && window.eddoCams.open(b.dataset.houseCam); return; }
+    if ((b = q("[data-car-act]"))) { carAction(b.dataset.carAct); return; }
     if ((b = q("[data-house-media]"))) { const [i, act] = b.dataset.houseMedia.split(":"); mediaAction(devices[+i], act); return; }
     if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
     if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }

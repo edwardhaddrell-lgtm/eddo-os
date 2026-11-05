@@ -603,3 +603,13 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-live-poster img{width:46px;height:68px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(159,220,255,.35),0 4px 14px rgba(0,0,0,.6);margin-bottom:3px}
 .eddo-live-poster b{max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .eddo-house-pop-np{font-size:10px;letter-spacing:.6px;color:var(--theme-ink,#ece9e2);line-height:1.35;margin-bottom:2px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* car: Volvo status chips, actions, card warnings */
+.eddo-car-card em.warn{color:#ffb36b;margin:2px 0 0;animation:eddo-live-warn 1.2s ease-in-out infinite}
+.eddo-car-card small.lk{color:#5fe0a8;letter-spacing:1.6px;margin-top:2px}
+.eddo-car-chips{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 8px}
+.eddo-car-chip{font-size:8.5px;letter-spacing:1.4px;padding:4px 7px;border:1px solid rgba(95,224,168,.35);color:#5fe0a8}
+.eddo-car-chip[data-ok=false]{border-color:rgba(255,166,74,.5);color:#ffb36b}
+.eddo-car-acts{flex-wrap:wrap;margin:4px 0 10px}
+.eddo-car-acts button{min-width:calc(50% - 2px)}
+.eddo-car-acts button.warn{color:#ffb36b;border-color:rgba(255,166,74,.6)}
+.eddo-car-row em[data-warn=true]{color:#ffb36b}
