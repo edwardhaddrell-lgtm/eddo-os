@@ -2087,8 +2087,10 @@
     let h = `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
       `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>`;
     if (c.range != null) h += `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>RANGE REMAINING</span></div>`;
-    h += row("Fuel range", c.fuelRange != null ? c.fuelRange + " mi" : null) + row("Electric range", c.rangeEv != null ? c.rangeEv + " mi" : null);
-    h += meter("FUEL", c.fuel, 15, "#ffc25a", c.fuelL != null ? ` <small>${Math.round(c.fuelL)} L</small>` : "") + meter("BATTERY", c.battery, 10, "#5fe0a8");
+    // each meter carries its own range, so there's no separate range list
+    const sub = (...a) => { const t = a.filter(Boolean).join(" · "); return t ? `<small>${t}</small>` : ""; };
+    h += `<div class="eddo-car-meters">` + meter("FUEL", c.fuel, 15, "#ffc25a", sub(c.fuelRange != null ? c.fuelRange + " MI" : "", c.fuelL != null ? Math.round(c.fuelL) + " L" : "")) +
+      meter("BATTERY", c.battery, 10, "#5fe0a8", sub(c.rangeEv != null ? c.rangeEv + " MI" : "")) + `</div>`;
     if (c.volvo) {
       h += `<div class="eddo-car-chips">` + (c.locked != null ? chip(c.locked, "LOCKED", "UNLOCKED") : "") + chip(!c.openDoors.length, "DOORS SHUT", "DOOR OPEN") +
         chip(!c.openWindows.length, "WINDOWS SHUT", "WINDOW OPEN") + (CAR.V.tyres.length ? chip(!c.tyreWarn.length, "TYRES OK", "CHECK TYRES") : "") + `</div>`;
