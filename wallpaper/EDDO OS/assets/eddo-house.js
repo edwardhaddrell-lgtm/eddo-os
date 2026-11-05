@@ -671,7 +671,7 @@
 
     // daylight objects live in the model's own coordinates (so plan north works)
     sunGroup = new T.Group(); sunGroup.userData = { cx: maxX / 2, cz: maxZ / 2 }; root.add(sunGroup);
-    shadowGroup = new T.Group(); root.add(shadowGroup);
+    shadowGroup = new T.Group(); shadowGroup.visible = false; root.add(shadowGroup);   // sun shadows off: they read oddly on the outline model
     sunMarker = new T.Mesh(new T.CircleGeometry(0.55, 24), new T.MeshBasicMaterial({ color: 0xffd08a, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
     sunGroup.add(sunMarker);
     sunPath = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: 0xffd08a, transparent: true, opacity: 0.15 }));
@@ -1679,10 +1679,23 @@
     requestAnimationFrame(frame);
     if (restoreCams.length) { const ds = restoreCams; restoreCams = []; setTimeout(() => running && ds.forEach(openPreview), 300); }
   }
+  // The moving background tracks the mouse only while it thinks no button is held on it. If a press started on it
+  // never got its release (the House tab covered it mid-press), it stops following the mouse; cancel any such press.
+  function releaseBackground() {
+    const sc = document.querySelector("#three-scene"); if (!sc || typeof PointerEvent !== "function") return;
+    for (const pointerId of [1, 0, 2]) {
+      try { sc.dispatchEvent(new PointerEvent("pointercancel", { pointerId, pointerType: "mouse", bubbles: true })); } catch (_) {}
+      try { sc.dispatchEvent(new PointerEvent("lostpointercapture", { pointerId, pointerType: "mouse", bubbles: true })); } catch (_) {}
+    }
+    const once = (e) => { window.removeEventListener("pointermove", once, true);
+      try { sc.dispatchEvent(new PointerEvent("pointermove", { pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY, bubbles: true })); } catch (_) {} };
+    window.addEventListener("pointermove", once, true);
+  }
   function stop() {
     stopTour(); closePop(); closeAllPreviews(true); dwell(null);
     running = false; hovered = null; hoveredDev = null; drag = null;
     document.querySelector("#stage")?.removeAttribute("data-eddo-house");
+    releaseBackground();
   }
 
   // ------------------------------------------------------------ live extras
