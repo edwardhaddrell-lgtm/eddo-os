@@ -391,7 +391,10 @@
   // car readings, in friendly units
   function carData() {
     const I = CAR.ids, V = CAR.V || { doors: [], windows: [], tyres: [], warn: [], btn: {} };
-    const sv = (id) => id && states.get(id), st = (k) => sv(I[k] || V[k]);
+    // the car app only reports while it's connected (driving), and goes "unavailable" when parked:
+    // use the last good reading from history then (CAR.last, filled by loadCarHistory)
+    const sv = (id) => { if (!id) return null; const x = states.get(id); if (x && !/^(unknown|unavailable)$/.test(x.s)) return x; return (CAR.last && CAR.last[id]) || x; };
+    const st = (k) => sv(I[k] || V[k]);
     const live = (x) => x && !/^(unknown|unavailable)$/.test(x.s);
     const pct = (k) => { const x = st(k); return live(x) && Number.isFinite(+x.s) ? Math.round(+x.s) : null; };
     const milesOf = (x) => { if (!live(x) || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "m").toLowerCase(); const v = +x.s; return Math.round(u === "mi" ? v : u === "km" ? v * 0.621371 : v / 1609.34); };
@@ -423,7 +426,25 @@
       btn: V.btn, lockId: V.lock || null, volvo: !!(V.all && V.all.length),
       home, where: word("place") || (tr && tr.s !== "home" ? tr.s : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 || !!(V.all && V.all.length) };
   }
+  async function loadCarHistory() {
+    if (CAR.histBusy || !HA() || Date.now() - (CAR.histAt || 0) < 10 * 60e3) return;
+    const ids = [...new Set([...Object.values(CAR.ids || {}), ...["battery", "fuelL", "rangeEv", "rangeFuel", "odometer"].map((k) => CAR.V && CAR.V[k])].filter((id) => id && id.startsWith("sensor.")))];
+    const stale = ids.filter((id) => { const x = states.get(id); return !x || /^(unknown|unavailable)$/.test(x.s); });
+    CAR.histAt = Date.now(); if (!stale.length) return;
+    CAR.histBusy = true;
+    try {
+      const res = await HA().send({ type: "history/history_during_period", start_time: new Date(Date.now() - 14 * 864e5).toISOString(), entity_ids: stale, minimal_response: false, no_attributes: false, significant_changes_only: false });
+      CAR.last = CAR.last || {};
+      for (const id of stale) {
+        const rows = (res || {})[id] || []; let unit = null;
+        for (const r of rows) if (r.a && r.a.unit_of_measurement) unit = r.a.unit_of_measurement;
+        for (let i = rows.length - 1; i >= 0; i--) { const r = rows[i]; if (r.s != null && !/^(unknown|unavailable)$/.test(r.s)) { CAR.last[id] = { s: r.s, a: { ...(r.a || {}), unit_of_measurement: (r.a && r.a.unit_of_measurement) || unit }, t: ((r.lu ?? r.lc) || 0) * 1000 }; break; } }
+      }
+    } catch (_) {}
+    CAR.histBusy = false; refreshList();
+  }
   function updateCar(dt, now) {
+    if (CAR.mesh) loadCarHistory();
     const m = CAR.mesh; if (!m) return;
     const c = carData(), strip = heatMode || energyMode, ghost = !c.home;
     const base = (strip ? 0.08 : ghost ? 0.18 : CAR.open || CAR.hover ? 0.95 : 0.55) * (m.dense ? 0.6 : 1);   // the detailed outline has many more lines
