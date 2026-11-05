@@ -2106,6 +2106,33 @@
       const prog = new T.Mesh(new T.RingGeometry(0.21, 0.225, 60, 1, 0, Math.PI * 2), mm(0xffffff)); prog.rotation.x = -Math.PI / 2; g.add(prog);
       a.mesh = { g, ring, full, prog };
     }
+    // kitchen appliances: a small model of each, standing against its nearest wall
+    for (const d of devices.filter((x) => x.kind === "appliance" && /wash|dish|dry|tumble|coffee/i.test(x.name))) {
+      const r = d.roomRef, kind = /coffee/i.test(d.name) ? "coffee" : /dish/i.test(d.name) ? "dish" : "drum";
+      const [W, Hh, D] = kind === "coffee" ? [0.24, 0.34, 0.34] : [0.6, 0.84, 0.58], y0 = kind === "coffee" ? 0.92 : 0;
+      const wallX = Math.min(d.u, 1 - d.u) * r.w < Math.min(d.v, 1 - d.v) * r.d;
+      const nx = wallX ? (d.u < 0.5 ? 1 : -1) : 0, nz = wallX ? 0 : (d.v < 0.5 ? 1 : -1);
+      const x = wallX ? (d.u < 0.5 ? r.x : r.x + r.w) + nx * (D / 2 + 0.03) : r.x + d.u * r.w;
+      const z = wallX ? r.z + d.v * r.d : (d.v < 0.5 ? r.z : r.z + r.d) + nz * (D / 2 + 0.03);
+      const g = new T.Group(); g.position.set(x, r.y + y0, z); g.rotation.y = Math.atan2(nx, nz); root.add(g);   // local +z faces into the room
+      const pts = [], L = (a, b) => pts.push(...a, ...b), fz = D / 2 + 0.002;
+      const box = (x0, x1, ya, yb, z0, z1) => { const c = [[x0, ya, z0], [x1, ya, z0], [x1, ya, z1], [x0, ya, z1]]; c.forEach((p, i) => { const q = c[(i + 1) % 4]; L(p, q); L([p[0], yb, p[2]], [q[0], yb, q[2]]); L(p, [p[0], yb, p[2]]); }); };
+      const circ = (cx, cy, rr, n = 24) => { for (let i = 0; i < n; i++) { const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2; L([cx + Math.cos(a0) * rr, cy + Math.sin(a0) * rr, fz], [cx + Math.cos(a1) * rr, cy + Math.sin(a1) * rr, fz]); } };
+      box(-W / 2, W / 2, 0, Hh, -D / 2, D / 2);
+      if (kind === "drum") {                       // front loader: control strip, dial, porthole door
+        L([-W / 2, Hh - 0.14, fz], [W / 2, Hh - 0.14, fz]); circ(W / 2 - 0.1, Hh - 0.07, 0.035, 12); L([-W / 2 + 0.05, Hh - 0.07, fz], [-W / 2 + 0.2, Hh - 0.07, fz]);
+        circ(0, Hh * 0.45, 0.2); circ(0, Hh * 0.45, 0.14); L([-W / 2 + 0.05, 0.06, fz], [W / 2 - 0.05, 0.06, fz]);
+      } else if (kind === "dish") {                // dishwasher: control strip, handle, door panel
+        L([-W / 2, Hh - 0.1, fz], [W / 2, Hh - 0.1, fz]); L([-0.12, Hh - 0.16, fz + 0.02], [0.12, Hh - 0.16, fz + 0.02]);
+        box(-W / 2 + 0.03, W / 2 - 0.03, 0.1, Hh - 0.12, D / 2 - 0.004, D / 2); L([-W / 2, 0.1, fz], [W / 2, 0.1, fz]);
+      } else {                                     // coffee machine: drip tray, spout, cup
+        L([-W / 2 + 0.03, 0.06, fz], [W / 2 - 0.03, 0.06, fz]); L([0, 0.24, fz - 0.02], [0, 0.19, fz - 0.02]);
+        box(-0.035, 0.035, 0.07, 0.15, D / 2 - 0.1, D / 2 - 0.03); L([-W / 2, Hh - 0.06, fz], [W / 2, Hh - 0.06, fz]);
+      }
+      const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+      const lines = new T.LineSegments(geo, lm(C.edge, 0.55)); g.add(lines);
+      d.model = { g, lines };
+    }
     // 3D printer: the bed and a block that rises with the print
     const pd = devices.find((d) => d.kind === "printer");
     if (KIT.prn && pd) {
@@ -2182,7 +2209,9 @@
       a.mesh.prog.material.opacity = running && pct != null ? 0.6 * a.k : 0;
       if (running && pct != null) { const want = Math.max(0.02, Math.min(1, pct / 100)); if (a.mesh.pv !== want) { a.mesh.pv = want; a.mesh.prog.geometry.dispose(); a.mesh.prog.geometry = new T.RingGeometry(0.21, 0.225, 60, 1, Math.PI / 2, -Math.PI * 2 * want); } }
       a.done = done ? a.done : (running ? 0 : a.done); a.showDone = done;
+      if (a.d.model) { const m = a.d.model.lines.material; m.color.setHex(running ? 0x6fd6ff : done ? 0x5fe0a8 : C.edge); m.opacity = hide ? 0.06 : running || done ? 0.75 : 0.45; }
     }
+    for (const d of devices) if (d.model && /coffee/i.test(d.name)) { const on = d.ids.some((id) => (states.get(id) || {}).s === "on"), m = d.model.lines.material; m.color.setHex(on ? 0xffb36b : C.edge); m.opacity = hiddenFloor(d.roomRef.floor) || quiet ? 0.06 : on ? 0.8 : 0.45; }
     const P = KIT.prn;
     if (P && P.mesh) {
       const status = (strOf(P.status) || strOf(P.stage) || "").toLowerCase(), pct = numOf(P.progress);

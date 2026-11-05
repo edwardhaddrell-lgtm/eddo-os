@@ -141,11 +141,10 @@ window.EDDO_HOUSE = {
     { room: "master", name: "Bed light", kind: "lamp", u: 0.84, v: 0.053, match: ["bed light", "bedside"], nth: 1 },
     // garden office
     { room: "office", name: "3D printer", kind: "printer", u: 0.9, v: 0.84, match: ["print status", "print_status"], domains: ["sensor"], cam: "eddo_print" },
-    { room: "office", name: "Desk Hue · Ed Skadi · monitor", kind: "lamp", u: 0.9, v: 0.45, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
-    { room: "office", name: "Ed PC · Unraid", kind: "pc", u: 0.87, v: 0.15 },
+    { room: "office", name: "Desk Hue", kind: "lamp", u: 0.9, v: 0.45, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
     { room: "office", name: "Office lights", kind: "light", u: 0.49, v: 0.47, entity: "light.garden_office_lights" },
     { room: "office", name: "Shelf lights", kind: "lamp", u: 0.27, v: 0.88, match: ["shelf"], entity: "light.hue_play_gradient_lightstrip_1" },
-    { room: "office", name: "AC unit", kind: "climate", u: 0.02, v: 0.75, y: 2.25, entities: ["climate.garden_office", "climate.garden_office_ac"], ac: true, mountY: 2.0 },   // wall-mounted mini split
+    { room: "office", name: "AC unit", kind: "climate", u: 0.12, v: 0.99, y: 2.25, entities: ["climate.garden_office", "climate.garden_office_ac"], ac: true, mountY: 2.0 },   // wall-mounted mini split, back wall by the corner
     { room: "office", name: "Jules Skadi", kind: "lamp", u: 0.08, v: 0.5, match: ["jules"] },
     { room: "office", name: "Office lamp", kind: "lamp", u: 0.08, v: 0.27, entities: ["switch.office_lamps", "switch.office_lamp_2"] },
   ],
