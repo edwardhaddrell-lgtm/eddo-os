@@ -51,7 +51,7 @@ window.EDDO_HOUSE = {
   // at: 0–1 along that wall, w: width, hinge: "far" flips the hinge side, out: true opens outwards.
   doors: [
     { name: "Front door", room: "hall", wall: "front", at: 0.46, w: 0.84, inset: 0.55, match: ["front door"] },
-    { name: "Back door", room: "kitchen", wall: "left", at: 0.82, w: 0.8, match: ["back door", "kitchen door", "side door"] },
+    { name: "Kitchen door", room: "kitchen", wall: "left", at: 0.12, w: 0.8, match: ["back door", "kitchen door", "side door"] },   // onto the side return, by the garden camera
     { name: "Office door", room: "office", wall: "front", at: 0.5, w: 0.8, out: true, match: ["office door", "garden office door", "shed door"] },
   ],
   boiler: { room: "bath", u: 0.92, v: 0.2, y: 1.3 },   // in the tall cupboard by the bathroom door
