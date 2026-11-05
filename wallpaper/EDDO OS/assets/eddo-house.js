@@ -1790,6 +1790,7 @@
       if (claimed.has(st.entity_id) || !st.entity_id.startsWith("binary_sensor.") || !DOOR_CLASSES.includes(st.attributes.device_class) || !live(st)) continue;
       const t = text(st), hit = conf.find((d) => !d.auto && !d.entity && (d.match || []).some((m) => t.includes(m)));
       if (hit) { hit.ids.push(st.entity_id); continue; }
+      if (!H.autoDoors) continue;   // only the doors and windows listed in the model are drawn (set autoDoors: true to place the rest)
       const r = roomOf(entOf.get(st.entity_id)); if (!r) continue;
       const n = conf.filter((d) => d.roomRef === r && d.auto).length, win = st.attributes.device_class === "window";
       // a door sensor in a room that already has a door in the model belongs to that door (an unclaimed one first)
