@@ -470,7 +470,7 @@
           for (let t = 0.25; t < 1; t += 0.25) for (const sx of [-1, 1]) { const z = -hd + 2 * hd * t; L([sx * hw, y0, z], [0, y1, z]); }
         }
         const rg = new T.BufferGeometry(); rg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
-        g.add(new T.LineSegments(rg, edges.material));
+        r.roofLines = new T.LineSegments(rg, new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.42 })); g.add(r.roofLines);
       }
       if (r.bay) {   // bay window on the living room front
         const bw = Math.min(2.4, r.w - 0.6), bd = 0.45, bh = 2.0;
@@ -957,6 +957,7 @@
       let edgeCol = r.climate ? tempColour(r.temp) : new T.Color(C.edge).lerp(new T.Color(C.edgeHot), r.glow * 0.8);
       m.edges.material.color.copy(edgeCol);
       m.edges.material.opacity = dim ? 0.06 : isHover || isFocus ? 0.95 : (r.quiet ? 0.22 : 0.42 + r.glow * 0.4) * (r.glow > 0.05 ? 1 : night);
+      if (r.roofLines) r.roofLines.material.opacity = Math.min(0.6, m.edges.material.opacity);   // roof stays neutral; only the walls take the temperature tint
       m.faces.material.opacity = dim ? 0.01 : isHover || isFocus ? 0.2 : r.quiet ? 0.03 : 0.07;
       m.plate.material.opacity = dim ? 0.12 : heatMode && r.temp != null ? 0.8 : 0.62;
       for (const fl of r.furniture || []) fl.material.opacity = heatMode || energyMode ? 0 : dim ? 0.03 : isFocus ? 0.6 : isHover ? 0.45 : 0.28 * night;
