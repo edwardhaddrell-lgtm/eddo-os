@@ -108,9 +108,9 @@ window.EDDO_HOUSE = {
     { room: "kitchen", name: "Hob lights & fan", kind: "lamp", u: 0.9, v: 0.36, match: ["hob"] },
     // dining room
     { room: "dining", name: "Dining room lamp", kind: "lamp", u: 0.1, v: 0.89, match: ["dining room lamp", "dining lamp"] },
-    { room: "dining", name: "Wall light", kind: "lamp", u: 0.06, v: 0.63, match: ["dining room wall", "dining wall", "wall light"] },
-    { room: "dining", name: "Wall light", kind: "lamp", u: 0.06, v: 0.47, match: ["dining room wall", "dining wall", "wall light"], nth: 1 },
-    { room: "dining", name: "Dining room light", kind: "light", u: 0.52, v: 0.47, match: ["dining room light", "dining light"], not: ["lamp", "wall"] },
+    { room: "dining", name: "Wall light", kind: "lamp", u: 0.06, v: 0.63, match: ["dining room wall", "dining wall", "wall light"], not: ["wall lights light"] },
+    { room: "dining", name: "Wall light", kind: "lamp", u: 0.06, v: 0.47, match: ["dining room wall", "dining wall", "wall light"], not: ["wall lights light"], nth: 1 },
+    { room: "dining", name: "Dining room light", kind: "light", u: 0.52, v: 0.47, entity: "light.dining_room_wall_lights_light" },   // the top light (named "wall lights" in HA)
     // living room
     { room: "living", name: "Doughnut lamp", kind: "lamp", u: 0.1, v: 0.85, entity: "light.dougnut_lamp", match: ["doughnut", "dougnut"] },
     { room: "living", name: "Frame TV", kind: "tv", u: 0.135, v: 0.52, y: 1.425, screen: [0.97, 0.75], entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"], plexAny: true },   // the TV + its Plex player; other Plex players that start playing show here too
