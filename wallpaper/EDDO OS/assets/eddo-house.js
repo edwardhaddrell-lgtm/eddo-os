@@ -16,7 +16,8 @@
   (H.outbuildings || []).forEach((o) => rooms.push({ ...o, floor: "garden", floorName: "Garden", y: 0, h: o.h || 2.4 }));
   rooms.forEach((r) => { r.ents = new Set(r.entities || []); r.on = 0; r.color = [1, 0.7, 0.42]; r.bri = 0; r.temp = null; r.glow = 0; });
   const states = new Map();
-  const EN = {};   // Octopus Energy entity ids, found when Home Assistant connects
+  const EN = {};
+  const CAR = { ids: {}, open: false, mesh: null };   // the car out front   // Octopus Energy entity ids, found when Home Assistant connects
   const num = (id) => { const st = id && states.get(id); return st && Number.isFinite(+st.s) ? +st.s : null; };
   const watts = (id) => { const st = id && states.get(id); if (!st || !Number.isFinite(+st.s)) return null; return /kW/i.test(st.a.unit_of_measurement || "") ? +st.s * 1000 : +st.s; };
   const devWatts = (d) => { const w = (d.powerIds || []).map(watts).filter((v) => v != null); return w.length ? w.reduce((a, b) => a + b, 0) : null; };
@@ -103,15 +104,25 @@
       const an = areaName.get(x.area_id || devArea.get(x.device_id)); if (!an) continue;
       const room = rooms.find((r) => (r.areas || []).some((a) => a.toLowerCase() === an)); if (room) room.powerIds.push(x.entity_id);
     }
-    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string")])];
+    // the car: Home Assistant companion app sensors ("Car fuel", "Car battery", "Car range remaining" …), plus its location
+    const carIds = {}, carKeys = { fuel: /_car_fuel$/, battery: /_car_battery$/, range: /_car_range_remaining$/, odometer: /_car_odometer$/, charging: /_car_charging_status$/, connector: /_car_ev_connector_type$/, fueltype: /_car_fuel_type$/, name: /_car_name$/ };
+    for (const [k, re] of Object.entries(carKeys)) { const st = allStates.find((x) => x.entity_id.startsWith("sensor.") && re.test(x.entity_id)); if (st) carIds[k] = st.entity_id; }
+    if (H.car && H.car.entities) Object.assign(carIds, H.car.entities);
+    const carDev = Object.values(carIds).map((id) => entDev.get(id)).find(Boolean);
+    if (carDev) {
+      const tr = ents.find((x) => x.device_id === carDev && x.entity_id.startsWith("device_tracker.")); if (tr && !carIds.tracker) carIds.tracker = tr.entity_id;
+      const geo = ents.find((x) => x.device_id === carDev && /geocoded_location$/.test(x.entity_id)); if (geo && !carIds.place) carIds.place = geo.entity_id;
+    }
+    CAR.ids = carIds;
+    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds)])];
     states.clear();
-    ids.forEach((id) => { const s = stMap.get(id); states.set(id, { s: s.state, a: s.attributes }); });
+    ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
     rooms.forEach(evalRoom); dirty = true;
     if (ids.length) HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, (ev) => {
-      for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {} });
+      for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000 });
       for (const [id, v] of Object.entries(ev.c || {})) {
         const cur = states.get(id) || { s: "", a: {} };
-        if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); }
+        if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
         states.set(id, cur);
       }
       rooms.forEach(evalRoom); dirty = true;
@@ -239,6 +250,100 @@
   }
 
   // a room with a sloping ceiling at the street side (loft rooms under the roof): a prism, centred like a box
+  // ---- the car: a stylised plug-in hybrid SUV at real size (4.71 m long, 1.90 m wide, 1.66 m tall),
+  // proportions taken from side, front and back photos. Drawn in outline like the house; no badges.
+  function buildCar(root) {
+    const cfg = H.car || {}, at = cfg.at || { x: 2.3, z: -3.6 }, heading = cfg.heading ?? Math.PI;   // kerbside, along the road
+    const g = new T.Group(); g.position.set(at.x, 0, at.z); g.rotation.y = heading; root.add(g);
+    const seg = [], det = [], L = (a, b, out = seg) => out.push(...a, ...b);
+    const poly = (pts, out = seg, close = false) => { for (let i = 0; i < pts.length - 1; i++) L(pts[i], pts[i + 1], out); if (close) L(pts[pts.length - 1], pts[0], out); };
+    const W = 0.95, Wg = 0.74, len = 4.71, cx = len / 2;   // half width of body and of the glasshouse
+    const X = (x) => x - cx;   // centre the car on its group
+    // side profile (x from the front, y up), read off the side photo
+    const body = [[0.02, 0.33], [0, 0.55], [0.06, 0.78], [0.35, 0.86], [1.0, 0.95], [1.5, 1.03]];          // nose and bonnet
+    const glassFront = [[1.5, 1.03], [2.12, 1.6]], roof = [[2.12, 1.6], [3.4, 1.63], [4.32, 1.6], [4.55, 1.55]];
+    const rear = [[4.55, 1.55], [4.66, 1.2], [4.71, 0.95], [4.7, 0.5], [4.62, 0.33]];
+    const sill = [[4.62, 0.33], [4.28, 0.33], [3.37, 0.33], [1.4, 0.33], [0.5, 0.33], [0.02, 0.33]];
+    for (const side of [-1, 1]) {
+      const zb = side * W, zg = side * Wg, P = (pts, z) => pts.map(([x, y]) => [X(x), y, z]);
+      poly(P(body, zb)); poly(P(rear, zb));
+      poly(P(glassFront, zg)); poly(P(roof, zg));
+      L([X(1.5), 1.03, zb], [X(1.5), 1.03, zg]); L([X(4.55), 1.55, zg], [X(4.55), 1.55, zb]);        // shoulder in to the glass
+      // windows: beltline, pillars, door cuts and the body crease
+      poly(P([[1.62, 1.07], [2.75, 1.1], [3.65, 1.13], [4.42, 1.2]], zb + side * -0.02));
+      for (const [x0, y0, x1, y1] of [[2.72, 1.1, 2.68, 1.57], [3.64, 1.13, 3.62, 1.6], [4.38, 1.2, 4.3, 1.55]]) L([X(x0), y0, zb - side * 0.06], [X(x1), y1, zg + side * 0.03], det);
+      for (const x of [2.62, 3.6]) L([X(x), 0.38, zb], [X(x + 0.02), 1.08, zb], det);
+      poly(P([[0.5, 0.86], [2.4, 0.92], [4.5, 0.98]], zb), det);
+      // wheel arches and sill
+      const arch = (wx) => { const pts = []; for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12; pts.push([X(wx) + Math.cos(a) * 0.46, 0.33 + Math.sin(a) * 0.46 * 0.9, zb]); } return pts; };
+      poly(arch(0.95)); poly(arch(3.815));
+      poly([[X(0.02), 0.33, zb], [X(0.49), 0.33, zb]]); poly([[X(1.41), 0.33, zb], [X(3.355), 0.33, zb]]); poly([[X(4.275), 0.33, zb], [X(4.62), 0.33, zb]]);
+      // mirror
+      poly([[X(1.62), 1.0, zb], [X(1.75), 1.08, zb + side * 0.18], [X(1.88), 1.04, zb + side * 0.18], [X(1.78), 0.98, zb]], det, true);
+      // wheels: tyre, rim and a few spokes (20" wheels, ~0.74 m tyres)
+      for (const wx of [0.95, 3.815]) {
+        const z = side * 0.83;
+        for (const [r, out] of [[0.37, seg], [0.26, det]]) { const pts = []; for (let i = 0; i <= 28; i++) { const a = i / 28 * Math.PI * 2; pts.push([X(wx) + Math.cos(a) * r, 0.37 + Math.sin(a) * r, z]); } poly(pts, out); }
+        for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; L([X(wx), 0.37, z], [X(wx) + Math.cos(a) * 0.26, 0.37 + Math.sin(a) * 0.26, z], det); }
+      }
+    }
+    // across the car: nose, windscreen, roof edges, rear screen, tail
+    for (const [x, y, w] of [[0, 0.55, W], [0.06, 0.78, W], [1.5, 1.03, Wg], [2.12, 1.6, Wg], [4.32, 1.6, Wg], [4.55, 1.55, Wg], [4.71, 0.95, W], [4.7, 0.5, W]]) L([X(x), y, -w], [X(x), y, w]);
+    for (const z of [-0.55, 0.55]) poly([[X(2.3), 1.66, z], [X(4.25), 1.66, z]], det);   // roof rails
+    poly([[X(0.04), 0.62, -0.42], [X(0.04), 0.62, 0.42], [X(0.06), 0.82, 0.42], [X(0.06), 0.82, -0.42]], det, true);   // grille
+    poly([[X(4.68), 0.95, -0.55], [X(4.68), 0.95, 0.55], [X(4.66), 0.62, 0.55], [X(4.66), 0.62, -0.55]], det, true);  // tailgate panel
+    const geo = (pts) => { const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); return gg; };
+    const lines = new T.LineSegments(geo(seg), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.55, depthWrite: false }));
+    const detail = new T.LineSegments(geo(det), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.3, depthWrite: false }));
+    g.add(lines, detail);
+    // lights: slim front lamps and tall rear lamps, glowing softly
+    const lamp = (pts, col) => { const l = new T.LineSegments(geo(pts), new T.LineBasicMaterial({ color: col, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending })); g.add(l); return l; };
+    const fl = [], rl = [];
+    for (const side of [-1, 1]) {
+      fl.push(X(0.05), 0.82, side * 0.58, X(0.12), 0.84, side * 0.86);
+      rl.push(X(4.68), 1.3, side * 0.82, X(4.7), 0.9, side * 0.86, X(4.7), 0.9, side * 0.86, X(4.69), 0.85, side * 0.55);
+    }
+    const front = lamp(fl, 0xe8f4ff), back = lamp(rl, 0xff4a3a);
+    // charging: a glowing line along the side that pulses while it's plugged in
+    const chg = lamp([X(0.6), 0.6, W + 0.01, X(4.3), 0.66, W + 0.01, X(0.6), 0.6, -W - 0.01, X(4.3), 0.66, -W - 0.01], 0x5fe0a8);
+    // shadow on the road and a click target
+    const shadow = new T.Mesh(new T.PlaneGeometry(4.9, 2.1), new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.012; g.add(shadow);
+    const hit = new T.Mesh(new T.BoxGeometry(4.8, 1.7, 2.0), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    hit.position.y = 0.85; g.add(hit);
+    // road edge (kerb) and a faint centre line, so it reads as the street
+    const kz = at.z + 1.25, road = [];
+    road.push(-1.5, 0.01, kz, 6.5, 0.01, kz);
+    for (let x = -1.5; x < 6.5; x += 1.2) road.push(x, 0.01, at.z - 2.4, x + 0.6, 0.01, at.z - 2.4);
+    root.add(new T.LineSegments(geo(road), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.12, depthWrite: false })));
+    CAR.mesh = { g, lines, detail, front, back, chg, hit, shadow, glow: 0 };
+  }
+  // car readings, in friendly units
+  function carData() {
+    const I = CAR.ids, st = (k) => I[k] && states.get(I[k]);
+    const pct = (k) => { const x = st(k); return x && Number.isFinite(+x.s) ? Math.round(+x.s) : null; };
+    const miles = (k) => { const x = st(k); if (!x || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "m").toLowerCase(); const v = +x.s; return Math.round(u === "mi" ? v : u === "km" ? v * 0.621371 : v / 1609.34); };
+    const word = (k) => { const x = st(k); return x && !/^(unknown|unavailable)$/.test(x.s) ? String(x.s) : null; };
+    const tr = st("tracker"), home = tr ? tr.s === "home" : true;
+    const charging = /^(charging|true|on)$/i.test(word("charging") || "");
+    const plugged = charging || /connected|plugged|done|complete/i.test(word("charging") || "");
+    const times = Object.keys(I).map((k) => (st(k) || {}).t || 0), last = Math.max(0, ...times);
+    return { fuel: pct("fuel"), battery: pct("battery"), range: miles("range"), odometer: miles("odometer"), charging, plugged, chargeText: word("charging"), connector: word("connector"),
+      home, where: word("place") || (tr && tr.s !== "home" ? (tr.a.friendly_name ? tr.s : tr.s) : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 };
+  }
+  function updateCar(dt, now) {
+    const m = CAR.mesh; if (!m) return;
+    const c = carData(), strip = heatMode || energyMode, ghost = !c.home;
+    const base = strip ? 0.08 : ghost ? 0.18 : CAR.open || CAR.hover ? 0.95 : 0.55;
+    m.lines.material.opacity += (base - m.lines.material.opacity) * Math.min(1, dt * 4);
+    m.detail.material.opacity = m.lines.material.opacity * 0.55;
+    m.shadow.material.opacity = ghost || strip ? 0 : 0.22 * (0.5 + 0.5 * dayK);
+    const lit = !ghost && !strip ? 1 : 0; m.glow += (lit - m.glow) * Math.min(1, dt * 2);
+    m.front.material.opacity = 0.55 * m.glow * (0.4 + 0.6 * (1 - dayK)); m.back.material.opacity = 0.6 * m.glow * (0.4 + 0.6 * (1 - dayK));
+    m.chg.material.opacity = c.plugged && !strip ? (c.charging ? 0.35 + 0.35 * Math.sin(now / 600) : 0.25) : 0;
+    const low = (c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged);
+    m.lines.material.color.set(low ? 0xffa64a : C.edge);
+  }
   function slopeGeo(w, h, d, knee, run) {
     const P = [[-d / 2, -h / 2], [-d / 2, -h / 2 + knee], [-d / 2 + run, h / 2], [d / 2, h / 2], [d / 2, -h / 2]];
     const pos = [], uv = [];
@@ -416,6 +521,7 @@
       shellLines = new T.LineSegments(mk(seg), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.3, depthWrite: false }));
       shellDetail = new T.LineSegments(mk(det), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.16, depthWrite: false }));
       root.add(shellLines); root.add(shellDetail);
+      buildCar(root);
     }
 
     // daylight objects live in the model's own coordinates (so plan north works)
@@ -948,8 +1054,27 @@
     skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", ((0.08 + tw * 0.32 + k * 0.06) * skyFace).toFixed(3));
     skyEl.style.setProperty("--sky-stars", (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
   }
+  let carCard = null;
+  function placeCarCard() {
+    const m = CAR.mesh; if (!m || !labelsEl) return;
+    if (!carCard) { carCard = document.createElement("div"); carCard.className = "eddo-car-card"; labelsEl.append(carCard); }
+    const c = carData(), show = c.linked && !heatMode && !energyMode && !focused && !floorSel;
+    carCard.dataset.hidden = String(!show); if (!show) return;
+    const p = m.g.getWorldPosition(new T.Vector3()); p.y += 2.3; p.project(camera);
+    const tf = `translate(${((p.x * 0.5 + 0.5) * canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * canvas.clientHeight).toFixed(1)}px)`;
+    if (carCard.style.transform !== tf) carCard.style.transform = tf;
+    const bar = (v, warn) => v == null ? "" : `<i style="--v:${v}%" data-low="${v < warn}"></i>`;
+    const html = c.home
+      ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>` +
+        (c.fuel != null ? `<span>FUEL ${bar(c.fuel, 15)}<small>${c.fuel}%</small></span>` : "") +
+        (c.battery != null ? `<span>BATT ${bar(c.battery, 10)}<small>${c.battery}%</small></span>` : "") +
+        (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "")
+      : `<b>${esc(c.name.toUpperCase())} <em>AWAY</em></b>${c.where ? `<span class="rng"><small>${esc(c.where.toUpperCase())}</small></span>` : ""}`;
+    if (carCard.innerHTML !== html) carCard.innerHTML = html;
+  }
   function placeLabels() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
+    placeCarCard();
     if (plinth) {
       if (!northEl) { northEl = document.createElement("div"); northEl.className = "eddo-house-north"; northEl.textContent = "N"; labelsEl.append(northEl); }
       const p = plinth.north.clone(); pivot.children[0].localToWorld(p); p.project(camera);
@@ -1176,6 +1301,7 @@
     updateDevices(dt, now);
     updateEnergy(dt, now);
     updateBoiler(dt, now);
+    updateCar(dt, now);
     renderer.render(scene, camera);
     placeLabels();
     if (ringEl && ringDev) { const p = screenOf(ringDev); ringEl.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
@@ -1184,7 +1310,7 @@
 
   function roomCentre(r) { const p = new T.Vector3(r.x + r.w / 2, r.y + r.h / 2, r.z + r.d / 2); r.mesh.g.parent.localToWorld(p); return p; }
   function focus(r) {
-    focused = r || null;
+    focused = r || null; CAR.open = false;
     if (r) whatsOn = false;
     if (!T) return;
     if (!r && floorSel) return setFloor(floorSel);
@@ -1194,7 +1320,7 @@
   }
 
   function setFloor(fl) {
-    floorSel = fl || null; focused = null;
+    floorSel = fl || null; focused = null; CAR.open = false;
     if (!T) return;
     const rs = rooms.filter((r) => !floorSel || r.floor === floorSel);
     const c = rs.map(roomCentre).reduce((a, b) => a.add(b), new T.Vector3()).multiplyScalar(1 / Math.max(1, rs.length));
@@ -1224,6 +1350,17 @@
     const next = before.find((r) => !r.quiet) || (iSelf >= 0 ? hits.slice(iSelf + 1).find((r) => r.floor === focused.floor && !r.quiet) : null) || before[0];
     if (next && next !== focused) return focus(next);
     back();
+  }
+  function pickCar(ev) {
+    if (!CAR.mesh || heatMode || energyMode || floorSel || (focused && !CAR.open)) return false;
+    const rect = canvas.getBoundingClientRect(), ray = new T.Raycaster();
+    ray.setFromCamera(new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1), camera);
+    return ray.intersectObject(CAR.mesh.hit, false).length > 0;
+  }
+  function openCar() {
+    stopTour(); closePop(); focused = null; whatsOn = false; CAR.open = true; orbitMode = "off";
+    goTo({ target: CAR.mesh.g.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.8, 0)), dist: 13, phi: 0.5 }, 1300);
+    refreshList();
   }
   function pickDevice(ev) {
     if (heatMode || energyMode) return null;
@@ -1268,6 +1405,7 @@
   function stopTour() { if (tour) { clearInterval(tour.timer); tour = null; } }
   function back() {
     stopTour(); closePop();
+    if (CAR.open) { CAR.open = false; goTo({ target: new T.Vector3(0, 3.2, 0), ...HOME }); orbitMode = "drift"; return refreshList(); }
     if (focused) focus(null);
     else if (floorSel || whatsOn || orbitMode !== "drift") { whatsOn = false; setFloor(null); }
   }
@@ -1320,6 +1458,7 @@
       hoveredDev = ui ? null : pickDevice(e);
       dwell(hoveredDev);
       hovered = ui ? null : hoveredDev ? hoveredDev.roomRef : pick(e);
+      CAR.hover = !ui && !hoveredDev && pickCar(e);
     });
     window.addEventListener("mouseup", (e) => {
       if (!running || !drag) return;
@@ -1330,6 +1469,7 @@
       if (d && d.cam && window.eddoCams && (focused === d.roomRef || previews.has(d))) { window.eddoCams.open(d.cam); return; }
       if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
       if (d) return focus(d.roomRef);
+      if (pickCar(e)) { openCar(); return; }
       clickRoom(e);
     });
     stage.addEventListener("wheel", (e) => {
@@ -1389,10 +1529,26 @@
     if (hasClim) row += `<div class="eddo-house-clim"><button data-house-clim="${i}:-0.5" aria-label="Lower">−</button><button data-house-clim="${i}:0.5" aria-label="Raise">+</button><button data-house-clim="${i}:power">${st.active ? "TURN OFF" : "TURN ON"}</button></div>`;
     return row + `</div>`;
   }
+  function carPanel() {
+    const c = carData();
+    if (!c.linked) return `<div class="eddo-house-head"><h3 class="eddo-house-room">Car</h3><button class="eddo-house-off" data-house-back>BACK</button></div><p class="wb-muted">No car sensors found. In the Home Assistant app on the car, turn on its sensors (Fuel, Battery, Range remaining…).</p>`;
+    const ago = c.last ? Math.round((Date.now() - c.last) / 60000) : null;
+    const meter = (label, v, warn, col) => v == null ? "" : `<div class="eddo-car-meter" data-low="${v < warn}"><span>${label}</span><i style="--v:${v}%;--c:${col}"></i><b>${v}%</b></div>`;
+    const row = (k, v) => v == null || v === "" ? "" : `<div class="eddo-house-item"><div class="eddo-house-row eddo-car-row"><span>${k}</span><em>${esc(String(v).toUpperCase())}</em></div></div>`;
+    return `<div class="eddo-house-head"><h3 class="eddo-house-room">${esc(c.name)}</h3><button class="eddo-house-off" data-house-back>BACK</button></div>` +
+      `<p class="wb-muted eddo-house-sub">${c.home ? "PARKED AT HOME" : "AWAY" + (c.where ? " · " + esc(c.where.toUpperCase()) : "")}${ago != null ? ` · UPDATED ${ago < 1 ? "JUST NOW" : ago < 60 ? ago + " MIN AGO" : Math.round(ago / 60) + " H AGO"}` : ""}</p>` +
+      (c.range != null ? `<div class="eddo-en-live" style="--c:#8fb9c2"><b>${c.range}<small style="font-size:12px"> mi</small></b><span>RANGE REMAINING</span></div>` : "") +
+      meter("FUEL", c.fuel, 15, "#ffc25a") + meter("BATTERY", c.battery, 10, "#5fe0a8") +
+      row("Charging", c.chargeText) + row("Connector", c.connector) +
+      row("Mileage", c.odometer != null ? c.odometer.toLocaleString("en-GB") + " mi" : null) +
+      (!c.home && c.where ? row("Location", c.where) : "");
+  }
   function refreshList() {
     if (!listEl || !listEl.isConnected || sliding) return;
     let body;
-    if (focused) {
+    if (CAR.open) {
+      body = carPanel();
+    } else if (focused) {
       const ds = devices.filter((d) => d.roomRef === focused);
       const scenes = (focused.sceneNames || []).map(([id, n]) => `<button data-house-scene="${esc(id)}">${esc(n)}</button>`).join("");
       body = `<div class="eddo-house-floor"><p>${esc(focused.floorName.toUpperCase())} · <button class="eddo-house-back" data-house-back>ALL ROOMS ↩</button></p>` +

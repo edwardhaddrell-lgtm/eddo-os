@@ -575,3 +575,21 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 :is(.eddo-cams[data-count="5"],.eddo-cams[data-count="6"],.eddo-cams[data-count="7"],.eddo-cams[data-count="8"],.eddo-cams[data-count="9"]) .eddo-cam-btn{display:none}
 :is(.eddo-cams[data-count="5"],.eddo-cams[data-count="6"],.eddo-cams[data-count="7"],.eddo-cams[data-count="8"],.eddo-cams[data-count="9"]) .eddo-cam-head{padding-bottom:4px;font-size:9px;letter-spacing:1.2px}
 :is(.eddo-cams[data-count="5"],.eddo-cams[data-count="6"],.eddo-cams[data-count="7"],.eddo-cams[data-count="8"],.eddo-cams[data-count="9"]) .eddo-cam-head em{display:none}
+/* the car out front: floating card + panel meters */
+.eddo-car-card{position:absolute;left:0;top:0;translate:-50% -100%;display:flex;flex-direction:column;gap:4px;min-width:150px;padding:7px 9px 8px;font:9px/1.2 MiSans,system-ui,sans-serif;letter-spacing:1.3px;color:var(--theme-muted,#9a978f);background:rgba(8,12,13,.6);border-left:1px solid rgba(143,185,194,.6);pointer-events:none;transition:opacity .4s}
+.eddo-car-card[data-hidden=true]{opacity:0}
+.eddo-car-card b{font-weight:500;color:var(--theme-ink,#ece9e2);letter-spacing:1.6px}
+.eddo-car-card em{font-style:normal;color:#ffb36b;margin-left:4px}
+.eddo-car-card em.chg{color:#5fe0a8}
+.eddo-car-card span{display:grid;grid-template-columns:34px 1fr 30px;align-items:center;gap:6px}
+.eddo-car-card span i{height:3px;background:linear-gradient(90deg,#8fb9c2 var(--v),rgba(143,185,194,.2) var(--v))}
+.eddo-car-card span i[data-low=true]{background:linear-gradient(90deg,#ffa64a var(--v),rgba(255,166,74,.2) var(--v))}
+.eddo-car-card span small{text-align:right;color:var(--theme-ink,#ece9e2);font-size:9px}
+.eddo-car-card span.rng{display:block;font-size:15px;font-weight:300;letter-spacing:.5px;color:var(--theme-ink,#ece9e2)}
+.eddo-car-card span.rng small{font-size:8.5px;letter-spacing:1.4px;color:var(--theme-muted,#9a978f)}
+.eddo-car-meter{display:grid;grid-template-columns:62px 1fr 38px;align-items:center;gap:10px;margin:8px 0;font-size:9px;letter-spacing:1.5px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-meter i{height:6px;background:linear-gradient(90deg,var(--c) var(--v),rgba(143,185,194,.15) var(--v))}
+.eddo-car-meter[data-low=true] i{--c:#ffa64a}
+.eddo-car-meter b{text-align:right;font-size:13px;font-weight:400;color:var(--theme-ink,#ece9e2)}
+.eddo-car-row{cursor:default}
+.eddo-car-row span{font-size:12px}
