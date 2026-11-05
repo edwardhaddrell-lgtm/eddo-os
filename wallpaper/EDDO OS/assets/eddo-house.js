@@ -1650,15 +1650,17 @@
     const text = (st) => (st.entity_id.replace(/_/g, " ") + " " + (st.attributes.friendly_name || "")).toLowerCase();
     const live = (st) => { const x = entOf.get(st.entity_id); return !x || !(x.disabled_by || x.hidden_by); };
     // doors & windows: matched to the model's doors by name, otherwise put on their room's back wall
-    const conf = (H.doors || []).map((d) => ({ ...d, ids: [], roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
+    const have = new Set(allStates.map((st) => st.entity_id));
+    const conf = (H.doors || []).map((d) => ({ ...d, ids: [d.entity, ...(d.entities || [])].filter((id) => id && have.has(id)), roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
+    const claimed = new Set(conf.flatMap((d) => d.ids));
     for (const st of allStates) {
-      if (!st.entity_id.startsWith("binary_sensor.") || !DOOR_CLASSES.includes(st.attributes.device_class) || !live(st)) continue;
-      const t = text(st), hit = conf.find((d) => !d.auto && (d.match || []).some((m) => t.includes(m)));
+      if (claimed.has(st.entity_id) || !st.entity_id.startsWith("binary_sensor.") || !DOOR_CLASSES.includes(st.attributes.device_class) || !live(st)) continue;
+      const t = text(st), hit = conf.find((d) => !d.auto && !d.entity && (d.match || []).some((m) => t.includes(m)));
       if (hit) { hit.ids.push(st.entity_id); continue; }
       const r = roomOf(entOf.get(st.entity_id)); if (!r) continue;
       const n = conf.filter((d) => d.roomRef === r && d.auto).length, win = st.attributes.device_class === "window";
       // a door sensor in a room that already has a door in the model belongs to that door (an unclaimed one first)
-      const mine = !win && (conf.find((d) => d.roomRef === r && !d.auto && !d.window && !d.ids.length) || conf.find((d) => d.roomRef === r && !d.auto && !d.window));
+      const mine = !win && (conf.find((d) => d.roomRef === r && !d.auto && !d.window && !d.entity && !d.ids.length) || conf.find((d) => d.roomRef === r && !d.auto && !d.window && !d.entity));
       if (mine) { mine.ids.push(st.entity_id); continue; }
       conf.push({ name: st.attributes.friendly_name || st.entity_id, room: r.id, roomRef: r, wall: "back", at: 0.25 + (n % 3) * 0.25, w: win ? 0.9 : 0.8, window: win, auto: true, ids: [st.entity_id] });
     }
