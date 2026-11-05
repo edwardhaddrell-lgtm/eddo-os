@@ -11,7 +11,7 @@ window.EDDO_HOUSE = {
   // follow the separated floors of the model, so the shell wraps them.
   shell: {
     main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 6.9, ridge: 11.6, ridgeZ: 3.0 },     // pitched roof, ridge along the street
-    dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0 },                          // flat-roofed loft dormer at the back
+    dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0, slope: true },             // loft dormer at the back: its roof falls gently from the ridge
     chimneys: [                                                                              // the one stack, on the left, with its pots
       { x0: 0.25, x1: 1.1, z0: 2.6, z1: 3.4, top: 13.0, pots: 3 },
     ],
@@ -189,6 +189,11 @@ window.EDDO_HOUSE = {
     { room: "spare", name: "Bed", u0: 0.38, u1: 0.68, v0: 0.42, v1: 1, h: 0.55 },
     { room: "spare", name: "Brass headboard", kind: "shelves", u0: 0.38, u1: 0.68, v0: 0.97, v1: 1, h: 1.25, shelves: 2 },
     { room: "spare", name: "Radiator", u0: 0.08, u1: 0.5, v0: 0, v1: 0.03, y: 0.1, h: 0.55 },
+    // hallway (photo from the front door: stairs rising ahead, radiator and wavy mirror on the right)
+    { room: "hall", name: "Stairs", kind: "stairs", u0: 0.22, u1: 1, v0: 0.6, v1: 0.99, h: 2.6, steps: 13 },
+    { room: "hall", name: "Radiator", u0: 0.93, u1: 1, v0: 0.12, v1: 0.42, y: 0.12, h: 0.6 },
+    { room: "hall", name: "Mirror", u0: 0.985, u1: 1, v0: 0.2, v1: 0.36, y: 1.3, h: 0.7 },
+    { room: "hall", name: "Dado line", kind: "rug", u0: 0.02, u1: 0.98, v0: 0.01, v1: 0.6, y: 1.05 },
     // kitchen (galley, photo from the hall end looking at the garden window)
     { room: "kitchen", name: "Fridge freezer", u0: 0.74, u1: 1, v0: 0.02, v1: 0.22, h: 1.85 },
     { room: "kitchen", name: "Worktop (hob side)", u0: 0.76, u1: 1, v0: 0.24, v1: 0.72, h: 0.9 },

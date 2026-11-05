@@ -501,7 +501,12 @@
         for (let t = 0.14; t < 0.97; t += 0.14) L(slope(m.x0, t), slope(m.x1, t), det);
         for (const r of S.rooflights || []) rect([slope(r.x0, r.t0), slope(r.x1, r.t0), slope(r.x1, r.t1), slope(r.x0, r.t1)]);
       }
-      if (S.dormer) { const d = S.dormer; box(d.x0, d.x1, d.z0, d.z1, m ? m.eaves : 0, d.top); }
+      if (S.dormer) { const d = S.dormer, y0 = m ? m.eaves : 0;
+        if (d.slope && m) {   // its roof falls gently from the main ridge to the back wall
+          const yf = m.ridge, c = [[d.x0, d.z0, yf], [d.x1, d.z0, yf], [d.x1, d.z1, d.top], [d.x0, d.z1, d.top]];
+          c.forEach(([x, z, y], i) => { const [nx, nz, ny] = c[(i + 1) % 4]; L([x, y0, z], [nx, y0, nz]); L([x, y, z], [nx, ny, nz]); L([x, y0, z], [x, y, z]); });
+        } else box(d.x0, d.x1, d.z0, d.z1, y0, d.top);
+      }
       for (const c of S.chimneys || []) {
         const base = (m ? m.ridge : 8) - 1.2; box(c.x0, c.x1, c.z0, c.z1, base, c.top);
         box(c.x0 - 0.05, c.x1 + 0.05, c.z0 - 0.05, c.z1 + 0.05, c.top - 0.25, c.top - 0.1, det);   // corbel band
@@ -565,12 +570,14 @@
         const ov = 0.28;
         if (m) {
           face([[m.x0, m.eaves, m.z0 - ov], [m.x1, m.eaves, m.z0 - ov], [m.x1, m.ridge, m.ridgeZ], [m.x0, m.ridge, m.ridgeZ]]);
-          if (S.dormer) { const d = S.dormer;
-            face([[m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], [m.x1, d.top, d.z0 + 0.25], [m.x0, d.top, d.z0 + 0.25]]);   // short back slope above the dormer
-            L([m.x0, m.ridge, m.ridgeZ], [m.x0, d.top, d.z0 + 0.25]); L([m.x1, m.ridge, m.ridgeZ], [m.x1, d.top, d.z0 + 0.25]);
-            face([[d.x0, d.top, d.z0 + 0.25], [d.x1, d.top, d.z0 + 0.25], [d.x1, d.top, d.z1 + 0.1], [d.x0, d.top, d.z1 + 0.1]]);   // the dormer's flat roof
-            L([d.x0, d.top, d.z1 + 0.1], [d.x1, d.top, d.z1 + 0.1]); L([d.x0, d.top - 0.18, d.z1 + 0.1], [d.x1, d.top - 0.18, d.z1 + 0.1], det);   // fascia
-            for (const x of [m.x0, m.x1]) face([[x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ], [x, d.top, d.z0 + 0.25], [x, d.top, m.z1], [x, m.eaves, m.z1]]);   // gable walls
+          if (S.dormer && S.dormer.slope) { const d = S.dormer, b0 = [m.x0, m.ridge, m.ridgeZ], b1 = [m.x1, m.ridge, m.ridgeZ], a0 = [m.x0, d.top, d.z1 + 0.12], a1 = [m.x1, d.top, d.z1 + 0.12];
+            face([b0, b1, a1, a0]);   // the back roof: a shallow slope from the ridge to the back wall
+            L(a0, a1); L([m.x0, d.top - 0.18, d.z1 + 0.12], [m.x1, d.top - 0.18, d.z1 + 0.12], det);   // fascia
+            courses(a0, a1, b0, b1, 0.5);
+            for (const x of [m.x0, m.x1]) face([[x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ], [x, d.top, m.z1], [x, m.eaves, m.z1]]);   // gable walls
+          } else if (S.dormer) { const d = S.dormer;
+            face([[d.x0, d.top, d.z0], [d.x1, d.top, d.z0], [d.x1, d.top, d.z1 + 0.1], [d.x0, d.top, d.z1 + 0.1]]);
+            for (const x of [m.x0, m.x1]) face([[x, m.eaves, m.z0], [x, m.ridge, m.ridgeZ], [x, d.top, d.z0], [x, d.top, m.z1], [x, m.eaves, m.z1]]);
           } else {
             face([[m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], [m.x1, m.eaves, m.z1 + ov], [m.x0, m.eaves, m.z1 + ov]]);
             courses([m.x0, m.eaves, m.z1 + ov], [m.x1, m.eaves, m.z1 + ov], [m.x0, m.ridge, m.ridgeZ], [m.x1, m.ridge, m.ridgeZ], 0.45);
@@ -660,7 +667,7 @@
       const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, y = f.y || 0, h = f.h || 0.8;
       const kind = f.kind || "box";
       if (kind === "rug") {
-        const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].flatMap(([a, b]) => [a, 0.06, b]);
+        const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].flatMap(([a, b]) => [a, f.y || 0.06, b]);
         const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
         parts.push(new T.Line(gg, furMat())); g.add(parts[0]);
       } else if (kind === "sofa") {
@@ -674,6 +681,20 @@
         parts.push(outline(g, w, 0.04, d, cx, y + h - 0.04, cz));
         const lx = w / 2 - 0.06, lz = d / 2 - 0.06;
         for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) parts.push(outline(g, 0.04, h - 0.04, 0.04, cx + sx * lx, y, cz + sz * lz));
+      } else if (kind === "stairs") {   // a straight flight rising from v0 to v1, with a handrail on the u0 side
+        const n = f.steps || 13, rise = (f.h || 2.6) / n, run = (z1 - z0) / n, pts = [];
+        const P = (a, c) => pts.push(...a, ...c);
+        for (let i = 0; i < n; i++) {
+          const za = z0 + i * run, zb = za + run, yb = y + i * rise, yt = yb + rise;
+          P([x0, yb, za], [x1, yb, za]); P([x0, yb, za], [x0, yt, za]); P([x1, yb, za], [x1, yt, za]);   // riser
+          P([x0, yt, za], [x1, yt, za]); P([x0, yt, za], [x0, yt, zb]); P([x1, yt, za], [x1, yt, zb]);   // tread
+          if (i < n - 1) for (const xx of [x0 + 0.04]) P([xx, yt, za + run / 2], [xx, yt + 0.9, za + run / 2]);   // spindles
+        }
+        P([x0, y, z0], [x0, y, z1]); P([x0, y, z1], [x0, y + n * rise, z1]); P([x1, y, z0], [x1, y, z1]);   // stringer + under-stairs
+        const hx = x0 + 0.04; P([hx, y + rise + 0.9, z0 + run / 2], [hx, y + n * rise + 0.9, z1]);   // handrail
+        P([hx, y, z0], [hx, y + rise + 1.0, z0]);   // newel post
+        const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+        const l = new T.LineSegments(gg, furMat()); g.add(l); parts.push(l);
       } else if (kind === "chair") {
         parts.push(outline(g, w, 0.45, d, cx, y, cz));
         parts.push(outline(g, w, h - 0.45, 0.04, cx, y + 0.45, z0 + 0.02));
