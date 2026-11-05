@@ -615,3 +615,7 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-acts button.warn{color:#ffb36b;border-color:rgba(255,166,74,.6)}
 .eddo-car-row em[data-warn=true]{color:#ffb36b}
 .eddo-car-card small.split{font-size:8.5px;letter-spacing:1.3px;color:var(--theme-muted,#9a978f)}
+.eddo-car-src{margin-top:12px;font-size:8.5px;letter-spacing:.6px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-src summary{cursor:pointer;letter-spacing:1.6px}
+.eddo-car-src p{display:grid;grid-template-columns:70px 1fr auto;gap:6px;margin:3px 0;word-break:break-all}
+.eddo-car-src em{font-style:normal;opacity:.7}.eddo-car-src b{font-weight:400;color:var(--theme-ink,#ece9e2)}

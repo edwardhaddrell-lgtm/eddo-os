@@ -2080,6 +2080,10 @@
       row("Mileage", c.odometer != null ? c.odometer.toLocaleString("en-GB") + " mi" : null) +
       row("Service in", [c.serviceMiles != null ? c.serviceMiles.toLocaleString("en-GB") + " mi" : null, c.serviceTime].filter(Boolean).join(" · ") || null) +
       row("Avg fuel", c.avgFuel) + (!c.home && c.where ? row("Location", c.where) : "");
+    // which Home Assistant sensors feed the card, with their current values (to check the links)
+    const V = CAR.V || {}, src = { ...CAR.ids };
+    for (const k of ["battery", "fuelL", "rangeEv", "rangeFuel", "odometer", "charging", "connector", "lock", "tracker"]) if (V[k]) src["volvo " + k] = V[k];
+    h += `<details class="eddo-car-src"><summary>SENSORS</summary>${Object.entries(src).map(([k, id]) => { const x = states.get(id); return `<p><span>${esc(k)}</span><em>${esc(id)}</em><b>${esc(x ? String(x.s) + (x.a.unit_of_measurement ? " " + x.a.unit_of_measurement : "") : "NOT FOUND")}</b></p>`; }).join("") || "<p>NONE</p>"}</details>`;
     return h;
   }
   function carAction(act) {
