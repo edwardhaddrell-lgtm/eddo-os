@@ -454,6 +454,24 @@
       faces.position.y = r.h / 2; faces.userData.room = r; g.add(faces);
       const edges = new T.LineSegments(new T.EdgesGeometry(box), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: r.quiet ? 0.22 : 0.42 }));
       edges.position.y = r.h / 2; g.add(edges);
+      if (r.roof) {   // pitched roof: ridge down the middle, gable ends; shares the wall lines' material so it lights and fades with them
+        const o = r.roof.overhang ?? 0.12, rh = r.roof.rise || 0.6, alongX = r.roof.ridge !== "z";
+        const hw = r.w / 2 + o, hd = r.d / 2 + o, y0 = r.h, y1 = r.h + rh, pts = [];
+        const L = (a, c) => pts.push(...a, ...c);
+        if (alongX) {
+          L([-hw, y1, 0], [hw, y1, 0]);
+          for (const x of [-hw, hw]) { L([x, y0, -hd], [x, y1, 0]); L([x, y1, 0], [x, y0, hd]); L([x, y0, -hd], [x, y0, hd]); }
+          for (const z of [-hd, hd]) L([-hw, y0, z], [hw, y0, z]);
+          for (let t = 0.25; t < 1; t += 0.25) for (const sz of [-1, 1]) { const x = -hw + 2 * hw * t; L([x, y0, sz * hd], [x, y1, 0]); }
+        } else {
+          L([0, y1, -hd], [0, y1, hd]);
+          for (const z of [-hd, hd]) { L([-hw, y0, z], [0, y1, z]); L([0, y1, z], [hw, y0, z]); L([-hw, y0, z], [hw, y0, z]); }
+          for (const x of [-hw, hw]) L([x, y0, -hd], [x, y0, hd]);
+          for (let t = 0.25; t < 1; t += 0.25) for (const sx of [-1, 1]) { const z = -hd + 2 * hd * t; L([sx * hw, y0, z], [0, y1, z]); }
+        }
+        const rg = new T.BufferGeometry(); rg.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+        g.add(new T.LineSegments(rg, edges.material));
+      }
       if (r.bay) {   // bay window on the living room front
         const bw = Math.min(2.4, r.w - 0.6), bd = 0.45, bh = 2.0;
         const bay = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(bw, bh, bd)), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.35 }));
@@ -535,6 +553,44 @@
         L([f.x0, 0, f.z], [f.x1, 0, f.z]); L([f.x0, f.h, f.z], [f.x1, f.h, f.z]); L([f.x0, f.h - 0.15, f.z], [f.x1, f.h - 0.15, f.z], det);
         L([f.x0, 0, f.z], [f.x0, 0, m ? m.z0 - 0.5 : 0], det);
         for (const x of f.piers || []) box(x, x + 0.3, f.z - 0.05, f.z + 0.25, 0, f.h + 0.15);
+      }
+      if (H.garden) { const G = H.garden;
+        for (const poly of G.decks || []) {
+          const P = poly.map(([x, z]) => [x, 0.06, z]); rect(P);
+          // boards: lines along z, clipped to the deck's outline
+          const xs = poly.map((p) => p[0]), step = G.boardStep || 0.3;
+          for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs); x += step) {
+            const hits = [];
+            poly.forEach(([x1, z1], i) => { const [x2, z2] = poly[(i + 1) % poly.length]; if ((x1 <= x && x2 > x) || (x2 <= x && x1 > x)) hits.push(z1 + (x - x1) / (x2 - x1) * (z2 - z1)); });
+            hits.sort((p, q) => p - q); for (let i = 0; i + 1 < hits.length; i += 2) L([x, 0.06, hits[i]], [x, 0.06, hits[i + 1]], det);
+          }
+        }
+        for (const it of G.items || []) {
+          const { x0, x1, z0, z1 } = it, h = it.h || 0.8, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+          if (it.kind === "rotary") {   // rotary washing line: pole and four arms
+            const r = it.r || 1.2, top = it.h || 1.9;
+            L([it.x, 0, it.z], [it.x, top, it.z]);
+            const ring = []; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; ring.push([it.x + Math.cos(a) * r, top - 0.2, it.z + Math.sin(a) * r]); L([it.x, top, it.z], ring[i], det); L([it.x, top - 0.9, it.z], ring[i], det); }
+            rect(ring, det);
+          } else if (it.kind === "tree") {   // canopy as a few stacked rings on a trunk
+            const r = it.r || 1.5, y0 = it.y0 || 1.6, top = it.h || 4;
+            L([it.x, 0, it.z], [it.x, y0, it.z], det);
+            for (const [t, k] of [[0, 0.6], [0.3, 1], [0.65, 0.85], [1, 0.4]]) {
+              const y = y0 + (top - y0) * t, rr = r * k, c = [];
+              for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; c.push([it.x + Math.cos(a) * rr, y, it.z + Math.sin(a) * rr]); }
+              rect(c, det);
+            }
+          } else if (it.kind === "bbq") {   // kettle-ish grill under its cover: body, rounded lid, legs
+            box(x0, x1, z0, z1, 0.25, h - 0.25, det);
+            for (const zz of [z0, z1]) { let prev = null; for (let i = 0; i <= 8; i++) { const a = Math.PI * i / 8, p = [cx + Math.cos(a) * (x1 - x0) / 2, h - 0.25 + Math.sin(a) * 0.25, zz]; if (prev) L(prev, p, det); prev = p; } }
+            L([x0, h - 0.25, z0], [x0, h - 0.25, z1], det); L([x1, h - 0.25, z0], [x1, h - 0.25, z1], det); L([cx, h, z0], [cx, h, z1], det);
+          } else if (it.kind === "chair") {
+            box(x0, x1, z0, z1, 0, 0.45, det); box(x0, x1, z1 - 0.05, z1, 0.45, h, det);
+          } else {   // covered furniture, planters, storage: a soft box (top edges pulled in)
+            box(x0, x1, z0, z1, 0, h * 0.85, det);
+            const i = Math.min(0.12, (x1 - x0) / 4); box(x0 + i, x1 - i, z0 + i, z1 - i, h * 0.85, h, det);
+          }
+        }
       }
       const mk = (pts) => { const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); return gg; };
       shellLines = new T.LineSegments(mk(seg), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.3, depthWrite: false }));

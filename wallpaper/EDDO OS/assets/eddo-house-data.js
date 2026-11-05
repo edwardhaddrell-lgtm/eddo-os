@@ -30,6 +30,22 @@ window.EDDO_HOUSE = {
     extension: { x0: 2.08, x1: 4.6, z0: 9.87, z1: 12.0, high: 3.5, low: 2.95 },          // single-storey kitchen end, lean-to roof
     bay: { x0: 0.5, x1: 2.9, depth: 0.45, top: 2.2, roof: 2.75 },                         // front bay window and its little tiled roof
   },
+  // back garden (from the photo taken at the office): decking along the side return and across
+  // the back of the kitchen with an angled corner, artificial lawn, then the office. Outline only.
+  garden: {
+    decks: [[[0, 7.41], [2.08, 7.41], [2.08, 12.0], [4.6, 12.0], [4.6, 13.4], [2.7, 13.4], [2.1, 12.9], [0, 12.9]]],
+    items: [
+      { name: "Garden furniture (covered)", x0: 2.35, x1: 4.25, z0: 12.1, z1: 13.15, h: 0.85 },
+      { name: "Storage box", x0: 0.1, x1: 0.95, z0: 11.3, z1: 11.95, h: 0.75 },
+      { name: "Planters", x0: 4.2, x1: 4.55, z0: 12.95, z1: 13.35, h: 0.5 },
+      { name: "Planters", x0: 0.15, x1: 0.45, z0: 12.45, z1: 12.8, h: 0.45 },
+      { name: "Rotary washing line", kind: "rotary", x: 2.35, z: 13.9, h: 1.9, r: 1.1 },
+      { name: "Garden chair", kind: "chair", x0: 0.45, x1: 1.05, z0: 13.7, z1: 14.3, h: 0.9 },
+      { name: "Weber BBQ", kind: "bbq", x0: 4.0, x1: 4.6, z0: 15.2, z1: 15.95, h: 1.15 },
+      { name: "Maple", kind: "tree", x: 0.1, z: 15.9, r: 1.5, y0: 1.8, h: 4.2 },
+      { name: "Shrubs", kind: "tree", x: 4.85, z: 13.9, r: 0.8, y0: 0.6, h: 2.6 },
+    ],
+  },
   boiler: { room: "bath", u: 0.92, v: 0.2, y: 1.3 },   // in the tall cupboard by the bathroom door
   floorHeight: 2.6,
   floorGap: 1.3,                 // extra space between floors so each level reads clearly
@@ -204,7 +220,8 @@ window.EDDO_HOUSE = {
   ],
   // outbuildings sit on the ground in the garden
   outbuildings: [
-    { id: "office", name: "Garden Office", x: 0.535, z: 16.865, w: 3.48, d: 2.75, h: 2.4,   // turned 90° clockwise
+    { id: "office", name: "Garden Office", x: 0.535, z: 16.865, w: 3.48, d: 2.75, h: 2.3,   // turned 90° clockwise
+      roof: { ridge: "x", rise: 0.65 },   // pitched roof, ridge across the garden
       areas: ["office", "garden office", "gym"],
       entities: ["light.garden_office_lights", "light.deskhue", "light.hue_play_gradient_lightstrip_1", "switch.office_lamps", "switch.office_lamp_2"],
       climate: "climate.garden_office", scenes: ["scene.startup", "scene.shutdown"] },
