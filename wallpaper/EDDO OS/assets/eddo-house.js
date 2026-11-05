@@ -1657,6 +1657,9 @@
       if (hit) { hit.ids.push(st.entity_id); continue; }
       const r = roomOf(entOf.get(st.entity_id)); if (!r) continue;
       const n = conf.filter((d) => d.roomRef === r && d.auto).length, win = st.attributes.device_class === "window";
+      // a door sensor in a room that already has a door in the model belongs to that door (an unclaimed one first)
+      const mine = !win && (conf.find((d) => d.roomRef === r && !d.auto && !d.window && !d.ids.length) || conf.find((d) => d.roomRef === r && !d.auto && !d.window));
+      if (mine) { mine.ids.push(st.entity_id); continue; }
       conf.push({ name: st.attributes.friendly_name || st.entity_id, room: r.id, roomRef: r, wall: "back", at: 0.25 + (n % 3) * 0.25, w: win ? 0.9 : 0.8, window: win, auto: true, ids: [st.entity_id] });
     }
     LIVE.doors = conf.filter((d) => d.ids.length);
