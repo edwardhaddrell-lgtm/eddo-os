@@ -1823,8 +1823,9 @@
     const tvs = devices.filter((d) => d.kind === "tv"), groups = new Map();
     for (const st of allStates) {
       if (!st.entity_id.startsWith("media_player.") || !live(st)) continue;
-      const t = text(st), d = tvs.find((v) => v.ids.includes(st.entity_id) || (v.match || []).some((m) => t.includes(m)));
+      const t = text(st); let d = tvs.find((v) => v.ids.includes(st.entity_id) || (v.match || []).some((m) => t.includes(m)));
       const r = d ? d.roomRef : roomOf(entOf.get(st.entity_id)); if (!r) continue;
+      if (!d) d = tvs.find((v) => v.roomRef === r) || null;   // a player in a room with a TV belongs to that TV (one set of rings, one label)
       const key = d ? "tv:" + devices.indexOf(d) : "room:" + r.id;
       if (!groups.has(key)) groups.set(key, { dev: d || null, roomRef: r, ids: [], k: 0 });
       groups.get(key).ids.push(st.entity_id);
