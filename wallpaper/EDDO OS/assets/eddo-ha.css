@@ -627,3 +627,12 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-car-meter{grid-template-columns:62px 1fr auto}
 .eddo-car-row span{white-space:nowrap}
 .eddo-car-chips{margin:14px 0 10px}
+
+/* car panel: health grid + section labels */
+.eddo-car-h{margin:16px 0 6px;font-size:8.5px;letter-spacing:1.8px;color:var(--theme-muted,#8f8c84)}
+.eddo-car-health{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:9px;letter-spacing:1.3px;color:var(--theme-ink,#ece9e2)}
+.eddo-car-health span{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(143,185,194,.12)}
+.eddo-car-health i{width:6px;height:6px;border-radius:50%;background:#5fe0a8;box-shadow:0 0 6px rgba(95,224,168,.6)}
+.eddo-car-health em{margin-left:auto;font-style:normal;color:#5fe0a8}
+.eddo-car-health span[data-ok=false] i{background:#ffa64a;box-shadow:0 0 6px rgba(255,166,74,.7);animation:eddo-live-warn 1.2s ease-in-out infinite}
+.eddo-car-health span[data-ok=false] em{color:#ffb36b}

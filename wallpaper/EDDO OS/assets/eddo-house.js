@@ -113,7 +113,7 @@
     const V = { doors: [], windows: [], tyres: [], warn: [], btn: {}, all: vol.map((x) => x.entity_id) };
     const VK = { battery: /battery_charge_level$/, rangeEv: /distance_to_empty_battery$|electric_range$|battery_range$|ev_range$/, rangeFuel: /distance_to_empty_tank$|distance_to_empty_fuel$|fuel_range$|tank_range$|^distance_to_empty$/, fuelL: /fuel_amount$/, odometer: /odometer$/,
       charging: /charging_status$/, connector: /charging_connection_status$/, chargeEta: /estimated_charging_time$/, chargePower: /charging_power$/, chargeTarget: /target_battery_charge_level$/,
-      serviceDist: /distance_to_service$/, serviceTime: /^time_to_service$|[^_]time_to_service$/, avgFuel: /average_fuel_consumption$/, avgEnergy: /average_energy_consumption$/, connection: /car_connection$|availability$/ };
+      serviceDist: /distance_to_service$/, engineHours: /engine_(time|hours)_to_service$/, tripAuto: /trip_meter_automatic$/, tripManual: /trip_meter_manual$/, avgSpeed: /average_speed$/, serviceTime: /^time_to_service$|[^_]time_to_service$/, avgFuel: /average_fuel_consumption$/, avgEnergy: /average_energy_consumption$/, connection: /car_connection$|availability$/ };
     for (const x of vol) {
       const dom = x.entity_id.split(".")[0], k = String(x.translation_key || x.entity_id.split(".")[1]).toLowerCase(), st = stMap.get(x.entity_id);
       if (dom === "sensor") {
@@ -129,6 +129,7 @@
         if (/door|hood|tailgate|tank_lid|bonnet/.test(k)) V.doors.push(x.entity_id);
         else if (/window|sunroof/.test(k)) V.windows.push(x.entity_id);
         else if (/tyre|tire/.test(k)) V.tyres.push(x.entity_id);
+        else if (/engine_status|engine_running|^engine$/.test(k) || st.attributes.device_class === "running") V.engine = V.engine || x.entity_id;
         else if (st.attributes.device_class === "problem" || /fluid|service|light|warning|coolant|oil/.test(k)) V.warn.push(x.entity_id);
       } else if (dom === "button") {
         if (/climat\w*start|start\w*climat/.test(k)) V.btn.climaStart = x.entity_id; else if (/climat\w*stop|stop\w*climat/.test(k)) V.btn.climaStop = x.entity_id;
@@ -389,6 +390,8 @@
     CAR.mesh = { g, lines, detail, front, back, chg, hit, shadow, glow: 0, dense: !!M };
   }
   // car readings, in friendly units
+  // health checks the Volvo integration reports (each a "problem" sensor that turns on when something needs attention)
+  const HEALTH = [["OIL", /oil/], ["COOLANT", /coolant/], ["BRAKE FLUID", /brake.?fluid/], ["WASHER FLUID", /washer/], ["SERVICE", /service/], ["BULBS", /light|bulb|lamp|indicator|beam|fog/]];
   function carData() {
     const I = CAR.ids, V = CAR.V || { doors: [], windows: [], tyres: [], warn: [], btn: {} };
     // the car app only reports while it's connected (driving), and goes "unavailable" when parked:
@@ -424,6 +427,11 @@
       serviceMiles: milesOf(sv(V.serviceDist)), serviceTime: live(svc) ? `${svc.s} ${svc.a.unit_of_measurement || ""}`.trim() : null,
       avgFuel: V.avgFuel && live(sv(V.avgFuel)) ? `${sv(V.avgFuel).s} ${sv(V.avgFuel).a.unit_of_measurement || ""}`.trim() : null,
       btn: V.btn, lockId: V.lock || null, volvo: !!(V.all && V.all.length),
+      health: HEALTH.map(([name, re]) => { const ids = (V.warn || []).filter((id) => re.test(id + " " + String((sv(id) || { a: {} }).a.friendly_name || "").toLowerCase())); return ids.length ? { name, ok: !onIds(ids).length, bad: onIds(ids).map(label) } : null; }).filter(Boolean),
+      engine: V.engine && live(sv(V.engine)) ? sv(V.engine).s === "on" : null,
+      engineHours: V.engineHours && live(sv(V.engineHours)) ? `${sv(V.engineHours).s} ${sv(V.engineHours).a.unit_of_measurement || "h"}` : null,
+      trip: milesOf(sv(V.tripAuto)), tripManual: milesOf(sv(V.tripManual)),
+      avgSpeed: (() => { const x = sv(V.avgSpeed); if (!live(x) || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "").toLowerCase(); return Math.round(/km/.test(u) ? +x.s * 0.621371 : +x.s) + " mph"; })(),
       home, where: word("place") || (tr && tr.s !== "home" ? tr.s : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 || !!(V.all && V.all.length) };
   }
   async function loadCarHistory() {
@@ -2100,10 +2108,15 @@
       if (acts.length) h += `<div class="eddo-house-pop-row eddo-car-acts">${acts.join("")}</div>`;
     }
     h += row("Charging", tidy(c.chargeText)) + row("Cable", tidy(c.connector)) + (c.charging ? row("Full in", c.chargeEta) + row("Power", c.chargePower) : "") +
-      row("Open", [...c.openDoors, ...c.openWindows].join(", ") || null, true) + row("Tyres", c.tyreWarn.join(", ") || null, true) + row("Warnings", c.warnings.join(", ") || null, true) +
+      row("Open", [...c.openDoors, ...c.openWindows].join(", ") || null, true) + row("Tyres", c.tyreWarn.join(", ") || null, true) +
+      (c.health.length ? `<p class="eddo-car-h">HEALTH</p><div class="eddo-car-health">${c.health.map((x) => `<span data-ok="${x.ok}" title="${esc(x.bad.join(", "))}"><i></i>${x.name}<em>${x.ok ? "OK" : "CHECK"}</em></span>`).join("")}</div>` : row("Warnings", c.warnings.join(", ") || null, true)) +
+      (c.engine != null ? row("Engine", c.engine ? "Running" : "Off") : "") +
+      `<p class="eddo-car-h">TRIPS</p>` +
       row("Mileage", c.odometer != null ? c.odometer.toLocaleString("en-GB") + " mi" : null) +
       row("Service in", [c.serviceMiles != null ? c.serviceMiles.toLocaleString("en-GB") + " mi" : null, c.serviceTime].filter(Boolean).join(" · ") || null) +
-      row("Avg fuel", c.avgFuel) + (!c.home && c.where ? row("Location", c.where) : "");
+      row("Engine service in", c.engineHours) +
+      row("Trip", c.trip != null ? c.trip.toLocaleString("en-GB") + " mi" : null) + row("Trip (manual)", c.tripManual != null ? c.tripManual.toLocaleString("en-GB") + " mi" : null) +
+      row("Avg speed", c.avgSpeed) + row("Avg fuel", c.avgFuel) + (!c.home && c.where ? row("Location", c.where) : "");
     // which Home Assistant sensors feed the card, with their current values (to check the links)
     const V = CAR.V || {}, src = { ...CAR.ids };
     for (const k of ["battery", "fuelL", "rangeEv", "rangeFuel", "odometer", "charging", "connector", "lock", "tracker"]) if (V[k]) src["volvo " + k] = V[k];
