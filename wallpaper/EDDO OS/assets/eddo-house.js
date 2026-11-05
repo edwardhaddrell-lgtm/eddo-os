@@ -1635,8 +1635,24 @@
     const rect = canvas.getBoundingClientRect();
     const ray = new T.Raycaster(), v = new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     ray.setFromCamera(v, camera);
-    const hits = ray.intersectObjects(devices.filter((d) => d.mesh && !hiddenFloor(d.roomRef.floor)).map((d) => d.mesh.hit), false);
-    return hits.length ? hits[0].object.userData.device : null;
+    const cands = devices.filter((d) => d.mesh && !hiddenFloor(d.roomRef.floor));
+    const hits = ray.intersectObjects(cands.map((d) => d.mesh.hit), false);
+    if (hits.length) return hits[0].object.userData.device;
+    // easier targets: the device's label counts as part of it, and a marker "catches" the pointer within a radius
+    // on screen (a bit wider for the one already under the pointer, so it doesn't flicker off at the edge)
+    const mx = ev.clientX, my = ev.clientY;
+    for (const d of cands) {
+      if (!d.label || d.label.dataset.hidden === "true") continue;
+      const b = d.label.getBoundingClientRect(); if (b.width && mx >= b.left - 4 && mx <= b.right + 4 && my >= b.top - 4 && my <= b.bottom + 4) return d;
+    }
+    let best = null, bestD = Infinity; const v3 = new T.Vector3();
+    for (const d of cands) {
+      d.mesh.hit.getWorldPosition(v3); v3.project(camera); if (v3.z > 1) continue;
+      const sx = rect.left + (v3.x * 0.5 + 0.5) * rect.width, sy = rect.top + (-v3.y * 0.5 + 0.5) * rect.height;
+      const dist = Math.hypot(sx - mx, sy - my), reach = hoveredDev === d ? 40 : 28;
+      if (dist < reach && dist < bestD) { best = d; bestD = dist; }
+    }
+    return best;
   }
   function toggleDevice(d) {
     for (const id of d.ids.filter((x) => /^(light|switch|fan)\./.test(x))) {
@@ -1742,6 +1758,7 @@
       dwell(hoveredDev);
       hovered = ui ? null : hoveredDev ? hoveredDev.roomRef : pick(e);
       CAR.hover = !ui && !hoveredDev && pickCar(e);
+      if (canvas) { const want = !ui && (hoveredDev || CAR.hover || hovered) ? "pointer" : ""; if (stage.style.cursor !== want) stage.style.cursor = want; }
     });
     window.addEventListener("mouseup", (e) => {
       if (!running || !drag) return;
@@ -1787,6 +1804,7 @@
   function stop() {
     stopTour(); closePop(); closeAllPreviews(true); dwell(null);
     running = false; hovered = null; hoveredDev = null; drag = null;
+    const stg = document.querySelector("#stage"); if (stg) stg.style.cursor = "";
     document.querySelector("#stage")?.removeAttribute("data-eddo-house");
     releaseBackground();
   }
