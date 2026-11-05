@@ -1296,7 +1296,7 @@
     if (scene.fog) scene.fog.color.setRGB(...mix(top, hor, 0.4).map((v) => v / 255));
     skyEl.style.setProperty("--sky-top", `rgba(${top},.84)`); skyEl.style.setProperty("--sky-hor", `rgba(${hor},.72)`);
     skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", ((0.08 + tw * 0.32 + k * 0.06) * skyFace).toFixed(3));
-    skyEl.style.setProperty("--sky-stars", SKY.dome ? "0" : (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
+    skyEl.style.setProperty("--sky-stars", NS.el ? "0" : (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
   }
   let carCard = null;
   function placeCarCard() {
@@ -2288,56 +2288,107 @@
     gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(soft, "rgba(255,255,255,.35)"); gr.addColorStop(1, "rgba(255,255,255,0)");
     g.fillStyle = gr; g.fillRect(0, 0, size, size); return new T.CanvasTexture(c);
   }
-  function buildSky() {
-    if (SKY.dome || !T || !scene) return;
-    const W = 2048, Hh = 1024, c = document.createElement("canvas"); c.width = W; c.height = Hh; const g = c.getContext("2d");
-    // a faint milky-way band, then the stars (denser near the band)
-    const band = (x) => Hh * 0.42 + Math.sin(x / W * Math.PI * 2 + 0.6) * Hh * 0.2;
-    for (let i = 0; i < 2600; i++) { const x = Math.random() * W, y = band(x) + (Math.random() - 0.5) * Hh * 0.16, r = 6 + Math.random() * 22;
-      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(170,190,230,.022)"); gr.addColorStop(1, "rgba(170,190,230,0)"); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
-    const tints = ["255,255,255", "205,222,255", "255,236,214", "230,240,255"];
-    for (let i = 0; i < 1700; i++) {
-      const x = Math.random() * W, nearBand = Math.random() < 0.35, y = nearBand ? band(x) + (Math.random() - 0.5) * Hh * 0.12 : Math.random() * Hh * 0.62;
-      const big = Math.random() < 0.05, r = big ? 1.3 + Math.random() * 0.9 : 0.5 + Math.random() * 0.7, a = big ? 0.75 + Math.random() * 0.25 : 0.25 + Math.random() * 0.5;
-      g.fillStyle = `rgba(${tints[i % 4]},${a.toFixed(2)})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  // a crisp 2D night sky behind the model: a pre-drawn star field (with the Milky Way) that pans as the view turns,
+  // per-star twinkle, the odd shooting star, and aurora curtains low in the north. Fades by day and with cloud.
+  const NS = { el: null, ctx: null, field: null, fw: 0, fh: 0, tw: [], aur: null, actx: null, shoot: null, next: 0, k: 0, lastDraw: 0 };
+  function nsBuild() {
+    if (NS.el || !skyEl) return;
+    NS.el = document.createElement("canvas"); NS.el.className = "eddo-house-night"; skyEl.append(NS.el);
+    NS.ctx = NS.el.getContext("2d");
+    NS.aur = document.createElement("canvas"); NS.aur.width = 360; NS.aur.height = 120; NS.actx = NS.aur.getContext("2d");
+  }
+  function nsField(W, Hh) {
+    // the field is 3 screens wide (it wraps as you spin) and a bit taller than the screen
+    const dpr = Math.min(2, window.devicePixelRatio || 1), fw = Math.round(W * 3), fh = Math.round(Hh * 1.4);
+    const c = document.createElement("canvas"); c.width = fw * dpr; c.height = fh * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr);
+    const R = (a, b) => a + Math.random() * (b - a);
+    const band = (x) => fh * 0.38 + Math.sin(x / fw * Math.PI * 2 * 1.5 + 0.8) * fh * 0.16;   // the Milky Way's path
+    // nebula glow of the Milky Way: soft overlapping clouds, cool in the core with a warm edge, and a few dark lanes
+    g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 900; i++) {
+      const x = R(0, fw), y = band(x) + (Math.random() - 0.5) * fh * 0.14 * (0.4 + Math.random()), r = R(20, 90);
+      const hue = Math.random() < 0.25 ? "255,210,180" : Math.random() < 0.5 ? "170,190,255" : "200,215,240";
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${hue},${R(0.008, 0.022).toFixed(3)})`); gr.addColorStop(1, `rgba(${hue},0)`);
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
     }
-    const tex = new T.CanvasTexture(c);
-    SKY.dome = new T.Mesh(new T.SphereGeometry(260, 48, 24), new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, fog: false, blending: T.AdditiveBlending }));
-    SKY.dome.renderOrder = -10; scene.add(SKY.dome);
-    // twinkling stars: soft sprites scattered over the upper sky
-    const tt = glowTex(32, 0.25);
-    for (let i = 0; i < 26; i++) {
-      const sp = new T.Sprite(new T.SpriteMaterial({ map: tt, color: 0xe8f0ff, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: T.AdditiveBlending }));
-      const a = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.9, R = 250;
-      sp.position.set(Math.cos(a) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(a) * Math.cos(el) * R); const s = 1.4 + Math.random() * 1.6; sp.scale.set(s, s, 1);
-      sp.renderOrder = -9; scene.add(sp); SKY.twinkles.push({ sp, ph: Math.random() * 10, sp2: 0.6 + Math.random() * 1.6 });
+    g.globalCompositeOperation = "destination-out";
+    for (let i = 0; i < 160; i++) { const x = R(0, fw), y = band(x) + R(-12, 12), r = R(10, 34); const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(0,0,0,.35)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    g.globalCompositeOperation = "lighter";
+    // stars: thousands of faint pin-pricks, denser along the band, with a few bright ones carrying a small halo
+    const tints = ["255,255,255", "210,225,255", "255,238,215", "225,235,255", "255,220,200"];
+    const n = Math.round(fw * fh / 260);
+    for (let i = 0; i < n; i++) {
+      const inBand = Math.random() < 0.45, x = R(0, fw), y = inBand ? band(x) + (Math.random() - 0.5) * fh * 0.12 * (Math.random() + 0.3) : R(0, fh);
+      const m = Math.random() ** 3.2;                     // most are faint
+      const a = 0.12 + m * 0.85, r = 0.35 + m * 1.05, t = tints[(Math.random() * tints.length) | 0];
+      g.fillStyle = `rgba(${t},${a.toFixed(3)})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+      if (m > 0.8) { const h = r * 5; const gr = g.createRadialGradient(x, y, 0, x, y, h); gr.addColorStop(0, `rgba(${t},.28)`); gr.addColorStop(1, `rgba(${t},0)`); g.fillStyle = gr; g.fillRect(x - h, y - h, h * 2, h * 2); }
+      if (m > 0.86 && NS.tw.length < 140) NS.tw.push({ x, y, r, t, ph: R(0, 9), sp: R(0.5, 2.2) });
     }
-    // shooting star: a short bright streak
-    const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(new Float32Array(6), 3));
-    SKY.shoot = { line: new T.Line(sg, new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: T.AdditiveBlending })), t: -1 };
-    SKY.shoot.line.frustumCulled = false; SKY.shoot.line.renderOrder = -8; scene.add(SKY.shoot.line);
-    SKY.nextShoot = performance.now() + 15000 + Math.random() * 30000;
+    NS.field = c; NS.fw = fw; NS.fh = fh;
+  }
+  function nsAurora(t) {
+    // curtains: vertical rays whose height and brightness ripple along the arc, green at the base fading to violet
+    const g = NS.actx, W = NS.aur.width, Hh = NS.aur.height;
+    g.clearRect(0, 0, W, Hh); g.globalCompositeOperation = "lighter";
+    for (let x = 0; x < W; x += 1) {
+      const u = x / W, edge = Math.sin(Math.PI * u) ** 1.5;
+      const wave = Math.sin(u * 9 + t * 0.35) * 0.5 + Math.sin(u * 23 - t * 0.6) * 0.3 + Math.sin(u * 51 + t * 1.3) * 0.2;
+      const base = Hh * (0.78 + 0.08 * Math.sin(u * 5 + t * 0.2)), top = base - Hh * (0.35 + 0.35 * (0.5 + 0.5 * wave));
+      const a = edge * (0.25 + 0.75 * Math.max(0, 0.5 + 0.5 * Math.sin(u * 37 + t * 0.9 + Math.sin(u * 7 + t * 0.3) * 2)));
+      const gr = g.createLinearGradient(0, base, 0, top);
+      gr.addColorStop(0, `rgba(80,255,170,${(0.55 * a).toFixed(3)})`); gr.addColorStop(0.35, `rgba(60,230,190,${(0.35 * a).toFixed(3)})`);
+      gr.addColorStop(0.75, `rgba(110,120,255,${(0.16 * a).toFixed(3)})`); gr.addColorStop(1, "rgba(150,90,255,0)");
+      g.fillStyle = gr; g.fillRect(x, top, 1, base - top + 2);
+    }
   }
   function updateStars(dt, now) {
-    buildSky(); if (!SKY.dome) return;
+    if (!skyEl) return; nsBuild(); if (!NS.ctx) return;
     const o = window.eddoOutside, cloud = o && Number.isFinite(+o.cloud) ? +o.cloud / 100 : 0;
-    const night = Math.max(0, 1 - dayK * 1.6), want = night * (1 - 0.85 * cloud) * (heatMode || energyMode ? 0.45 : 1);
-    const m = SKY.dome.material; m.opacity += (want - m.opacity) * Math.min(1, dt * 0.8);
-    SKY.dome.rotation.y = now * 0.0000035; SKY.dome.position.copy(camera.position);   // stars sit at infinity: they turn with the view, not move with it
-    for (const t of SKY.twinkles) { t.sp.material.opacity = m.opacity * Math.max(0, 0.15 + 0.85 * Math.sin(now / 1000 * t.sp2 + t.ph) ** 4); }
-    SKY.twinkles.forEach((t) => { t.base = t.base || t.sp.position.clone(); t.sp.position.copy(t.base).add(camera.position); });
-    const S = SKY.shoot;
-    if (S.t < 0 && now > SKY.nextShoot && m.opacity > 0.3) {
-      const a = Math.random() * Math.PI * 2, el = 0.5 + Math.random() * 0.5, R = 240;
-      S.from = new T.Vector3(Math.cos(a) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(a) * Math.cos(el) * R);
-      S.dir = new T.Vector3(-Math.sin(a), -0.35 - Math.random() * 0.3, Math.cos(a)).normalize().multiplyScalar(60 + Math.random() * 40); S.t = 0;
+    const night = Math.max(0, Math.min(1, 1 - dayK * 1.7)), want = night * (1 - 0.8 * cloud) * (heatMode || energyMode ? 0.5 : 1);
+    NS.k += (want - NS.k) * Math.min(1, dt * 0.8);
+    NS.el.style.opacity = NS.k.toFixed(3);
+    if (NS.k < 0.01) return;
+    const W = skyEl.clientWidth, Hh = skyEl.clientHeight; if (!W || !Hh) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (NS.el.width !== Math.round(W * dpr) || NS.el.height !== Math.round(Hh * dpr)) { NS.el.width = Math.round(W * dpr); NS.el.height = Math.round(Hh * dpr); NS.field = null; NS.tw = []; }
+    if (!NS.field) nsField(W, Hh);
+    const g = NS.ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, Hh);
+    // pan with the camera: turning sweeps the field sideways (one full turn = the whole field), tilting moves it up/down
+    const tg = view.target || new T.Vector3(), az = Math.atan2(camera.position.x - tg.x, camera.position.z - tg.z), el = Math.asin(Math.max(-1, Math.min(1, (camera.position.y - tg.y) / camera.position.distanceTo(tg))));
+    const ox = (((az / (Math.PI * 2)) * NS.fw) % NS.fw + NS.fw) % NS.fw, oy = Math.max(0, Math.min(NS.fh - Hh, (NS.fh - Hh) * (0.2 + el * 0.6)));
+    for (const sx of [-ox, NS.fw - ox]) if (sx < W && sx + NS.fw > 0) g.drawImage(NS.field, 0, 0, NS.field.width, NS.field.height, sx, -oy, NS.fw, NS.fh);
+    // twinkles
+    g.globalCompositeOperation = "lighter";
+    for (const s of NS.tw) {
+      let x = s.x - ox; if (x < -10) x += NS.fw; if (x > W + 10) continue; const y = s.y - oy; if (y < -10 || y > Hh + 10) continue;
+      const a = Math.max(0, Math.sin(now / 1000 * s.sp + s.ph)) ** 6 * 0.75; if (a < 0.02) continue;
+      g.fillStyle = `rgba(${s.t},${a.toFixed(3)})`; g.fillRect(x - s.r * 2.6, y - 0.4, s.r * 5.2, 0.8); g.fillRect(x - 0.4, y - s.r * 2.6, 0.8, s.r * 5.2);   // a small sparkle cross
     }
-    if (S.t >= 0) {
-      S.t += dt / 0.9; const head = S.from.clone().addScaledVector(S.dir, S.t), tail = S.from.clone().addScaledVector(S.dir, Math.max(0, S.t - 0.25));
-      const pos = S.line.geometry.attributes.position.array; [head, tail].forEach((v, i) => { v.add(camera.position); pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
-      S.line.geometry.attributes.position.needsUpdate = true; S.line.material.opacity = m.opacity * Math.sin(Math.min(1, S.t) * Math.PI) * 0.9;
-      if (S.t >= 1) { S.t = -1; S.line.material.opacity = 0; SKY.nextShoot = now + 25000 + Math.random() * 60000; }
+    // aurora, low in the north: placed where north is on screen, fading out when north is behind you
+    if (plinth && pivot) {
+      const n = plinth.north.clone(); pivot.children[0].localToWorld(n);
+      const c0 = pivot.children[0].localToWorld(new T.Vector3(0, 0, 0)), north = n.sub(c0).setY(0).normalize();
+      const fwd = tg.clone().sub(camera.position).setY(0).normalize(), facing = fwd.dot(north);
+      const side = fwd.x * north.z - fwd.z * north.x;   // which side of the view north is on
+      const vis = Math.max(0, facing + 0.35) / 1.35;
+      if (vis > 0.02) {
+        if (now - (NS.aT || 0) > 80) { nsAurora(now / 1000); NS.aT = now; }   // the curtains move slowly: redraw them ~12 times a second
+        const aw = W * 1.15, cx = W / 2 - side * W * 0.55, by = Hh * (0.42 + 0.2 * el);
+        g.globalAlpha = Math.min(1, vis * 1.3) * 0.85; g.imageSmoothingEnabled = true;
+        g.drawImage(NS.aur, cx - aw / 2, by - Hh * 0.42, aw, Hh * 0.5);
+        g.globalAlpha = 1;
+      }
     }
+    // shooting star
+    if (!NS.shoot && now > NS.next) { if (NS.next) NS.shoot = { x: Math.random() * W * 0.8 + W * 0.1, y: Math.random() * Hh * 0.3, dx: (Math.random() < 0.5 ? -1 : 1) * (380 + Math.random() * 260), dy: 140 + Math.random() * 120, t: 0 }; NS.next = now + 20000 + Math.random() * 50000; }
+    if (NS.shoot) {
+      const s = NS.shoot; s.t += dt / 0.8; const hx = s.x + s.dx * s.t, hy = s.y + s.dy * s.t, tx = hx - s.dx * 0.18, ty = hy - s.dy * 0.18;
+      const gr = g.createLinearGradient(tx, ty, hx, hy); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(1, `rgba(255,255,255,${(0.9 * Math.sin(Math.PI * Math.min(1, s.t))).toFixed(3)})`);
+      g.strokeStyle = gr; g.lineWidth = 1.2; g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
+      if (s.t >= 1) NS.shoot = null;
+    }
+    g.globalCompositeOperation = "source-over";
   }
   function updateSmoke(dt, now) {
     const ch = H.shell && (H.shell.chimneys || [])[0]; if (!ch || !LIVE.root || !T) return;
