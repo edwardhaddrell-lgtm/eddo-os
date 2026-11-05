@@ -98,6 +98,7 @@
       if (dev) for (const x of ents) if (x.device_id === dev && !d.powerIds.includes(x.entity_id) && isPower(stMap.get(x.entity_id))) d.powerIds.push(x.entity_id);
     }
     const taken = new Set(devices.flatMap((d) => d.powerIds));
+    KIT.ids = discoverKit(allStates, ents);
     rooms.forEach((r) => { r.powerIds = []; });
     for (const x of ents) {
       if (x.disabled_by || taken.has(x.entity_id) || !isPower(stMap.get(x.entity_id))) continue;
@@ -145,7 +146,7 @@
     }
     CAR.ids = carIds;
     const liveIds = discoverLive(allStates, ents, areaName, devArea);
-    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...((CAR.V && CAR.V.all) || []), ...liveIds])];
+    const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...((CAR.V && CAR.V.all) || []), ...liveIds, ...(KIT.ids || [])])];
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
@@ -1490,7 +1491,13 @@
       h += `<p>PLAYBACK</p><div class="eddo-house-pop-row"><button data-house-media="${i}:prev" aria-label="Previous">⏮</button><button data-house-media="${i}:play" aria-label="Play or pause">${ps === "playing" ? "⏸" : "▶"}</button><button data-house-media="${i}:next" aria-label="Next">⏭</button></div>`;
       h += `<p>TV</p><div class="eddo-house-pop-row"><button data-house-media="${i}:vdown">VOL −</button><button data-house-media="${i}:vup">VOL +</button><button data-house-media="${i}:power">${/^(off|standby|unavailable)$/.test((states.get(tv) || {}).s || "off") ? "TURN ON" : "TURN OFF"}</button></div>`;
     }
-    if (d.ids.some((x) => x.startsWith("climate."))) h += `<p>HEATING</p><div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button><button data-house-clim="${i}:power">${st.active ? "OFF" : "ON"}</button></div>`;
+    if (d.ac) {   // air con: the current setting, modes the unit offers, and the temperature
+      const cid = d.ids.find((x) => x.startsWith("climate.")), cs = cid && states.get(cid), modes = ((cs && cs.a.hvac_modes) || ["cool", "heat", "dry", "fan_only", "off"]);
+      const nice = (m) => ({ cool: "COOL", heat: "HEAT", dry: "DRY", fan_only: "FAN", heat_cool: "AUTO", auto: "AUTO", off: "OFF" }[m] || String(m).toUpperCase());
+      if (cs) h += `<p>AIR CON · ${nice(cs.s)}${cs.a.temperature != null ? ` · SET ${cs.a.temperature}°` : ""}${cs.a.current_temperature != null ? ` · ROOM ${cs.a.current_temperature}°` : ""}</p>` +
+        `<div class="eddo-house-pop-row eddo-ac-modes">${modes.map((m) => `<button data-house-hvac="${i}:${m}"${cs.s === m ? ' class="on"' : ""}>${nice(m)}</button>`).join("")}</div>` +
+        `<div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button></div>`;
+    } else if (d.ids.some((x) => x.startsWith("climate."))) h += `<p>HEATING</p><div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button><button data-house-clim="${i}:power">${st.active ? "OFF" : "ON"}</button></div>`;
     if (d.cam) h += `<button class="eddo-house-pop-main" data-house-cam="${esc(d.cam)}">OPEN CAMERA</button>`;
     h += `<p class="eddo-house-pop-ids">${d.ids.length ? esc(d.ids.join(" · ")) : "NOT LINKED TO HOME ASSISTANT"}</p>`;
     if (pop.el.innerHTML !== h) pop.el.innerHTML = h;
@@ -1555,11 +1562,13 @@
     updateBoiler(dt, now);
     updateCar(dt, now);
     updateLive(dt, now);
+    updateKit(dt, now);
     pollPlex(now);
     bootStep(now);
     renderer.render(scene, camera);
     placeLabels();
     placeLive();
+    placeKit();
     if (ringEl && ringDev) { const p = screenOf(ringDev); ringEl.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
     placePreview(); placePop();
   }
@@ -1854,6 +1863,7 @@
     LIVE.needBuild = false;
     while (root.children.length) root.remove(root.children[0]);
     LIVE.tags.forEach((el) => { el.dataset.hidden = "true"; });
+    KIT.built = false;
     // doors & windows
     for (const d of LIVE.doors) {
       const { p, a, n, w } = doorFrame(d), r = d.roomRef, h = d.window ? 1.1 : 2.0, y0 = r.y + (d.window ? 0.95 : 0.02);
@@ -2048,6 +2058,195 @@
     if (b >= 1.05) { LIVE.bootT = null; LIVE.bootShell = 1; rooms.forEach((r) => r.mesh && r.mesh.g.scale.set(1, 1, 1)); if (LIVE.scan) LIVE.scan.visible = false; }
   }
 
+  // ------------------------------------------------------------ kit: appliances, 3D printer, office AC, home server
+  const KIT = { appl: [], prn: null, ac: null, nas: null, built: false };
+  const numOf = (id) => { const x = id && states.get(id); return x && Number.isFinite(+x.s) ? +x.s : null; };
+  const strOf = (id) => { const x = id && states.get(id); return x && !/^(unknown|unavailable)$/.test(x.s) ? String(x.s) : null; };
+  function discoverKit(allStates, ents) {
+    const entOf = new Map(ents.map((x) => [x.entity_id, x]));
+    const ok = (id) => { const x = entOf.get(id); return !x || !x.disabled_by; };
+    const ids = [];
+    // appliances: Home Connect operation state / progress / remaining time when there is one, otherwise the smart plug's power
+    KIT.appl = devices.filter((d) => d.kind === "appliance" && /wash|dish|dry|tumble/i.test(d.name)).map((d) => {
+      const key = /dish/i.test(d.name) ? "dish" : /dry|tumble/i.test(d.name) ? "dry" : "wash";
+      const re = key === "dish" ? /dishwasher/ : key === "dry" ? /dryer|tumble/ : /washing_machine|(?<!dish)washer(?!_dry)/;
+      const pick = (r2) => { const x = allStates.find((st) => st.entity_id.startsWith("sensor.") && re.test(st.entity_id) && r2.test(st.entity_id) && ok(st.entity_id)); return x ? x.entity_id : null; };
+      const a = { d, key, state: pick(/operation_state/), progress: pick(/program_progress|progress/), remain: pick(/remaining|finish_time|time_left/), on: false, done: 0, k: 0 };
+      ids.push(a.state, a.progress, a.remain, ...(d.powerIds || []));
+      return a;
+    });
+    // 3D printer: the Bambu Lab integration
+    const bam = ents.filter((x) => x.platform === "bambu_lab" && !x.disabled_by && x.entity_id.startsWith("sensor."));
+    const bk = (re) => { const x = bam.find((e) => re.test(String(e.translation_key || "") + " " + e.entity_id)); return x ? x.entity_id : null; };
+    KIT.prn = bam.length ? { progress: bk(/print_progress/), remain: bk(/remaining_time/), stage: bk(/current_stage|\bstage\b/), status: bk(/print_status/), task: bk(/task_name|gcode_file|subtask/), layer: bk(/current_layer/), layers: bk(/total_layer/) } : null;
+    if (KIT.prn) ids.push(...Object.values(KIT.prn));
+    // home server (Unraid): CPU temperature and load
+    const ur = allStates.filter((st) => st.entity_id.startsWith("sensor.") && /eddo.?nas|unraid/.test(st.entity_id + " " + String(st.attributes.friendly_name || "").toLowerCase()) && ok(st.entity_id));
+    const uf = (re) => { const x = ur.find((st) => re.test(st.entity_id)); return x ? x.entity_id : null; };
+    KIT.nas = H.server ? { ...H.server, temp: uf(/cpu_temp/), load: uf(/cpu_(usage|utili[sz]ation|load)/), ram: uf(/(ram|memory)_(usage|utili[sz]ation|used)/), array: uf(/array_(usage|utili[sz]ation|used)/) } : null;
+    if (KIT.nas) ids.push(KIT.nas.temp, KIT.nas.load, KIT.nas.ram, KIT.nas.array);
+    // office AC: the climate device flagged ac: true in the model
+    const acDev = devices.find((d) => d.ac);
+    KIT.ac = acDev ? { d: acDev, id: acDev.ids.find((x) => x.startsWith("climate.")) || null } : null;
+    KIT.built = false;
+    return ids.filter(Boolean);
+  }
+  const roomPt = (r, u, v, y) => [r.x + u * r.w, r.y + y, r.z + v * r.d];
+  function buildKit() {
+    const root = LIVE.dyn; if (!root) return;
+    KIT.built = true;
+    const lm = (c, o) => new T.LineBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
+    const mm = (c) => new T.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending });
+    const edgeBox = (w, h, d, c, o) => new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(w, h, d)), lm(c, o));
+    // appliances: a ring floating over each one (spins while running, solid when done)
+    for (const a of KIT.appl) {
+      const r = a.d.roomRef, [x, y, z] = roomPt(r, a.d.u, a.d.v, 1.15), g = new T.Group(); g.position.set(x, y, z); root.add(g);
+      const ring = new T.Mesh(new T.RingGeometry(0.17, 0.2, 40, 1, 0, Math.PI * 1.4), mm(0x6fd6ff)); ring.rotation.x = -Math.PI / 2; g.add(ring);
+      const full = new T.Mesh(new T.RingGeometry(0.17, 0.2, 40), mm(0x5fe0a8)); full.rotation.x = -Math.PI / 2; g.add(full);
+      const prog = new T.Mesh(new T.RingGeometry(0.21, 0.225, 60, 1, 0, Math.PI * 2), mm(0xffffff)); prog.rotation.x = -Math.PI / 2; g.add(prog);
+      a.mesh = { g, ring, full, prog };
+    }
+    // 3D printer: the bed and a block that rises with the print
+    const pd = devices.find((d) => d.kind === "printer");
+    if (KIT.prn && pd) {
+      const r = pd.roomRef, [x, y, z] = roomPt(r, pd.u, pd.v, 0.78), g = new T.Group(); g.position.set(x, y, z); root.add(g);
+      const bed = edgeBox(0.26, 0.01, 0.26, 0xffc25a, 0); g.add(bed);
+      const fill = new T.Mesh(new T.BoxGeometry(0.16, 1, 0.16), mm(0xffc25a)); fill.position.y = 0.005; fill.scale.y = 0.001; g.add(fill);
+      const cage = edgeBox(0.3, 0.34, 0.3, 0xffc25a, 0); cage.position.y = 0.17; g.add(cage);
+      KIT.prn.mesh = { g, bed, fill, cage, k: 0 };
+      KIT.prn.dev = pd;
+    }
+    // office AC: a wall-mounted mini split, with airflow
+    if (KIT.ac) {
+      const d = KIT.ac.d, r = d.roomRef, y = r.y + (d.mountY || 2.0);
+      // on whichever wall it's nearest, facing into the room
+      const wallX = Math.min(d.u, 1 - d.u) * r.w < Math.min(d.v, 1 - d.v) * r.d, face = wallX ? (d.u < 0.5 ? 1 : -1) : (d.v < 0.5 ? 1 : -1);
+      const x = wallX ? (d.u < 0.5 ? r.x + 0.02 : r.x + r.w - 0.02) : r.x + d.u * r.w, z = wallX ? r.z + d.v * r.d : (d.v < 0.5 ? r.z + 0.02 : r.z + r.d - 0.02);
+      const g = new T.Group(); g.position.set(x, y, z); root.add(g);
+      g.rotation.y = wallX ? (face > 0 ? Math.PI / 2 : -Math.PI / 2) : (face > 0 ? 0 : Math.PI);
+      const W = 0.85, Hh = 0.28, D = 0.2, pts = [];
+      const P = (a, b) => pts.push(...a, ...b);
+      // body: flat back, rounded front (approximated with a chamfer), vent slot and flap underneath
+      const prof = [[0, -Hh / 2], [D * 0.75, -Hh / 2], [D, -Hh / 4], [D, Hh / 2 - 0.04], [D * 0.8, Hh / 2], [0, Hh / 2]];
+      for (const sx of [-W / 2, W / 2]) prof.forEach((p, i) => { const q = prof[(i + 1) % prof.length]; P([sx, p[1], p[0]], [sx, q[1], q[0]]); });
+      prof.forEach((p) => P([-W / 2, p[1], p[0]], [W / 2, p[1], p[0]]));
+      P([-W / 2 + 0.05, -Hh / 2 + 0.02, D * 0.6], [W / 2 - 0.05, -Hh / 2 + 0.02, D * 0.6]);   // vent
+      P([W / 2 - 0.08, Hh / 2 - 0.06, D * 0.98], [W / 2 - 0.05, Hh / 2 - 0.06, D * 0.98]);     // status light
+      const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+      const body = new T.LineSegments(geo, lm(C.edge, 0.7)); g.add(body);
+      const flap = new T.Group(); flap.position.set(0, -Hh / 2, D * 0.75); g.add(flap);
+      const fg = new T.BufferGeometry(); fg.setAttribute("position", new T.Float32BufferAttribute([-W / 2 + 0.04, 0, 0, W / 2 - 0.04, 0, 0, -W / 2 + 0.04, 0, 0, -W / 2 + 0.04, 0, 0.09, W / 2 - 0.04, 0, 0, W / 2 - 0.04, 0, 0.09, -W / 2 + 0.04, 0, 0.09, W / 2 - 0.04, 0, 0.09], 3));
+      const flapL = new T.LineSegments(fg, lm(C.edge, 0.7)); flap.add(flapL);
+      // airflow: streaks that leave the vent and fall into the room
+      const N = 60, ag = new T.BufferGeometry(); ag.setAttribute("position", new T.Float32BufferAttribute(new Float32Array(N * 6), 3));
+      const air = new T.LineSegments(ag, new T.LineBasicMaterial({ color: 0x6fd6ff, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending })); air.frustumCulled = false; g.add(air);
+      KIT.ac.mesh = { g, body, flap, flapL, air, seeds: Array.from({ length: N }, () => [Math.random() * W - W / 2, Math.random(), Math.random()]), W, Hh, D, k: 0 };
+    }
+    // home server: a small rack where it lives
+    if (KIT.nas && KIT.nas.room) {
+      const r = rooms.find((x) => x.id === KIT.nas.room);
+      if (r) {
+        const s = KIT.nas, [x, y, z] = roomPt(r, s.u, s.v, s.y || 0), g = new T.Group(); g.position.set(x, y, z); root.add(g);
+        const w = s.w || 0.24, h = s.h || 0.42, d = s.d || 0.42;
+        const box = edgeBox(w, h, d, C.edge, 0.6); box.position.y = h / 2; g.add(box);
+        const pts = []; for (let i = 1; i <= 4; i++) { const yy = h * 0.15 + i * h * 0.16; pts.push(-w / 2 + 0.03, yy, d / 2 + 0.001, w / 2 - 0.06, yy, d / 2 + 0.001); }
+        const bg = new T.BufferGeometry(); bg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); const bays = new T.LineSegments(bg, lm(C.edge, 0.45)); g.add(bays);
+        const led = new T.Mesh(new T.SphereGeometry(0.02, 8, 6), new T.MeshBasicMaterial({ color: 0x5fe0a8, transparent: true, opacity: 0.9, depthWrite: false })); led.position.set(w / 2 - 0.035, h - 0.05, d / 2 + 0.01); g.add(led);
+        s.mesh = { g, box, bays, led, room: r };
+      }
+    }
+  }
+  const fmtMins = (m) => m == null ? null : m < 60 ? `${Math.round(m)} MIN` : `${Math.floor(m / 60)} H ${String(Math.round(m % 60)).padStart(2, "0")} MIN`;
+  function minsLeft(id) {
+    const x = id && states.get(id); if (!x || /^(unknown|unavailable)$/.test(x.s)) return null;
+    const t = Date.parse(x.s); if (!Number.isFinite(+x.s) && Number.isFinite(t)) return Math.max(0, (t - Date.now()) / 60000);   // a finish time
+    const v = +x.s, u = String(x.a.unit_of_measurement || "min").toLowerCase();
+    return !Number.isFinite(v) ? null : /^h/.test(u) ? v * 60 : /^s/.test(u) ? v / 60 : v;
+  }
+  function updateKit(dt, now) {
+    if (!LIVE.dyn) return;
+    if (!KIT.built) buildKit();
+    const k = Math.min(1, dt * 3), wall = Date.now(), quiet = heatMode || energyMode;
+    for (const a of KIT.appl) {
+      if (!a.mesh) continue;
+      const st = strOf(a.state), w = devWatts(a.d), pct = numOf(a.progress);
+      const running = st ? /run|active|delayed|pause/i.test(st) : w != null && w > 6;
+      if (a.on && !running) a.done = wall;                     // just finished
+      if (running) a.done = 0;
+      if (st && /finish|end/i.test(st)) a.done = a.done || wall;
+      a.on = running; a.pct = pct; a.left = minsLeft(a.remain);
+      const done = !running && a.done && wall - a.done < 90 * 60e3, hide = hiddenFloor(a.d.roomRef.floor) || quiet;
+      a.k += (((running || done) && !hide ? 1 : 0) - a.k) * k;
+      a.mesh.ring.material.opacity = running ? 0.75 * a.k : 0; a.mesh.ring.rotation.z = -now / 500;
+      a.mesh.full.material.opacity = done ? (0.55 + 0.25 * Math.sin(now / 400)) * a.k : 0;
+      a.mesh.prog.material.opacity = running && pct != null ? 0.6 * a.k : 0;
+      if (running && pct != null) { const want = Math.max(0.02, Math.min(1, pct / 100)); if (a.mesh.pv !== want) { a.mesh.pv = want; a.mesh.prog.geometry.dispose(); a.mesh.prog.geometry = new T.RingGeometry(0.21, 0.225, 60, 1, Math.PI / 2, -Math.PI * 2 * want); } }
+      a.done = done ? a.done : (running ? 0 : a.done); a.showDone = done;
+    }
+    const P = KIT.prn;
+    if (P && P.mesh) {
+      const status = (strOf(P.status) || strOf(P.stage) || "").toLowerCase(), pct = numOf(P.progress);
+      const printing = /running|printing|prepare|heating|slicing|pause/.test(status) || (pct != null && pct > 0 && pct < 100 && !/idle|finish|fail|offline/.test(status));
+      const hide = hiddenFloor(P.dev.roomRef.floor) || quiet;
+      P.mesh.k += ((printing && !hide ? 1 : 0) - P.mesh.k) * k;
+      P.printing = printing; P.pct = pct; P.left = minsLeft(P.remain); P.status = status;
+      P.mesh.bed.material.opacity = 0.8 * P.mesh.k; P.mesh.cage.material.opacity = 0.35 * P.mesh.k;
+      const hgt = Math.max(0.002, 0.22 * Math.min(1, (pct || 0) / 100)); P.mesh.fill.scale.y = hgt; P.mesh.fill.position.y = hgt / 2 + 0.005;
+      P.mesh.fill.material.opacity = (0.28 + 0.12 * Math.sin(now / 350)) * P.mesh.k;
+    }
+    const A = KIT.ac;
+    if (A && A.mesh) {
+      const st = A.id && states.get(A.id), mode = st ? String(st.a.hvac_action || st.s || "off") : "off";
+      const on = st && st.s !== "off" && !/^(unknown|unavailable)$/.test(st.s), m = A.mesh;
+      const col = /cool/.test(mode) ? 0x6fd6ff : /heat/.test(mode) ? 0xffa64a : /dry/.test(mode) ? 0x7fe08a : 0xdfe8ea;
+      const hide = hiddenFloor(A.d.roomRef.floor) || energyMode;
+      m.k += ((on && !hide ? 1 : 0) - m.k) * k;
+      m.flap.rotation.x = 0.9 * m.k; m.body.material.color.setHex(on ? col : C.edge); m.flapL.material.color.setHex(on ? col : C.edge);
+      m.body.material.opacity = hide ? 0.06 : 0.7; m.flapL.material.opacity = hide ? 0.06 : 0.7;
+      m.air.material.color.setHex(col); m.air.material.opacity = 0.45 * m.k;
+      if (m.k > 0.01) {
+        const pos = m.air.geometry.attributes.position.array, sp = /heat/.test(mode) ? 0.55 : 0.8;
+        m.seeds.forEach((s, i) => {
+          s[1] = (s[1] + dt * sp * (0.6 + 0.4 * s[2])) % 1;
+          const t = s[1], x0 = s[0], zf = m.D * 0.8 + t * 1.6, yf = -m.Hh / 2 - t * t * 1.1, j = i * 6, len = 0.12;
+          pos[j] = x0; pos[j + 1] = yf; pos[j + 2] = zf; pos[j + 3] = x0; pos[j + 4] = yf + len * 0.6 * t + 0.02; pos[j + 5] = zf - len;
+        });
+        m.air.geometry.attributes.position.needsUpdate = true;
+      }
+      A.mode = on ? mode : "off"; A.st = st;
+    }
+    const S = KIT.nas;
+    if (S && S.mesh) {
+      const t = numOf(S.temp), up = t != null, hide = hiddenFloor(S.mesh.room.floor) || energyMode;
+      S.mesh.led.material.color.setHex(!up ? 0xff5a4a : t >= 85 ? 0xff5a4a : t >= 70 ? 0xffa64a : 0x5fe0a8);
+      S.mesh.led.material.opacity = hide ? 0.1 : !up ? 0.5 + 0.5 * Math.sin(now / 200) : 0.6 + 0.3 * Math.sin(now / 900);
+      S.mesh.box.material.opacity = hide ? 0.05 : 0.6; S.mesh.bays.material.opacity = hide ? 0.04 : 0.45;
+      S.up = up; S.t = t;
+    }
+  }
+  function placeKit() {
+    if (!LIVE.root || !labelsEl) return;
+    const quiet = heatMode || energyMode;
+    KIT.appl.forEach((a, i) => {
+      const show = a.mesh && a.k > 0.3 && !quiet;
+      const what = a.on ? [a.pct != null ? Math.round(a.pct) + "%" : "RUNNING", a.left != null ? fmtMins(a.left) + " LEFT" : ""].filter(Boolean).join(" · ") : "DONE";
+      const p = a.mesh ? a.mesh.g.position : { x: 0, y: 0, z: 0 };
+      liveTag("appl" + i, p.x, p.y + 0.35, p.z, `<b>${esc(a.d.name.toUpperCase())}</b><span data-ok="${!a.on}">${what}</span>`, show, "eddo-kit-tag");
+    });
+    const P = KIT.prn;
+    if (P && P.mesh) {
+      const p = P.mesh.g.position, task = strOf(P.task);
+      const lay = numOf(P.layer) != null && numOf(P.layers) ? `LAYER ${numOf(P.layer)}/${numOf(P.layers)}` : "";
+      liveTag("prn", p.x, p.y + 0.7, p.z, `<b>EDDO-PRINT · ${P.pct != null ? Math.round(P.pct) + "%" : "PRINTING"}</b><span>${[P.left != null ? fmtMins(P.left) + " LEFT" : "", lay].filter(Boolean).join(" · ")}</span>${task ? `<span class="t">${esc(task.replace(/\.(gcode|3mf)$/i, "").slice(0, 32))}</span>` : ""}`, P.printing && P.mesh.k > 0.3 && !quiet, "eddo-kit-tag");
+    }
+    const S = KIT.nas;
+    if (S && S.mesh) {
+      const p = S.mesh.g.position, r = S.mesh.room, near = focused === r || floorSel === r.floor;
+      const extra = [numOf(S.load) != null ? `CPU ${Math.round(numOf(S.load))}%` : "", numOf(S.ram) != null ? `RAM ${Math.round(numOf(S.ram))}%` : ""].filter(Boolean).join(" · ");
+      liveTag("nas", p.x, p.y + (S.h || 0.42) + 0.35, p.z, `<b>${esc((S.name || "EDDO-NAS").toUpperCase())}</b><span data-warn="${!S.up || S.t >= 70}">${S.up ? `${Math.round(S.t)}°C${extra ? " · " + extra : ""}` : "OFFLINE"}</span>`, !hiddenFloor(r.floor) && !energyMode && (near || !S.up || S.t >= 85), "eddo-kit-tag");
+    }
+  }
+
   // ------------------------------------------------------------ tab
   let listEl = null, sliding = null;
   const FLOORS = [["", "ALL"], ["ground", "GROUND"], ["first", "FIRST"], ["second", "SECOND"], ["garden", "OFFICE"]];
@@ -2199,6 +2398,7 @@
     if ((b = q("[data-house-cam]"))) { window.eddoCams && window.eddoCams.open(b.dataset.houseCam); return; }
     if ((b = q("[data-car-act]"))) { carAction(b.dataset.carAct); return; }
     if ((b = q("[data-house-media]"))) { const [i, act] = b.dataset.houseMedia.split(":"); mediaAction(devices[+i], act); return; }
+    if ((b = q("[data-house-hvac]"))) { const [i, m] = b.dataset.houseHvac.split(":"), d = devices[+i], id = d && d.ids.find((x) => x.startsWith("climate.")); if (id) call("climate", "set_hvac_mode", { target: { entity_id: id }, service_data: { hvac_mode: m } }); return; }
     if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
     if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
     if ((b = q("[data-house-room]"))) { stopTour(); const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }

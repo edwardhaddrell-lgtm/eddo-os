@@ -56,6 +56,8 @@ window.EDDO_HOUSE = {
     { name: "Dining window", room: "dining", wall: "back", at: 0.3, w: 1.0, window: true, entity: "binary_sensor.back_window" },   // below the garden camera
     { name: "Fox's window", room: "fox", wall: "back", at: 0.5, w: 1.0, window: true, entity: "binary_sensor.lumi_lumi_sensor_magnet_aq2_opening_2" },
   ],
+  // home server (Unraid): a small box under Ed's desk in the office, with its CPU temperature
+  server: { name: "EDDO-NAS", room: "office", u: 0.9, v: 0.14, w: 0.24, h: 0.42, d: 0.42 },
   boiler: { room: "bath", u: 0.92, v: 0.2, y: 1.3 },   // in the tall cupboard by the bathroom door
   floorHeight: 2.6,
   floorGap: 1.3,                 // extra space between floors so each level reads clearly
@@ -143,7 +145,7 @@ window.EDDO_HOUSE = {
     { room: "office", name: "Ed PC · Unraid", kind: "pc", u: 0.87, v: 0.15 },
     { room: "office", name: "Office lights", kind: "light", u: 0.49, v: 0.47, entity: "light.garden_office_lights" },
     { room: "office", name: "Shelf lights", kind: "lamp", u: 0.27, v: 0.88, match: ["shelf"], entity: "light.hue_play_gradient_lightstrip_1" },
-    { room: "office", name: "AC unit", kind: "climate", u: 0.08, v: 0.86, entity: "climate.garden_office" },
+    { room: "office", name: "AC unit", kind: "climate", u: 0.02, v: 0.75, y: 2.25, entities: ["climate.garden_office", "climate.garden_office_ac"], ac: true, mountY: 2.0 },   // wall-mounted mini split
     { room: "office", name: "Jules Skadi", kind: "lamp", u: 0.08, v: 0.5, match: ["jules"] },
     { room: "office", name: "Office lamp", kind: "lamp", u: 0.08, v: 0.27, entities: ["switch.office_lamps", "switch.office_lamp_2"] },
   ],

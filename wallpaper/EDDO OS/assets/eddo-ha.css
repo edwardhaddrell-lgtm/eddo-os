@@ -665,3 +665,9 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 
 /* Mac edition: Home systems panel shows on tab 01 only */
 #stage[data-eddo-ha-away] .eddo-ha{opacity:0!important;visibility:hidden;pointer-events:none!important;transition:opacity .35s,visibility 0s .35s}
+
+/* house: appliance / printer / server tags */
+.eddo-kit-tag span[data-ok=true]{color:#5fe0a8}
+.eddo-kit-tag span.t{font-size:8px;color:var(--theme-muted,#8f8c84);letter-spacing:.8px;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.eddo-kit-tag span[data-warn=true]{color:#ffb36b}
+.eddo-ac-modes{flex-wrap:wrap}.eddo-ac-modes button.on{color:#6fd6ff;border-color:rgba(111,214,255,.6)}
