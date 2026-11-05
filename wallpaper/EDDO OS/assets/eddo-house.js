@@ -293,6 +293,19 @@
     poly([[X(0.04), 0.62, -0.42], [X(0.04), 0.62, 0.42], [X(0.06), 0.82, 0.42], [X(0.06), 0.82, -0.42]], det, true);   // grille
     poly([[X(4.68), 0.95, -0.55], [X(4.68), 0.95, 0.55], [X(4.66), 0.62, 0.55], [X(4.66), 0.62, -0.55]], det, true);  // tailgate panel
     const geo = (pts) => { const gg = new T.BufferGeometry(); gg.setAttribute("position", new T.Float32BufferAttribute(pts, 3)); return gg; };
+    // the real car's outline (edges of a 3D model, interior and badges removed) replaces the hand-drawn one when present
+    const M = window.EDDO_CAR_MODEL, dec = (k) => {
+      if (!M || !M.groups[k]) return [];
+      const bin = atob(M.groups[k]), q = new Int16Array(bin.length / 2);
+      for (let i = 0; i < q.length; i++) q[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16 >> 16;
+      const out = new Array(q.length), f = M.span / 65535;
+      for (let i = 0; i < q.length; i += 3) {   // model: x across, y up, front at +z  →  car group: front at -x
+        const mx = (q[i] + 32768) * f + M.min[0], my = (q[i + 1] + 32768) * f + M.min[1], mz = (q[i + 2] + 32768) * f + M.min[2];
+        out[i] = -mz; out[i + 1] = my; out[i + 2] = mx;
+      }
+      return out;
+    };
+    if (M) { g.scale.setScalar(1.15); seg.length = 0; det.length = 0; seg.push(...dec("body"), ...dec("glass")); det.push(...dec("wheels")); }   // a touch larger, to sit in proportion with the house
     const lines = new T.LineSegments(geo(seg), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.55, depthWrite: false }));
     const detail = new T.LineSegments(geo(det), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.3, depthWrite: false }));
     g.add(lines, detail);
@@ -303,7 +316,7 @@
       fl.push(X(0.05), 0.82, side * 0.58, X(0.12), 0.84, side * 0.86);
       rl.push(X(4.68), 1.3, side * 0.82, X(4.7), 0.9, side * 0.86, X(4.7), 0.9, side * 0.86, X(4.69), 0.85, side * 0.55);
     }
-    const front = lamp(fl, 0xe8f4ff), back = lamp(rl, 0xff4a3a);
+    const front = lamp(M ? dec("front") : fl, 0xe8f4ff), back = lamp(M ? dec("rear") : rl, 0xff4a3a);
     // charging: a glowing line along the side that pulses while it's plugged in
     const chg = lamp([X(0.6), 0.6, W + 0.01, X(4.3), 0.66, W + 0.01, X(0.6), 0.6, -W - 0.01, X(4.3), 0.66, -W - 0.01], 0x5fe0a8);
     // shadow on the road and a click target
@@ -316,7 +329,7 @@
     road.push(-1.5, 0.01, kz, 6.5, 0.01, kz);
     for (let x = -1.5; x < 6.5; x += 1.2) road.push(x, 0.01, at.z - 2.4, x + 0.6, 0.01, at.z - 2.4);
     root.add(new T.LineSegments(geo(road), new T.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.12, depthWrite: false })));
-    CAR.mesh = { g, lines, detail, front, back, chg, hit, shadow, glow: 0 };
+    CAR.mesh = { g, lines, detail, front, back, chg, hit, shadow, glow: 0, dense: !!M };
   }
   // car readings, in friendly units
   function carData() {
@@ -334,12 +347,12 @@
   function updateCar(dt, now) {
     const m = CAR.mesh; if (!m) return;
     const c = carData(), strip = heatMode || energyMode, ghost = !c.home;
-    const base = strip ? 0.08 : ghost ? 0.18 : CAR.open || CAR.hover ? 0.95 : 0.55;
+    const base = (strip ? 0.08 : ghost ? 0.18 : CAR.open || CAR.hover ? 0.95 : 0.55) * (m.dense ? 0.6 : 1);   // the detailed outline has many more lines
     m.lines.material.opacity += (base - m.lines.material.opacity) * Math.min(1, dt * 4);
     m.detail.material.opacity = m.lines.material.opacity * 0.55;
     m.shadow.material.opacity = ghost || strip ? 0 : 0.22 * (0.5 + 0.5 * dayK);
     const lit = !ghost && !strip ? 1 : 0; m.glow += (lit - m.glow) * Math.min(1, dt * 2);
-    m.front.material.opacity = 0.55 * m.glow * (0.4 + 0.6 * (1 - dayK)); m.back.material.opacity = 0.6 * m.glow * (0.4 + 0.6 * (1 - dayK));
+    m.front.material.opacity = (m.dense ? 0.35 : 0.55) * m.glow * (0.4 + 0.6 * (1 - dayK)); m.back.material.opacity = (m.dense ? 0.45 : 0.6) * m.glow * (0.4 + 0.6 * (1 - dayK));
     m.chg.material.opacity = c.plugged && !strip ? (c.charging ? 0.35 + 0.35 * Math.sin(now / 600) : 0.25) : 0;
     const low = (c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged);
     m.lines.material.color.set(low ? 0xffa64a : C.edge);
