@@ -113,7 +113,7 @@ window.EDDO_HOUSE = {
     { room: "dining", name: "Dining room light", kind: "light", u: 0.52, v: 0.47, match: ["dining room light", "dining light"], not: ["lamp", "wall"] },
     // living room
     { room: "living", name: "Doughnut lamp", kind: "lamp", u: 0.1, v: 0.85, entity: "light.dougnut_lamp", match: ["doughnut", "dougnut"] },
-    { room: "living", name: "Frame TV", kind: "tv", u: 0.05, v: 0.52, entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"] },   // the TV + its Plex player
+    { room: "living", name: "Frame TV", kind: "tv", u: 0.05, v: 0.52, entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"], plexAny: true },   // the TV + its Plex player; other Plex players that start playing show here too
     { room: "living", name: "Living room light", kind: "light", u: 0.52, v: 0.47, entity: "light.living_room_light" },
     { room: "living", name: "Candle", kind: "lamp", u: 0.09, v: 0.17, entity: "light.candle" },
     { room: "living", name: "Dyson fan", kind: "fan", u: 0.3, v: 0.08, match: ["dyson"], domains: ["fan", "climate"] },

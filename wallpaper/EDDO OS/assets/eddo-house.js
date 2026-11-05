@@ -47,7 +47,7 @@
     // devices: explicit entity ids first, else the first unused entity whose name matches
     const used = new Set();
     for (const d of devices) {
-      d.ids = [d.entity, ...(d.entities || [])].filter((id) => id && stMap.has(id));
+      d.ids = [d.entity, ...(d.entities || [])].filter((id) => id && (stMap.has(id) || id.startsWith("media_player.")));   // media players (e.g. Plex) may only appear while playing
       if (!d.ids.length && d.match) {
         const doms = d.domains || KIND_DOMAINS[d.kind] || [];
         const hits = allStates.filter((st) => {
@@ -119,16 +119,36 @@
     states.clear();
     ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
-    if (ids.length) HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, (ev) => {
-      for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000 });
-      for (const [id, v] of Object.entries(ev.c || {})) {
-        const cur = states.get(id) || { s: "", a: {} };
-        if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
-        states.set(id, cur);
-      }
-      rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
-    }).catch(() => {});
+    if (ids.length) HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, onEntities).catch(() => {});
   });
+  function onEntities(ev) {
+    for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000 });
+    for (const [id, v] of Object.entries(ev.c || {})) {
+      const cur = states.get(id) || { s: "", a: {} };
+      if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
+      states.set(id, cur);
+    }
+    rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
+  }
+  // Plex makes a media player per client only while it's in use, so look for new ones every 20 s while the tab is open
+  // and hang any that are playing on the TV marked plexAny (the Frame).
+  let plexPoll = -1e9;
+  function pollPlex(now) {
+    if (now - plexPoll < 20000 || !HA() || !HA().send) return; plexPoll = now;
+    const tv = devices.find((d) => d.plexAny); if (!tv) return;
+    HA().send({ type: "get_states" }).then((all) => {
+      for (const st of all || []) if (states.has(st.entity_id) && st.entity_id.startsWith("media_player.")) states.set(st.entity_id, { s: st.state, a: st.attributes, t: Date.parse(st.last_updated) || Date.now() });
+      const fresh = (all || []).filter((st) => /^media_player\.plex_/.test(st.entity_id) && /^(playing|paused)$/.test(st.state) && !devices.some((d) => d.ids.includes(st.entity_id)));
+      if (!fresh.length) { dirty = true; return; }
+      const ids = fresh.map((st) => st.entity_id);
+      fresh.forEach((st) => states.set(st.entity_id, { s: st.state, a: st.attributes, t: Date.parse(st.last_updated) || Date.now() }));
+      tv.ids = [...tv.ids, ...ids];
+      const pl = LIVE.players.find((p) => p.dev === tv);
+      if (pl) pl.ids.push(...ids); else { LIVE.players.push({ dev: tv, roomRef: tv.roomRef, ids, k: 0 }); LIVE.needBuild = true; }
+      HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, onEntities).catch(() => {});
+      dirty = true;
+    }).catch(() => {});
+  }
 
   // a room without its own sensor can show another room's temperature (tempFrom: "<room id>")
   function borrowTemp(r) {
@@ -181,7 +201,8 @@
         text = [s.replace(/_/g, " ").toUpperCase(), cur != null ? `${cur}°` : "", tgt != null && active ? `→ ${tgt}°` : ""].filter(Boolean).join(" ");
         color = s === "cool" ? [0.44, 0.66, 1] : [1, 0.64, 0.29];
       } else if (dom === "media_player") {
-        active = !/^(off|standby|unavailable|unknown)$/.test(s); text = s.toUpperCase();
+        active = active || !/^(off|standby|unavailable|unknown)$/.test(s);
+        if (!/PLAYING/.test(text) && (s === "playing" || !text || /^(OFF|STANDBY|UNAVAILABLE|UNKNOWN)$/.test(text))) text = s.toUpperCase();
       } else if (dom === "camera") {
         active = s !== "unavailable"; text = "CAMERA"; color = [0.82, 0.24, 0.17];
       } else {
@@ -1451,6 +1472,7 @@
     updateBoiler(dt, now);
     updateCar(dt, now);
     updateLive(dt, now);
+    pollPlex(now);
     bootStep(now);
     renderer.render(scene, camera);
     placeLabels();
