@@ -1378,6 +1378,14 @@
     if (lid) h += `<p>BRIGHTNESS</p><div class="eddo-house-item"><div class="eddo-house-slider" data-bri="${esc(lid)}" style="--pct:${briPct(lid)}%"><i></i></div></div>`;
     if (ct) h += `<p>WARMTH</p><div class="eddo-house-pop-row">${[["WARM", 2700], ["NEUTRAL", 4000], ["DAYLIGHT", 6000]].map(([n, k]) => `<button data-house-ct="${esc(lid)}:${k}" style="--c:${k < 3000 ? "#ffb36b" : k < 5000 ? "#ffe2bf" : "#dcecff"}">${n}</button>`).join("")}</div>`;
     if (col) h += `<p>COLOUR</p><div class="eddo-house-pop-sw">${["255,147,41", "255,60,40", "255,40,140", "150,60,255", "40,110,255", "40,220,200", "90,255,90"].map((c) => `<button data-house-rgb="${esc(lid)}:${c}" style="--c:rgb(${c})" aria-label="Colour"></button>`).join("")}</div>`;
+    const mids = d.ids.filter((x) => x.startsWith("media_player."));
+    if (mids.length) {
+      const { pid, tv } = mediaIds(d), a = (states.get(pid) || {}).a || {}, ps = (states.get(pid) || {}).s;
+      const title = a.media_series_title ? `${a.media_series_title} · ${a.media_title || ""}` : a.media_title ? `${a.media_title}${a.media_artist ? " · " + a.media_artist : ""}` : a.app_name || "";
+      if (title) h += `<p>NOW PLAYING</p><div class="eddo-house-pop-np">${esc(title)}</div>`;
+      h += `<p>PLAYBACK</p><div class="eddo-house-pop-row"><button data-house-media="${i}:prev" aria-label="Previous">⏮</button><button data-house-media="${i}:play" aria-label="Play or pause">${ps === "playing" ? "⏸" : "▶"}</button><button data-house-media="${i}:next" aria-label="Next">⏭</button></div>`;
+      h += `<p>TV</p><div class="eddo-house-pop-row"><button data-house-media="${i}:vdown">VOL −</button><button data-house-media="${i}:vup">VOL +</button><button data-house-media="${i}:power">${/^(off|standby|unavailable)$/.test((states.get(tv) || {}).s || "off") ? "TURN ON" : "TURN OFF"}</button></div>`;
+    }
     if (d.ids.some((x) => x.startsWith("climate."))) h += `<p>HEATING</p><div class="eddo-house-pop-row"><button data-house-clim="${i}:-0.5">− 0.5°</button><button data-house-clim="${i}:0.5">+ 0.5°</button><button data-house-clim="${i}:power">${st.active ? "OFF" : "ON"}</button></div>`;
     if (d.cam) h += `<button class="eddo-house-pop-main" data-house-cam="${esc(d.cam)}">OPEN CAMERA</button>`;
     h += `<p class="eddo-house-pop-ids">${d.ids.length ? esc(d.ids.join(" · ")) : "NOT LINKED TO HOME ASSISTANT"}</p>`;
@@ -1518,6 +1526,21 @@
       const [domain] = id.split(".");
       HA().send({ type: "call_service", domain, service: "toggle", target: { entity_id: id } }).catch(() => {});
     }
+  }
+  // which media player to drive: the one playing (often Plex) for playback, the TV itself for power and volume
+  function mediaIds(d) {
+    const mids = d.ids.filter((x) => x.startsWith("media_player.")), st = (x) => (states.get(x) || {}).s;
+    const pid = mids.find((x) => st(x) === "playing") || mids.find((x) => st(x) === "paused") || mids[0];
+    const tv = mids.find((x) => !/plex|cast|spotify|chromecast/i.test(x)) || mids[0];
+    return { pid, tv, mids };
+  }
+  function mediaAction(d, act) {
+    if (!d) return;
+    const { pid, tv } = mediaIds(d), svc = { prev: "media_previous_track", play: "media_play_pause", next: "media_next_track", vdown: "volume_down", vup: "volume_up" }[act];
+    const target = act === "vdown" || act === "vup" ? tv : pid;
+    if (act === "power") { const off = /^(off|standby|unavailable)$/.test((states.get(tv) || {}).s || "off"); call("media_player", off ? "turn_on" : "turn_off", { target: { entity_id: tv } }); }
+    else if (svc && target) call("media_player", svc, { target: { entity_id: target } });
+    setTimeout(renderPop, 600);
   }
   const call = (domain, service, data) => HA().send({ type: "call_service", domain, service, service_data: data.service_data, target: data.target }).catch(() => {});
   const lightOf = (d) => d.ids.find((id) => id.startsWith("light.") && states.get(id)?.a?.supported_color_modes?.some?.((m) => m !== "onoff"));
@@ -1677,6 +1700,7 @@
       groups.get(key).ids.push(st.entity_id);
     }
     LIVE.players = [...groups.values()];
+    for (const g of LIVE.players) if (g.dev) g.dev.ids = [...new Set([...g.dev.ids, ...g.ids])];
     // bin day (e.g. Waste Collection Schedule) and parcels due (e.g. Mail and Packages, Parcel)
     LIVE.bins = allStates.filter((st) => /^(sensor|calendar)\./.test(st.entity_id) && /\b(bins?|waste|recycl\w*|refuse|rubbish|food caddy)\b/.test(text(st)) && live(st)).map((st) => st.entity_id);
     LIVE.parcels = allStates.filter((st) => st.entity_id.startsWith("sensor.") && /parcel|package|deliver/.test(text(st)) && !/delivered|update|last|image|exception|camera/.test(text(st)) && live(st) && Number.isFinite(+st.state)).map((st) => st.entity_id);
@@ -2022,6 +2046,7 @@
     if ((b = q("[data-house-off]"))) { const id = b.dataset.houseOff; roomOff(id === "*" ? rooms : rooms.filter((r) => r.id === id)); return; }
     if ((b = q("[data-house-scene]"))) return call("scene", "turn_on", { target: { entity_id: b.dataset.houseScene } });
     if ((b = q("[data-house-cam]"))) { window.eddoCams && window.eddoCams.open(b.dataset.houseCam); return; }
+    if ((b = q("[data-house-media]"))) { const [i, act] = b.dataset.houseMedia.split(":"); mediaAction(devices[+i], act); return; }
     if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
     if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
     if ((b = q("[data-house-room]"))) { stopTour(); const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }

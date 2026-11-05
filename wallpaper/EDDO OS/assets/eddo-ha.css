@@ -602,3 +602,4 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-live-tag .eddo-live-note{font-style:normal;font-size:13px;color:#9fdcff}
 .eddo-live-poster img{width:46px;height:68px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(159,220,255,.35),0 4px 14px rgba(0,0,0,.6);margin-bottom:3px}
 .eddo-live-poster b{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.eddo-house-pop-np{font-size:10px;letter-spacing:.6px;color:var(--theme-ink,#ece9e2);line-height:1.35;margin-bottom:2px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
