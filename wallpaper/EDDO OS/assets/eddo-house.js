@@ -1296,7 +1296,7 @@
     if (scene.fog) scene.fog.color.setRGB(...mix(top, hor, 0.4).map((v) => v / 255));
     skyEl.style.setProperty("--sky-top", `rgba(${top},.84)`); skyEl.style.setProperty("--sky-hor", `rgba(${hor},.72)`);
     skyEl.style.setProperty("--sky-x", `${x.toFixed(1)}%`); skyEl.style.setProperty("--sky-glow", ((0.08 + tw * 0.32 + k * 0.06) * skyFace).toFixed(3));
-    skyEl.style.setProperty("--sky-stars", (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
+    skyEl.style.setProperty("--sky-stars", SKY.dome ? "0" : (Math.max(0, 1 - k * 1.6) * 0.8).toFixed(2));
   }
   let carCard = null;
   function placeCarCard() {
@@ -1563,6 +1563,8 @@
     updateCar(dt, now);
     updateLive(dt, now);
     updateKit(dt, now);
+    updateStars(dt, now);
+    updateSmoke(dt, now);
     pollPlex(now);
     bootStep(now);
     renderer.render(scene, camera);
@@ -2273,6 +2275,92 @@
       const p = S.mesh.g.position, r = S.mesh.room, near = focused === r || floorSel === r.floor;
       const extra = [numOf(S.load) != null ? `CPU ${Math.round(numOf(S.load))}%` : "", numOf(S.ram) != null ? `RAM ${Math.round(numOf(S.ram))}%` : ""].filter(Boolean).join(" · ");
       liveTag("nas", p.x, p.y + (S.h || 0.42) + 0.35, p.z, `<b>${esc((S.name || "EDDO-NAS").toUpperCase())}</b><span data-warn="${!S.up || S.t >= 70}">${S.up ? `${Math.round(S.t)}°C${extra ? " · " + extra : ""}` : "OFFLINE"}</span>`, !hiddenFloor(r.floor) && !energyMode && (near || !S.up || S.t >= 85), "eddo-kit-tag");
+    }
+  }
+
+  // ------------------------------------------------------------ night sky and chimney smoke
+  // a star dome that turns with the view (dims with cloud cover, fades out by day), a few twinkling stars and the odd
+  // shooting star; and a whisper of smoke from the chimney while the heating is on
+  const SKY = { dome: null, twinkles: [], shoot: null, nextShoot: 0, smoke: [], smokeK: 0, emitT: 0 };
+  function glowTex(size, soft) {
+    const c = document.createElement("canvas"); c.width = c.height = size; const g = c.getContext("2d");
+    const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(soft, "rgba(255,255,255,.35)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, size, size); return new T.CanvasTexture(c);
+  }
+  function buildSky() {
+    if (SKY.dome || !T || !scene) return;
+    const W = 2048, Hh = 1024, c = document.createElement("canvas"); c.width = W; c.height = Hh; const g = c.getContext("2d");
+    // a faint milky-way band, then the stars (denser near the band)
+    const band = (x) => Hh * 0.42 + Math.sin(x / W * Math.PI * 2 + 0.6) * Hh * 0.2;
+    for (let i = 0; i < 2600; i++) { const x = Math.random() * W, y = band(x) + (Math.random() - 0.5) * Hh * 0.16, r = 6 + Math.random() * 22;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(170,190,230,.022)"); gr.addColorStop(1, "rgba(170,190,230,0)"); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    const tints = ["255,255,255", "205,222,255", "255,236,214", "230,240,255"];
+    for (let i = 0; i < 1700; i++) {
+      const x = Math.random() * W, nearBand = Math.random() < 0.35, y = nearBand ? band(x) + (Math.random() - 0.5) * Hh * 0.12 : Math.random() * Hh * 0.62;
+      const big = Math.random() < 0.05, r = big ? 1.3 + Math.random() * 0.9 : 0.5 + Math.random() * 0.7, a = big ? 0.75 + Math.random() * 0.25 : 0.25 + Math.random() * 0.5;
+      g.fillStyle = `rgba(${tints[i % 4]},${a.toFixed(2)})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    const tex = new T.CanvasTexture(c);
+    SKY.dome = new T.Mesh(new T.SphereGeometry(260, 48, 24), new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false, fog: false, blending: T.AdditiveBlending }));
+    SKY.dome.renderOrder = -10; scene.add(SKY.dome);
+    // twinkling stars: soft sprites scattered over the upper sky
+    const tt = glowTex(32, 0.25);
+    for (let i = 0; i < 26; i++) {
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: tt, color: 0xe8f0ff, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: T.AdditiveBlending }));
+      const a = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.9, R = 250;
+      sp.position.set(Math.cos(a) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(a) * Math.cos(el) * R); const s = 1.4 + Math.random() * 1.6; sp.scale.set(s, s, 1);
+      sp.renderOrder = -9; scene.add(sp); SKY.twinkles.push({ sp, ph: Math.random() * 10, sp2: 0.6 + Math.random() * 1.6 });
+    }
+    // shooting star: a short bright streak
+    const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(new Float32Array(6), 3));
+    SKY.shoot = { line: new T.Line(sg, new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: T.AdditiveBlending })), t: -1 };
+    SKY.shoot.line.frustumCulled = false; SKY.shoot.line.renderOrder = -8; scene.add(SKY.shoot.line);
+    SKY.nextShoot = performance.now() + 15000 + Math.random() * 30000;
+  }
+  function updateStars(dt, now) {
+    buildSky(); if (!SKY.dome) return;
+    const o = window.eddoOutside, cloud = o && Number.isFinite(+o.cloud) ? +o.cloud / 100 : 0;
+    const night = Math.max(0, 1 - dayK * 1.6), want = night * (1 - 0.85 * cloud) * (heatMode || energyMode ? 0.45 : 1);
+    const m = SKY.dome.material; m.opacity += (want - m.opacity) * Math.min(1, dt * 0.8);
+    SKY.dome.rotation.y = now * 0.0000035; SKY.dome.position.copy(camera.position);   // stars sit at infinity: they turn with the view, not move with it
+    for (const t of SKY.twinkles) { t.sp.material.opacity = m.opacity * Math.max(0, 0.15 + 0.85 * Math.sin(now / 1000 * t.sp2 + t.ph) ** 4); }
+    SKY.twinkles.forEach((t) => { t.base = t.base || t.sp.position.clone(); t.sp.position.copy(t.base).add(camera.position); });
+    const S = SKY.shoot;
+    if (S.t < 0 && now > SKY.nextShoot && m.opacity > 0.3) {
+      const a = Math.random() * Math.PI * 2, el = 0.5 + Math.random() * 0.5, R = 240;
+      S.from = new T.Vector3(Math.cos(a) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(a) * Math.cos(el) * R);
+      S.dir = new T.Vector3(-Math.sin(a), -0.35 - Math.random() * 0.3, Math.cos(a)).normalize().multiplyScalar(60 + Math.random() * 40); S.t = 0;
+    }
+    if (S.t >= 0) {
+      S.t += dt / 0.9; const head = S.from.clone().addScaledVector(S.dir, S.t), tail = S.from.clone().addScaledVector(S.dir, Math.max(0, S.t - 0.25));
+      const pos = S.line.geometry.attributes.position.array; [head, tail].forEach((v, i) => { v.add(camera.position); pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z; });
+      S.line.geometry.attributes.position.needsUpdate = true; S.line.material.opacity = m.opacity * Math.sin(Math.min(1, S.t) * Math.PI) * 0.9;
+      if (S.t >= 1) { S.t = -1; S.line.material.opacity = 0; SKY.nextShoot = now + 25000 + Math.random() * 60000; }
+    }
+  }
+  function updateSmoke(dt, now) {
+    const ch = H.shell && (H.shell.chimneys || [])[0]; if (!ch || !LIVE.root || !T) return;
+    if (!SKY.puffTex) SKY.puffTex = glowTex(64, 0.45);
+    const heating = !!gasBurning() && !energyMode;
+    SKY.smokeK += ((heating ? 1 : 0) - SKY.smokeK) * Math.min(1, dt * 0.5);
+    const o = window.eddoOutside, wind = o ? Math.min(12, (o.wind || 0) / 3.6) : 1.5, [wx, wz] = o ? planDir(((o.windDir || 0) + 180) * Math.PI / 180) : [0.3, 0.3];
+    // emit from the middle pot
+    SKY.emitT -= dt;
+    if (SKY.smokeK > 0.05 && SKY.emitT <= 0 && SKY.smoke.length < 22) {
+      SKY.emitT = 0.45 + Math.random() * 0.35;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: SKY.puffTex, color: 0xcdd6da, transparent: true, opacity: 0, depthWrite: false }));
+      const n = ch.pots || 1, xc = ch.x0 + (ch.x1 - ch.x0) * (Math.ceil(n / 2)) / (n + 1);
+      sp.position.set(xc + (Math.random() - 0.5) * 0.08, ch.top + 0.55, (ch.z0 + ch.z1) / 2 + (Math.random() - 0.5) * 0.08);
+      LIVE.root.add(sp); SKY.smoke.push({ sp, t: 0, life: 5 + Math.random() * 3, dx: (Math.random() - 0.5) * 0.15, dz: (Math.random() - 0.5) * 0.15 });
+    }
+    for (let i = SKY.smoke.length - 1; i >= 0; i--) {
+      const p = SKY.smoke[i]; p.t += dt / p.life;
+      if (p.t >= 1) { LIVE.root.remove(p.sp); p.sp.material.dispose(); SKY.smoke.splice(i, 1); continue; }
+      const drift = 0.12 + wind * 0.09;
+      p.sp.position.x += (wx * drift + p.dx) * dt; p.sp.position.z += (wz * drift + p.dz) * dt; p.sp.position.y += (0.55 - p.t * 0.25) * dt;
+      const s = 0.35 + p.t * 1.6; p.sp.scale.set(s, s, 1);
+      p.sp.material.opacity = 0.16 * SKY.smokeK * Math.sin(Math.PI * Math.min(1, p.t * 1.4)) * (1 - p.t * 0.4) * (0.55 + 0.45 * (1 - dayK * 0.5));
     }
   }
 
