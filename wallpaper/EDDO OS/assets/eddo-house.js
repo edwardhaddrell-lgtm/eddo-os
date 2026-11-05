@@ -743,7 +743,7 @@
     const segs = (pts) => { const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(pts.flat(), 3)); return g2; };
     for (const d of devices) {
       const r = d.roomRef, g = r.mesh.g;
-      const hgt = d.kind === "climate" && /radiator/i.test(d.name) ? 0.45 : Math.min(KIND_HEIGHT[d.kind] ?? 1, ceilAt(r, d.v * r.d) - 0.2);
+      const hgt = d.y ?? (d.kind === "climate" && /radiator/i.test(d.name) ? 0.45 : Math.min(KIND_HEIGHT[d.kind] ?? 1, ceilAt(r, d.v * r.d) - 0.2));
       const x = -r.w / 2 + d.u * r.w, z = -r.d / 2 + d.v * r.d;
       const core = new T.Group(); core.position.set(x, hgt, z); core.renderOrder = 20; g.add(core);
       const parts = [];   // role: on = only when running, off = only when idle, both = always; k = opacity
@@ -765,9 +765,11 @@
         if (d.look) core.rotation.y = Math.atan2((-r.w / 2 + d.look[0] * r.w) - x, (-r.d / 2 + d.look[1] * r.d) - z);   // aimed at a point (same u/v as the room)
         else if (d.u < 0 || d.u > 1 || d.v < 0 || d.v > 1 || d.faceOut) core.rotation.y += Math.PI;   // outdoor cameras look away from the house
       } else if (k === "tv") {
-        add(new T.Mesh(new T.PlaneGeometry(0.36, 0.21), mat()), "on", 0.55);                                    // a screen that lights up
-        add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(0.36, 0.21)), lmat()), "both", 0.9);
-        faceCentre();
+        const [sw, sh] = d.screen || [0.36, 0.21];   // screen: [w, h] in metres = real size on the wall
+        add(new T.Mesh(new T.PlaneGeometry(sw, sh), mat()), "on", 0.55);                                        // a screen that lights up
+        add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(sw, sh)), lmat()), "both", 0.9);
+        if (d.screen) core.rotation.y = d.u < 0.5 ? Math.PI / 2 : d.u > 0.5 && d.v > 0.05 && d.v < 0.95 ? -Math.PI / 2 : 0;   // flat on its wall
+        else faceCentre();
       } else if (k === "climate") {
         const e = add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.12, 0.12, 0.12)), lmat()), "both", 0.6); // a diamond
         e.rotation.set(Math.PI / 4, 0, Math.PI / 4);
@@ -780,7 +782,7 @@
         ring.rotation.x = -Math.PI / 2;
         add(new T.Mesh(new T.SphereGeometry(0.045, 10, 8), mat()), "on", 1);
       }
-      const hit = new T.Mesh(new T.BoxGeometry(0.6, 0.6, 0.6), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const hs = d.screen ? Math.max(0.6, ...d.screen) : 0.6, hit = new T.Mesh(new T.BoxGeometry(hs, hs, hs), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       hit.position.copy(core.position); hit.userData.device = d; g.add(hit);
       let pool = null;
       if (k === "light" || k === "lamp") {
@@ -1108,7 +1110,7 @@
       }
       // same size on screen at any zoom; a little bigger under the mouse
       m.core.getWorldPosition(tmp);
-      const want = Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);
+      const want = d.screen ? (hoveredDev === d ? 1.05 : 1) : Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);   // real-size screens stay real size
       m.size += (want - m.size) * Math.min(1, dt * 8); m.core.scale.setScalar(m.size);
       if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * FLOOR_GLOW; }
     }

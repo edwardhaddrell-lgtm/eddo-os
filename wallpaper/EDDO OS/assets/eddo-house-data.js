@@ -113,7 +113,7 @@ window.EDDO_HOUSE = {
     { room: "dining", name: "Dining room light", kind: "light", u: 0.52, v: 0.47, match: ["dining room light", "dining light"], not: ["lamp", "wall"] },
     // living room
     { room: "living", name: "Doughnut lamp", kind: "lamp", u: 0.1, v: 0.85, entity: "light.dougnut_lamp", match: ["doughnut", "dougnut"] },
-    { room: "living", name: "Frame TV", kind: "tv", u: 0.05, v: 0.52, entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"], plexAny: true },   // the TV + its Plex player; other Plex players that start playing show here too
+    { room: "living", name: "Frame TV", kind: "tv", u: 0.135, v: 0.52, y: 1.425, screen: [0.97, 0.75], entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"], plexAny: true },   // the TV + its Plex player; other Plex players that start playing show here too
     { room: "living", name: "Living room light", kind: "light", u: 0.52, v: 0.47, entity: "light.living_room_light" },
     { room: "living", name: "Candle", kind: "lamp", u: 0.09, v: 0.17, entity: "light.candle" },
     { room: "living", name: "Dyson fan", kind: "fan", u: 0.3, v: 0.08, match: ["dyson"], domains: ["fan", "climate"] },
@@ -153,7 +153,6 @@ window.EDDO_HOUSE = {
   furniture: [
     // living room (photo from the dining-room end, looking at the bay)
     { room: "living", name: "Chimney breast", u0: 0, u1: 0.12, v0: 0.38, v1: 0.66, h: 2.6 },
-    { room: "living", name: "Frame TV", u0: 0.12, u1: 0.14, v0: 0.4, v1: 0.64, y: 1.05, h: 0.75 },
     { room: "living", name: "Bookcase (window side)", kind: "shelves", u0: 0, u1: 0.12, v0: 0.06, v1: 0.38, h: 2.3, base: 0.8, shelves: 4 },
     { room: "living", name: "Bookcase (back)", kind: "shelves", u0: 0, u1: 0.12, v0: 0.66, v1: 0.97, h: 2.3, base: 0.8, shelves: 4 },
     { room: "living", name: "Toy cubby", kind: "shelves", u0: 0.12, u1: 0.26, v0: 0.44, v1: 0.6, h: 0.75, shelves: 1 },
