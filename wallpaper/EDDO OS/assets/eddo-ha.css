@@ -679,27 +679,35 @@ html.eddo-touch .eddo-house-pop button,html.eddo-touch .eddo-car-acts button,htm
 html.eddo-touch .eddo-house-pop{font-size:11px}
 html.eddo-touch .eddo-house-item{padding-top:6px;padding-bottom:6px}
 
-/* ---------- phone layout (touch screens only): the model fills the top, controls sit in a sheet along the bottom,
-   the workspace tabs become a scrolling row at the top ---------- */
-html.eddo-phone #stage[data-eddo-house] .wb-module{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;max-height:44vh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;margin:0!important;padding:26px 18px calc(12px + env(safe-area-inset-bottom));translate:none!important;background:linear-gradient(to bottom,rgba(6,9,13,0),rgba(6,9,13,.88) 26px,rgba(6,9,13,.94));z-index:7;pointer-events:auto}
+/* ---------- phone layout (touch screens only, never the Mac or PC) ----------
+   Built around the thumb: the workspace tabs are a bottom tab bar, the House controls a bottom sheet above it
+   (peeking with the floor tabs, opening to the room list), every control at least 44–48px tall (Apple HIG 44pt,
+   Material 48dp), and the model fills the space above. */
+html.eddo-phone{--tabbar:calc(58px + env(safe-area-inset-bottom))}
+html.eddo-phone #stage footer{display:none!important}
+/* bottom tab bar (all tabs) */
+html.eddo-phone #stage .wb-nav{position:fixed!important;top:auto!important;bottom:0!important;left:0!important;right:0!important;translate:none!important;margin:0!important;padding:0 4px env(safe-area-inset-bottom)!important;height:var(--tabbar);display:grid!important;grid-auto-flow:column;grid-auto-columns:1fr;gap:0!important;align-items:stretch;background:rgba(5,8,12,.96);border-top:1px solid rgba(143,185,194,.16);z-index:9;pointer-events:auto;overflow:hidden}
+html.eddo-phone #stage .wb-nav>*{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;width:auto!important;margin:0!important;padding:6px 2px!important;border:0!important;background:none!important;font-size:10px!important;line-height:1.15!important;letter-spacing:.3px;text-align:center;white-space:normal;color:var(--theme-muted,#8f8c84)!important;position:relative}
+html.eddo-phone #stage .wb-nav>* small{font-size:8.5px!important;letter-spacing:1px;opacity:.6;margin:0!important}
+html.eddo-phone #stage .wb-nav>* span,html.eddo-phone #stage .wb-nav>*::before,html.eddo-phone #stage .wb-nav>*::after{display:none!important}
+html.eddo-phone #stage .wb-nav>[aria-pressed=true]{color:var(--theme-ink,#ece9e2)!important}
+html.eddo-phone #stage .wb-nav>[aria-pressed=true] small{opacity:1;color:#ffa64a}
+/* the House sheet */
+html.eddo-phone #stage[data-eddo-house] .wb-module{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:var(--tabbar)!important;width:auto!important;max-height:min(232px,40vh);overflow:hidden;overscroll-behavior:contain;margin:0!important;padding:0 16px 10px;translate:none!important;background:rgba(7,11,15,.93);border-top:1px solid rgba(143,185,194,.18);border-radius:16px 16px 0 0;box-shadow:0 -12px 32px rgba(0,0,0,.45);z-index:8;pointer-events:auto;transition:max-height .35s cubic-bezier(.2,.8,.2,1)}
+html.eddo-phone.eddo-sheet-open #stage[data-eddo-house] .wb-module{max-height:62vh;overflow-y:auto;touch-action:pan-y}
 html.eddo-phone #stage[data-eddo-house] .wb-module .wb-kicker,html.eddo-phone #stage[data-eddo-house] .wb-module .wb-title,html.eddo-phone #stage[data-eddo-house] .wb-module .wb-storage{display:none}
-html.eddo-phone #stage[data-eddo-house] .eddo-house-hero{margin-top:0}
+.eddo-sheet-handle{display:none}
+html.eddo-phone #stage[data-eddo-house] .eddo-sheet-handle{display:block;position:sticky;top:0;width:calc(100% + 32px);height:26px;margin:0 -16px 2px;padding:0;border:0;background:rgba(7,11,15,.97);z-index:2;cursor:pointer}
+html.eddo-phone #stage[data-eddo-house] .eddo-sheet-handle::after{content:"";position:absolute;left:50%;top:10px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:rgba(143,185,194,.45)}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-hero{margin:0 0 6px;font-size:9.5px}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-bar{gap:4px;margin-bottom:10px}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-tabs button{min-height:46px;font-size:11px}
+/* VIEW / SHOW rows scroll sideways instead of wrapping */
+html.eddo-phone #stage[data-eddo-house] .eddo-house-views{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;gap:4px}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-views::-webkit-scrollbar{display:none}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-views button{flex:0 0 auto;min-height:40px;padding:0 12px!important}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-item,html.eddo-phone #stage[data-eddo-house] .eddo-house-row{min-height:48px}
 html.eddo-phone #stage[data-eddo-house] .eddo-car-panel{max-height:none;overflow:visible}
-html.eddo-phone #stage .wb-nav{position:fixed!important;top:calc(8px + env(safe-area-inset-top))!important;bottom:auto!important;left:0!important;right:0!important;translate:none!important;display:flex;flex-wrap:nowrap!important;justify-content:flex-start!important;gap:18px!important;overflow-x:auto;padding:0 16px 6px!important;margin:0!important;z-index:8;pointer-events:auto;scrollbar-width:none;touch-action:pan-x}
-html.eddo-phone #stage .wb-nav::-webkit-scrollbar{display:none}
-html.eddo-phone #stage .wb-nav>*{flex:0 0 auto}
-
-/* car card, tidied: a single left-aligned block with a hairline on the left, like the device labels */
-.eddo-car-card{align-items:stretch!important;gap:5px!important;width:168px;min-width:0!important;padding:2px 0 2px 9px;border-left:1px solid rgba(143,185,194,.45)}
-.eddo-car-card .h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.eddo-car-card .h b{font-size:10px}
-.eddo-car-card .h em{margin:0;font-size:8.5px;letter-spacing:1.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
-.eddo-car-card .h em[data-k=ok]{color:#5fe0a8}
-.eddo-car-card .h em[data-k=away]{color:var(--theme-muted,#9a978f)}
-.eddo-car-card .h em[data-k=warn]{color:#ffb36b;animation:eddo-live-warn 1.2s ease-in-out infinite}
-.eddo-car-card .r{font-size:20px;font-weight:300;line-height:1;letter-spacing:.5px;color:var(--theme-ink,#ece9e2)}
-.eddo-car-card .r small{margin-left:5px;font-size:8px;letter-spacing:1.4px;color:var(--theme-muted,#9a978f)}
-.eddo-car-card .m{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px}
-.eddo-car-card .m i{height:2px;background:linear-gradient(90deg,#8fb9c2 var(--v),rgba(143,185,194,.18) var(--v))}
-.eddo-car-card .m i[data-low=true]{background:linear-gradient(90deg,#ffa64a var(--v),rgba(255,166,74,.2) var(--v))}
-.eddo-car-card .m small{font-size:9px;color:var(--theme-ink,#ece9e2);white-space:nowrap}
+/* labels on the model: a touch bigger, and room names that collide are hidden */
+html.eddo-phone .eddo-house-label{font-size:11px}
+html.eddo-phone .eddo-house-label[data-clash=true]{opacity:0!important}

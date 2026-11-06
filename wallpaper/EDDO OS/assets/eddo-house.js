@@ -1677,6 +1677,7 @@
     return best;
   }
   function toggleDevice(d) {
+    haptic();
     for (const id of d.ids.filter((x) => /^(light|switch|fan)\./.test(x))) {
       const [domain] = id.split(".");
       HA().send({ type: "call_service", domain, service: "toggle", target: { entity_id: id } }).catch(() => {});
@@ -1806,7 +1807,7 @@
       const t = e.touches[0];
       tch = { x: t.clientX, y: t.clientY, theta: view.theta, phi: view.goal.phi, moved: false, target: e.target };
       const d = pickDevice(t); hoveredDev = d || null;
-      if (d) { const tc = tch; holdRing(d, 550); tc.hold = setTimeout(() => { if (tch === tc && !tc.moved) { tc.held = true; holdRing(null); openPop(d); } }, 550); }
+      if (d) { const tc = tch; holdRing(d, 550); tc.hold = setTimeout(() => { if (tch === tc && !tc.moved) { tc.held = true; holdRing(null); haptic(); openPop(d); } }, 550); }
     }, { passive: false });
     stage.addEventListener("touchmove", (e) => {
       if (!running || !tch) return;
@@ -2718,6 +2719,37 @@
     if (el.textContent !== t) el.textContent = t;
   }, 2000);
 
+  if (TOUCH) {
+    // bottom sheet: peeks with the floor tabs and buttons; a handle (tap or swipe) opens it to the full room list.
+    // It opens by itself when you pick a floor, room or the car, and tucks away again when you go back.
+    let sheetOpen = false, lastWant = null;
+    const setSheet = (open) => { if (open === sheetOpen) return; sheetOpen = open; document.documentElement.classList.toggle("eddo-sheet-open", open); haptic(); setTimeout(resize, 380); };
+    setInterval(() => {
+      const mod = document.querySelector("#stage[data-eddo-house] .wb-module"); if (!mod) return;
+      if (!mod.dataset.sheet) {
+        mod.dataset.sheet = "1";
+        const h = document.createElement("button"); h.className = "eddo-sheet-handle"; h.setAttribute("aria-label", "Show more");
+        h.addEventListener("click", (e) => { e.stopPropagation(); setSheet(!sheetOpen); }); mod.prepend(h);
+        let sy = null;   // swipe the top of the sheet up / down
+        mod.addEventListener("touchstart", (e) => { const r = mod.getBoundingClientRect(); sy = e.touches[0].clientY - r.top < 56 ? e.touches[0].clientY : null; }, { passive: true });
+        mod.addEventListener("touchmove", (e) => { if (sy == null) return; const dy = e.touches[0].clientY - sy; if (dy < -28) { setSheet(true); sy = null; } else if (dy > 28) { setSheet(false); sy = null; } }, { passive: true });
+      }
+      const want = !!(focused || CAR.open || floorSel);
+      if (want !== lastWant) { lastWant = want; setSheet(want); }
+    }, 300);
+    // room names that would sit on top of each other: show the first, hide the rest (the focused room always wins)
+    setInterval(() => {
+      if (!running || !labelsEl) return;
+      const els = [...labelsEl.querySelectorAll(".eddo-house-label[data-room]")].filter((el) => el.dataset.hidden !== "true");
+      els.sort((a, b) => (focused && b.dataset.room === focused.id) - (focused && a.dataset.room === focused.id));
+      const kept = [];
+      for (const el of els) {
+        const r = el.getBoundingClientRect(), clash = kept.some((k) => r.left < k.right + 6 && r.right > k.left - 6 && r.top < k.bottom + 2 && r.bottom > k.top - 2);
+        el.dataset.clash = String(clash); if (!clash) kept.push(r);
+      }
+    }, 200);
+  }
+  function haptic() { if (TOUCH && navigator.vibrate) try { navigator.vibrate(8); } catch (_) {} }
   if (TOUCH) {   // on a phone the app opens on the House tab
     let tries = 0; const t = setInterval(() => {
       const b = document.querySelector('#stage .wb-nav [data-eddo-tab="house"]');
