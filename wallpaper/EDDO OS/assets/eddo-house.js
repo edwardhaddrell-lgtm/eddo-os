@@ -263,7 +263,8 @@
   let anim = null, orbitMode = "drift", tour = null;
   const TOUCH = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;   // phone / tablet only, never the Mac or PC
   if (TOUCH) document.documentElement.classList.add("eddo-touch", "eddo-phone");   // phone layout: model on top, controls in a sheet below
-  const HOME = TOUCH ? { dist: 62, phi: 0.78 } : { dist: 52, phi: 0.72 };   // on a phone the model gets less room, so it starts further back (house, car and office all in view)
+  const HOME = TOUCH ? { dist: 62, phi: 0.78 } : { dist: 52, phi: 0.72 };
+  let TOUCH_FITTED = false;   // on a phone the model gets less room, so it starts further back (house, car and office all in view)
   // ease the camera to a new view; theta (the turn) is optional and takes the short way round
   function goTo(goal, dur = 1200) {
     const from = { target: view.target ? view.target.clone() : goal.target.clone(), dist: view.dist, phi: view.phi, theta: view.theta };
@@ -1524,6 +1525,14 @@
       const mod = document.querySelector("#stage[data-eddo-house] .wb-module"), sr = stage.getBoundingClientRect();
       const top = mod ? (mod.getBoundingClientRect().top - sr.top) / k : h * 0.6, cy = Math.max(0.25, Math.min(0.5, top / 2 / h)), G = 2 * (1 - cy);
       camera.setViewOffset(w, h * G, 0, h * (G - 1), w, h);
+      // fit the whole site (house, car, garden office) into the space above the sheet, whatever the screen shape
+      const vh = Math.tan(camera.fov * Math.PI / 360), hh = vh * camera.aspect, room = Math.max(0.35, Math.min(1, top / h));
+      const fit = Math.max(40, Math.min(130, Math.max(18 / hh, 9 / (vh * room)) * 1.08));
+      if (Math.abs(fit - HOME.dist) > 0.5) {
+        HOME.dist = fit;
+        if (!focused && !floorSel && !CAR.open) { view.goal.dist = fit; if (!TOUCH_FITTED) view.dist = fit; }
+      }
+      TOUCH_FITTED = true;
     } else camera.setViewOffset(w * 1.24, h, w * 0.24, 0, w, h);   // centre the model in the free space left of the room list
     camera.updateProjectionMatrix();
   }
@@ -1775,13 +1784,16 @@
     // ---- touch: one finger spins (and taps / long-presses like the mouse), two fingers pinch to zoom
     let tch = null;
     const tdist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mid = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
     stage.addEventListener("touchstart", (e) => {
       if (!running || overUi(e.target)) return;
       e.preventDefault();   // no page scroll / zoom, and no fake mouse events afterwards
       lastInput = performance.now(); stopTour(); anim = null; clearTimeout(dwellTimer);
       if (e.touches.length >= 2) {
         if (tch && tch.hold) { clearTimeout(tch.hold); holdRing(null); }
-        tch = { pinch: tdist(e.touches), dist: view.goal.dist, moved: true };
+        // two fingers: pinch to zoom, and move them together to slide the model around
+        const c = mid(e.touches);
+        tch = { pinch: tdist(e.touches), dist: view.goal.dist, moved: true, cx: c[0], cy: c[1], target: view.goal.target.clone() };
         return;
       }
       const t = e.touches[0];
@@ -1793,7 +1805,15 @@
       if (!running || !tch) return;
       e.preventDefault(); lastInput = performance.now();
       if (e.touches.length >= 2 && tch.pinch) {
-        view.goal.dist = Math.max(8, Math.min(90, tch.dist * tch.pinch / Math.max(20, tdist(e.touches))));
+        view.goal.dist = Math.max(8, Math.min(140, tch.dist * tch.pinch / Math.max(20, tdist(e.touches))));
+        // pan: move the point we orbit around across the screen plane, so the model follows your fingers
+        const c = mid(e.touches), rect = canvas.getBoundingClientRect();
+        const per = 2 * view.dist * Math.tan(camera.fov * Math.PI / 360) / rect.height;   // world units per screen pixel at the target
+        const right = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        const t = tch.target.clone().addScaledVector(right, -(c[0] - tch.cx) * per).addScaledVector(up, (c[1] - tch.cy) * per);
+        if (t.length() > 40) t.setLength(40);   // don't lose the house off the edge of the world
+        t.y = Math.max(-2, Math.min(16, t.y));
+        view.goal.target.copy(t);
         return;
       }
       if (tch.pinch) return;   // one finger left over from a pinch: don't spin
