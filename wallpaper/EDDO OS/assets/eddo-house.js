@@ -466,7 +466,7 @@
     const lit = !ghost && !strip ? 1 : 0; m.glow += (lit - m.glow) * Math.min(1, dt * 2);
     m.front.material.opacity = (m.dense ? 0.35 : 0.55) * m.glow * (0.4 + 0.6 * (1 - dayK)); m.back.material.opacity = (m.dense ? 0.45 : 0.6) * m.glow * (0.4 + 0.6 * (1 - dayK));
     m.chg.material.opacity = c.plugged && !strip ? (c.charging ? 0.35 + 0.35 * Math.sin(now / 600) : 0.25) : 0;
-    const low = (c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged) || c.openDoors.length > 0 || c.locked === false && c.home;
+    const low = c.home && ((c.fuel != null && c.fuel < 15) || (c.battery != null && c.battery < 10 && !c.plugged) || c.openDoors.length > 0 || c.locked === false);   // only flag it while it's parked at home: away, it stays a quiet ghost
     m.lines.material.color.set(low ? 0xffa64a : C.edge);
   }
   function slopeGeo(w, h, d, knee, run) {
@@ -1312,13 +1312,14 @@
     const tf = `translate(${((p.x * 0.5 + 0.5) * canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * canvas.clientHeight).toFixed(1)}px)`;
     if (carCard.style.transform !== tf) carCard.style.transform = tf;
     const bar = (v, warn) => v == null ? "" : `<i style="--v:${v}%" data-low="${v < warn}"></i>`;
-    const html = c.home
-      ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>` +
+    // the same readings whether it's home or away; away just says so (and where) in the title
+    const html = (c.home
+      ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>`
+      : `<b>${esc(c.name.toUpperCase())} <em>AWAY${c.where ? " · " + esc(c.where.toUpperCase()) : ""}</em></b>`) +
         (c.fuel != null || c.fuelRange != null ? `<span>FUEL ${c.fuel != null ? bar(c.fuel, 15) : "<i></i>"}<small>${c.fuel != null ? c.fuel + "%" : ""}</small><small class="mi">${c.fuelRange != null ? c.fuelRange + " MI" : ""}</small></span>` : "") +
         (c.battery != null || c.rangeEv != null ? `<span>BATT ${c.battery != null ? bar(c.battery, 10) : "<i></i>"}<small>${c.battery != null ? c.battery + "%" : ""}</small><small class="mi">${c.rangeEv != null ? c.rangeEv + " MI" : ""}</small></span>` : "") +
         (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
-        (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "")
-      : `<b>${esc(c.name.toUpperCase())} <em>AWAY</em></b>${c.where ? `<span class="rng"><small>${esc(c.where.toUpperCase())}</small></span>` : ""}`;
+        (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "");
     if (carCard.innerHTML !== html) carCard.innerHTML = html;
   }
   function placeLabels() {
