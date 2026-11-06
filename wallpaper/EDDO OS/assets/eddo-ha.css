@@ -715,3 +715,6 @@ html.eddo-phone .eddo-house-label[data-clash=true]{opacity:0!important}
 html.eddo-phone #stage .wb-nav>[hidden]{display:none!important}   /* tabs the workspace hides (Now playing, Focus timer) */
 html.eddo-phone.eddo-picked:not(.eddo-sheet-open) #stage[data-eddo-house] .eddo-house-views{display:none!important}
 html.eddo-phone.eddo-picked:not(.eddo-sheet-open) #stage[data-eddo-house] .eddo-house-hero{display:none}
+.eddo-car-card .m span,.eddo-car-card .h span{display:inline!important;grid-template-columns:none}
+.eddo-car-card .m{width:100%}
+.eddo-car-card .r small{margin-left:6px}
