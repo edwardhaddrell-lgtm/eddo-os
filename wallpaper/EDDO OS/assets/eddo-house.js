@@ -2752,8 +2752,8 @@
   if (TOUCH && document.documentElement.requestFullscreen) {
     // phone in a browser tab: the first tap anywhere goes full screen (hides Chrome's bars). Not when it's already
     // running as an installed app, and only once per load, so backing out of full screen sticks.
-    const installed = matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
-    if (!installed) {
+    const already = matchMedia("(display-mode: fullscreen)").matches;   // an installed app in standalone mode still gets the tap
+    if (!already) {
       const go = () => { removeEventListener("pointerup", go, true); if (!document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {}); };
       addEventListener("pointerup", go, true);
     }
