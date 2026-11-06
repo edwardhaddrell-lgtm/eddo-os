@@ -262,7 +262,8 @@
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   let anim = null, orbitMode = "drift", tour = null;
   const TOUCH = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;   // phone / tablet only, never the Mac or PC
-  const HOME = TOUCH ? { dist: 70, phi: 0.8 } : { dist: 52, phi: 0.72 };   // on a phone the model gets less room, so it starts further back (house, car and office all in view)
+  if (TOUCH) document.documentElement.classList.add("eddo-touch", "eddo-phone");   // phone layout: model on top, controls in a sheet below
+  const HOME = TOUCH ? { dist: 62, phi: 0.78 } : { dist: 52, phi: 0.72 };   // on a phone the model gets less room, so it starts further back (house, car and office all in view)
   // ease the camera to a new view; theta (the turn) is optional and takes the short way round
   function goTo(goal, dur = 1200) {
     const from = { target: view.target ? view.target.clone() : goal.target.clone(), dist: view.dist, phi: view.phi, theta: view.theta };
@@ -1519,12 +1520,11 @@
     if (sz.x !== w || sz.y !== h) renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // draw the model left of centre, clear of the workspace column on the right
-    let F = 1.24;
-    if (TOUCH) {   // phones / Fold: the panel takes more of the screen, so centre the model in whatever is left of it
-      const wb = document.querySelector("#stage .workbench"), left = wb ? wb.getBoundingClientRect().left - stage.getBoundingClientRect().left : w * 0.62;
-      const c = Math.max(0.2, Math.min(0.5, (left / k) / 2 / w)); F = 2 * (1 - c);
-    }
-    camera.setViewOffset(w * F, h, w * (F - 1), 0, w, h);   // centre the model in the free space left of the room list
+    if (TOUCH) {   // phone: the controls are a sheet along the bottom, so centre the model in the space above it
+      const mod = document.querySelector("#stage[data-eddo-house] .wb-module"), sr = stage.getBoundingClientRect();
+      const top = mod ? (mod.getBoundingClientRect().top - sr.top) / k : h * 0.6, cy = Math.max(0.25, Math.min(0.5, top / 2 / h)), G = 2 * (1 - cy);
+      camera.setViewOffset(w, h * G, 0, h * (G - 1), w, h);
+    } else camera.setViewOffset(w * 1.24, h, w * 0.24, 0, w, h);   // centre the model in the free space left of the room list
     camera.updateProjectionMatrix();
   }
 
@@ -1812,13 +1812,9 @@
     });
     stage.addEventListener("touchcancel", () => { if (tch) { clearTimeout(tch.hold); holdRing(null); tch = null; } });
     if (TOUCH) {
-      document.documentElement.classList.add("eddo-touch");
-      // keep the room list above the workspace tabs at the bottom: it scrolls instead of running under them
-      setInterval(() => {
-        if (!running || !listEl) return;
-        const nav = document.querySelector("#stage .wb-nav"), top = listEl.getBoundingClientRect().top, bottom = nav ? nav.getBoundingClientRect().top - 14 : innerHeight - 20;
-        const want = Math.max(120, Math.round(bottom - top)) + "px"; if (listEl.style.maxHeight !== want) listEl.style.maxHeight = want;
-      }, 400);
+      // the sheet's height changes with what's in it: keep the model centred above it
+      let lastTop = -1;
+      setInterval(() => { if (!running) return; const m = document.querySelector("#stage .wb-module"), t = m ? Math.round(m.getBoundingClientRect().top / 8) : 0; if (t !== lastTop) { lastTop = t; resize(); } }, 400);
       addEventListener("resize", () => setTimeout(resize, 50));
     }
     function tapAt(e) {
@@ -2681,6 +2677,12 @@
     if (el.textContent !== t) el.textContent = t;
   }, 2000);
 
+  if (TOUCH) {   // on a phone the app opens on the House tab
+    let tries = 0; const t = setInterval(() => {
+      const b = document.querySelector('#stage .wb-nav [data-eddo-tab="house"]');
+      if (b) { clearInterval(t); if (!window.eddoTabs.active()) b.click(); } else if (++tries > 80) clearInterval(t);
+    }, 250);
+  }
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {

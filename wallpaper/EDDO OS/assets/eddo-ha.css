@@ -678,4 +678,13 @@ html.eddo-touch .eddo-house-bar button{min-height:34px;padding-top:8px;padding-b
 html.eddo-touch .eddo-house-pop button,html.eddo-touch .eddo-car-acts button,html.eddo-touch .eddo-house-preview button{min-height:40px}
 html.eddo-touch .eddo-house-pop{font-size:11px}
 html.eddo-touch .eddo-house-item{padding-top:6px;padding-bottom:6px}
-html.eddo-touch #stage[data-eddo-house] .eddo-house-list{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding-right:4px}
+
+/* ---------- phone layout (touch screens only): the model fills the top, controls sit in a sheet along the bottom,
+   the workspace tabs become a scrolling row at the top ---------- */
+html.eddo-phone #stage[data-eddo-house] .wb-module{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;max-height:44vh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;margin:0!important;padding:26px 18px calc(12px + env(safe-area-inset-bottom));translate:none!important;background:linear-gradient(to bottom,rgba(6,9,13,0),rgba(6,9,13,.88) 26px,rgba(6,9,13,.94));z-index:7;pointer-events:auto}
+html.eddo-phone #stage[data-eddo-house] .wb-module .wb-kicker,html.eddo-phone #stage[data-eddo-house] .wb-module .wb-title,html.eddo-phone #stage[data-eddo-house] .wb-module .wb-storage{display:none}
+html.eddo-phone #stage[data-eddo-house] .eddo-house-hero{margin-top:0}
+html.eddo-phone #stage[data-eddo-house] .eddo-car-panel{max-height:none;overflow:visible}
+html.eddo-phone #stage .wb-nav{position:fixed!important;top:calc(8px + env(safe-area-inset-top))!important;bottom:auto!important;left:0!important;right:0!important;translate:none!important;display:flex;flex-wrap:nowrap!important;justify-content:flex-start!important;gap:18px!important;overflow-x:auto;padding:0 16px 6px!important;margin:0!important;z-index:8;pointer-events:auto;scrollbar-width:none;touch-action:pan-x}
+html.eddo-phone #stage .wb-nav::-webkit-scrollbar{display:none}
+html.eddo-phone #stage .wb-nav>*{flex:0 0 auto}
