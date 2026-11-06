@@ -10,8 +10,8 @@ window.EDDO_HOUSE = {
   // Faint outline of the whole building (from the street + aerial photos). Heights
   // follow the separated floors of the model, so the shell wraps them.
   shell: {
-    main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 6.9, ridge: 11.6, ridgeZ: 3.0 },     // pitched roof, ridge along the street
-    dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 11.0, slope: true },             // loft dormer at the back: its roof falls gently from the ridge
+    main: { x0: 0, x1: 4.6, z0: 0, z1: 7.41, eaves: 7.5, ridge: 11.2, ridgeZ: 3.0 },     // pitched roof, ridge along the street (front slope ~48°)
+    dormer: { x0: 0.15, x1: 4.6, z0: 3.0, z1: 7.41, top: 10.7, slope: true },             // loft dormer at the back: its roof falls gently from the ridge
     chimneys: [                                                                              // the one stack, on the left, with its pots
       { x0: 0.25, x1: 1.1, z0: 2.6, z1: 3.4, top: 13.0, pots: 3 },
     ],
