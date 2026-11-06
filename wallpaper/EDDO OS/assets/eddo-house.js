@@ -138,6 +138,7 @@
       }
     }
     CAR.V = V;
+    if (carIds.tracker && V.tracker && carIds.tracker !== V.tracker) carIds.appTracker = carIds.tracker;   // keep the phone/car-app tracker too
     for (const k of ["battery", "odometer", "charging", "connector", "tracker"]) if (V[k]) carIds[k] = V[k];
     const carDev = Object.values(carIds).map((id) => entDev.get(id)).find(Boolean);
     if (carDev) {
@@ -409,7 +410,12 @@
     const word = (k) => { const x = st(k); return live(x) ? String(x.s) : null; };
     const label = (id) => { const x = sv(id); return String((x && x.a.friendly_name) || id.split(".")[1]).replace(/^(volvo\s+)?(xc\d+|v\d+|s\d+|ex\d+|c\d+)\s+/i, "").replace(/_/g, " "); };
     const onIds = (list) => list.filter((id) => { const x = sv(id); return x && x.s === "on"; });
-    const tr = st("tracker"), home = tr ? tr.s === "home" : true;
+    // home if any tracker says so, or if its GPS fix is within ~200 m of the house (GPS drift can leave it just outside the zone)
+    const trs = [I.tracker, I.appTracker].map((id) => id && states.get(id)).filter((x) => x && !/^(unknown|unavailable)$/.test(x.s));
+    const tr = trs[0] || null, near = (x) => { const la = +x.a.latitude, lo = +x.a.longitude; if (!Number.isFinite(la) || !Number.isFinite(lo)) return false;
+      const dy = (la - SITE.lat) * 111320, dx = (lo - SITE.lon) * 111320 * Math.cos(SITE.lat * Math.PI / 180); return Math.hypot(dx, dy) < 200; };
+    const home = !trs.length || trs.some((x) => x.s === "home" || near(x));
+    const zone = trs.map((x) => x.s).find((z) => z && !/^(home|not_home|away)$/.test(z));   // a named zone ("Work") is a useful "where"
     const conn = word("connector") || "", chg = word("charging") || "";
     const charging = /^(charging|true|on)$/i.test(chg);
     const plugged = charging || (/connected|plugged|done|complete/i.test(conn || chg) && !/disconnected|unplugged|not/i.test(conn || chg));
@@ -436,7 +442,7 @@
       engineHours: V.engineHours && live(sv(V.engineHours)) ? `${sv(V.engineHours).s} ${sv(V.engineHours).a.unit_of_measurement || "h"}` : null,
       trip: milesOf(sv(V.tripAuto)), tripManual: milesOf(sv(V.tripManual)),
       avgSpeed: (() => { const x = sv(V.avgSpeed); if (!live(x) || !Number.isFinite(+x.s)) return null; const u = String(x.a.unit_of_measurement || "").toLowerCase(); return Math.round(/km/.test(u) ? +x.s * 0.621371 : +x.s) + " mph"; })(),
-      home, where: word("place") || (tr && tr.s !== "home" ? tr.s : null), name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 || !!(V.all && V.all.length) };
+      home, where: word("place") || zone || null, name: word("name") || (H.car && H.car.name) || "XC60", last, linked: Object.keys(I).length > 0 || !!(V.all && V.all.length) };
   }
   async function loadCarHistory() {
     if (CAR.histBusy || !HA() || Date.now() - (CAR.histAt || 0) < 10 * 60e3) return;
@@ -1316,7 +1322,7 @@
     const html = (c.home
       ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>`
       : `<b>${esc(c.name.toUpperCase())} <em>AWAY${c.where ? " · " + esc(c.where.toUpperCase()) : ""}</em></b>`) +
-        (c.fuel != null || c.fuelRange != null ? `<span>FUEL ${c.fuel != null ? bar(c.fuel, 15) : "<i></i>"}<small>${c.fuel != null ? c.fuel + "%" : ""}</small><small class="mi">${c.fuelRange != null ? c.fuelRange + " MI" : ""}</small></span>` : "") +
+        (c.fuel != null || c.fuelRange != null ? `<span>FUEL ${c.fuel != null ? bar(c.fuel, 15) : "<i></i>"}<small>${c.fuel != null ? c.fuel + "%" : ""}</small><small class="mi">${c.fuelRange != null && c.fuelRange !== c.range ? c.fuelRange + " MI" : ""}</small></span>` : "") +
         (c.battery != null || c.rangeEv != null ? `<span>BATT ${c.battery != null ? bar(c.battery, 10) : "<i></i>"}<small>${c.battery != null ? c.battery + "%" : ""}</small><small class="mi">${c.rangeEv != null ? c.rangeEv + " MI" : ""}</small></span>` : "") +
         (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
         (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "");
