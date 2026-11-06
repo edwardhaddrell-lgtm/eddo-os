@@ -2749,6 +2749,16 @@
       }
     }, 200);
   }
+  if (TOUCH && document.documentElement.requestFullscreen) {
+    // phone in a browser tab: the first tap anywhere goes full screen (hides Chrome's bars). Not when it's already
+    // running as an installed app, and only once per load, so backing out of full screen sticks.
+    const installed = matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+    if (!installed) {
+      const go = () => { removeEventListener("pointerup", go, true); if (!document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {}); };
+      addEventListener("pointerup", go, true);
+    }
+    document.addEventListener("fullscreenchange", () => setTimeout(resize, 120));
+  }
   function haptic() { if (TOUCH && navigator.vibrate) try { navigator.vibrate(8); } catch (_) {} }
   if (TOUCH) {   // on a phone the app opens on the House tab
     let tries = 0; const t = setInterval(() => {
