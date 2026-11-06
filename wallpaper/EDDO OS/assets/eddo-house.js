@@ -220,6 +220,7 @@
   function devState(d) {
     const sts = d.ids.map((id) => [id, states.get(id)]).filter(([, st]) => st);
     if (!d.ids.length) return { active: false, text: "NOT LINKED", linked: false };
+    if (d.ir) return { active: !!d.irOn, text: d.irOn ? "LIGHT ON" : "LIGHT OFF", color: d.irOn ? [1, 0.82, 0.55] : null, bri: 1, linked: true };
     if (!sts.length) return { active: false, text: "—", linked: true };
     let active = false, text = "", color = null, bri = 1;
     for (const [id, st] of sts) {
@@ -246,7 +247,7 @@
     }
     return { active, text, color, bri, linked: true };
   }
-  const canToggle = (d) => d.ids.some((id) => /^(light|switch|fan)\./.test(id));
+  const canToggle = (d) => !!(d.ir && d.ir.toggle) || d.ids.some((id) => /^(light|switch|fan)\./.test(id));
   const lightIds = (r) => [...r.ents].filter((id) => /^(light|switch)\./.test(id));
   function roomStatus(r) {
     const total = lightIds(r).length;
@@ -1491,6 +1492,7 @@
     const ct = modes.includes("color_temp"), col = modes.some((m) => /hs|rgb|xy/.test(m));
     let h = `<header><b>${esc(d.name.toUpperCase())}</b><em>${esc(d.cam ? "CAMERA" : st.text || "")}</em><button data-house-pop-close aria-label="Close">×</button></header>`;
     if (canToggle(d)) h += `<button class="eddo-house-pop-main" data-house-dev="${i}" data-on="${st.active}">${st.active ? "TURN OFF" : "TURN ON"}</button>`;
+    if (d.ir) h += `<p>REMOTE · IR</p><div class="eddo-house-pop-row">${d.ir.buttons.map(([n, id]) => `<button data-house-ir="${i}:${esc(id)}">${esc(n)}</button>`).join("")}</div>`;
     if (lid) h += `<p>BRIGHTNESS</p><div class="eddo-house-item"><div class="eddo-house-slider" data-bri="${esc(lid)}" style="--pct:${briPct(lid)}%"><i></i></div></div>`;
     if (ct) h += `<p>WARMTH</p><div class="eddo-house-pop-row">${[["WARM", 2700], ["NEUTRAL", 4000], ["DAYLIGHT", 6000]].map(([n, k]) => `<button data-house-ct="${esc(lid)}:${k}" style="--c:${k < 3000 ? "#ffb36b" : k < 5000 ? "#ffe2bf" : "#dcecff"}">${n}</button>`).join("")}</div>`;
     if (col) h += `<p>COLOUR</p><div class="eddo-house-pop-sw">${["255,147,41", "255,60,40", "255,40,140", "150,60,255", "40,110,255", "40,220,200", "90,255,90"].map((c) => `<button data-house-rgb="${esc(lid)}:${c}" style="--c:rgb(${c})" aria-label="Colour"></button>`).join("")}</div>`;
@@ -1677,8 +1679,16 @@
     }
     return best;
   }
+  // IR devices (hob light & fan) run as scripts with no state back, so keep a local guess of the light
+  function irFire(d, id) {
+    haptic();
+    HA().send({ type: "call_service", domain: "script", service: "turn_on", target: { entity_id: id } }).catch(() => {});
+    if (d.ir && id === d.ir.toggle) d.irOn = !d.irOn;
+    d.st = devState(d); if (pop && pop.dev === d) renderPop();
+  }
   function toggleDevice(d) {
     haptic();
+    if (d.ir && d.ir.toggle) { irFire(d, d.ir.toggle); return; }
     for (const id of d.ids.filter((x) => /^(light|switch|fan)\./.test(x))) {
       const [domain] = id.split(".");
       HA().send({ type: "call_service", domain, service: "toggle", target: { entity_id: id } }).catch(() => {});
@@ -2760,6 +2770,7 @@
     if ((b = q("[data-house-media]"))) { const [i, act] = b.dataset.houseMedia.split(":"); mediaAction(devices[+i], act); return; }
     if ((b = q("[data-house-hvac]"))) { const [i, m] = b.dataset.houseHvac.split(":"), d = devices[+i], id = d && d.ids.find((x) => x.startsWith("climate.")); if (id) call("climate", "set_hvac_mode", { target: { entity_id: id }, service_data: { hvac_mode: m } }); return; }
     if ((b = q("[data-house-clim]"))) { const [i, v] = b.dataset.houseClim.split(":"); return climate(devices[+i], v === "power" ? 0 : +v, v === "power"); }
+    if ((b = q("[data-house-ir]"))) { const k = b.dataset.houseIr, j = k.indexOf(":"), d = devices[+k.slice(0, j)]; if (d) irFire(d, k.slice(j + 1)); return; }
     if ((b = q("[data-house-dev]"))) { const d = devices[+b.dataset.houseDev]; if (d && canToggle(d)) toggleDevice(d); return; }
     if ((b = q("[data-house-room]"))) { stopTour(); const r = rooms.find((x) => x.id === b.dataset.houseRoom); if (r && renderer) focus(focused === r ? null : r); }
   });

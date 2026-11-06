@@ -107,7 +107,7 @@ window.EDDO_HOUSE = {
     { room: "kitchen", name: "Coffee machine", kind: "appliance", u: 0.12, v: 0.56, match: ["coffee"] },
     { room: "kitchen", name: "Dryer", kind: "appliance", u: 0.15, v: 0.42, match: ["dryer", "tumble"] },
     { room: "kitchen", name: "Kitchen lights", kind: "light", u: 0.52, v: 0.44, entity: "light.kitchen_top_lights" },
-    { room: "kitchen", name: "Hob lights & fan", kind: "lamp", u: 0.9, v: 0.36, match: ["hob"] },
+    { room: "kitchen", name: "Hob lights & fan", kind: "lamp", u: 0.9, v: 0.36, entities: ["script.hob_light", "script.hob_light_on"], ir: { toggle: "script.hob_light", buttons: [["LIGHT", "script.hob_light"], ["FAN UP", "script.hob_light_on"]] } },
     // dining room
     { room: "dining", name: "Dining room lamp", kind: "lamp", u: 0.1, v: 0.89, match: ["dining room lamp", "dining lamp"] },
     { room: "dining", name: "Wall light", kind: "lamp", u: 0.06, v: 0.63, match: ["dining room wall", "dining wall", "wall light"], not: ["wall lights light"] },
