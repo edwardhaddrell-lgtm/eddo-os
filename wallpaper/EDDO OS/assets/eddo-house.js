@@ -1849,10 +1849,24 @@
     }
     stage.addEventListener("wheel", (e) => {
       if (!running || overUi(e.target)) return;
+      // Mac trackpad: pinch arrives as a wheel event with ctrlKey (zoom), a two-finger swipe as a plain one (pan).
+      // A mouse wheel still zooms, and scrolling over a light still dims it.
+      if (window.EDDO_WEB && e.ctrlKey) { e.preventDefault(); view.goal.dist = Math.max(8, Math.min(90, view.goal.dist * Math.exp(e.deltaY * 0.012))); return; }
       const lid = hoveredDev && lightOf(hoveredDev);
       if (lid) { setBri(lid, briPct(lid) + (e.deltaY < 0 ? 5 : -5)); return; }
+      const trackpad = window.EDDO_WEB && e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40);
+      if (trackpad) {
+        e.preventDefault(); stopTour(); anim = null;
+        const rect = canvas.getBoundingClientRect(), per = 2 * view.dist * Math.tan(camera.fov * Math.PI / 360) / rect.height;
+        const right = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        const t = view.goal.target.clone().addScaledVector(right, e.deltaX * per).addScaledVector(up, -e.deltaY * per);
+        if (t.length() > 40) t.setLength(40);
+        t.y = Math.max(-2, Math.min(16, t.y));
+        view.goal.target.copy(t);
+        return;
+      }
       view.goal.dist = Math.max(8, Math.min(60, view.goal.dist * (e.deltaY > 0 ? 1.1 : 0.9)));
-    }, { passive: true });
+    }, { passive: false });
   }
 
   function start() {
