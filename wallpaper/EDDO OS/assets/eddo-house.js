@@ -261,6 +261,7 @@
   let skyEl = null, plinth = null, northEl = null, lastSky = 0;
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   let anim = null, orbitMode = "drift", tour = null;
+  const TOUCH = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;   // phone / tablet only, never the Mac or PC
   const HOME = { dist: 52, phi: 0.72 };
   // ease the camera to a new view; theta (the turn) is optional and takes the short way round
   function goTo(goal, dur = 1200) {
@@ -1364,7 +1365,7 @@
     for (const d of devices) {
       if (!d.label || !d.mesh) continue;
       const ew = energyMode ? devWatts(d) : null;
-      const show = energyMode ? ew != null && ew >= 3 && !hiddenFloor(d.roomRef.floor) : !heatMode && (hoveredDev === d || focused === d.roomRef || (whatsOn && !focused && devActive(d)));
+      const show = energyMode ? ew != null && ew >= 3 && !hiddenFloor(d.roomRef.floor) : !heatMode && (hoveredDev === d || (!TOUCH && focused === d.roomRef) || (whatsOn && !focused && devActive(d)));
       d.label.dataset.hidden = String(!show);
       if (!show) continue;
       const p = d.mesh.core.getWorldPosition(new T.Vector3()); p.project(camera);
@@ -1518,7 +1519,12 @@
     if (sz.x !== w || sz.y !== h) renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // draw the model left of centre, clear of the workspace column on the right
-    camera.setViewOffset(w * 1.24, h, w * 0.24, 0, w, h);   // centre the model in the free space left of the room list
+    let F = 1.24;
+    if (TOUCH) {   // phones / Fold: the panel takes more of the screen, so centre the model in whatever is left of it
+      const wb = document.querySelector("#stage .workbench"), left = wb ? wb.getBoundingClientRect().left - stage.getBoundingClientRect().left : w * 0.62;
+      const c = Math.max(0.2, Math.min(0.5, (left / k) / 2 / w)); F = 2 * (1 - c);
+    }
+    camera.setViewOffset(w * F, h, w * (F - 1), 0, w, h);   // centre the model in the free space left of the room list
     camera.updateProjectionMatrix();
   }
 
@@ -1780,7 +1786,7 @@
       }
       const t = e.touches[0];
       tch = { x: t.clientX, y: t.clientY, theta: view.theta, phi: view.goal.phi, moved: false, target: e.target };
-      const d = pickDevice(t);
+      const d = pickDevice(t); hoveredDev = d || null;
       if (d) { const tc = tch; holdRing(d, 550); tc.hold = setTimeout(() => { if (tch === tc && !tc.moved) { tc.held = true; holdRing(null); openPop(d); } }, 550); }
     }, { passive: false });
     stage.addEventListener("touchmove", (e) => {
@@ -1805,7 +1811,16 @@
       const t = e.changedTouches[0]; tapAt({ clientX: t.clientX, clientY: t.clientY, target: tc.target });
     });
     stage.addEventListener("touchcancel", () => { if (tch) { clearTimeout(tch.hold); holdRing(null); tch = null; } });
-    if (matchMedia("(pointer: coarse)").matches) document.documentElement.classList.add("eddo-touch");
+    if (TOUCH) {
+      document.documentElement.classList.add("eddo-touch");
+      // keep the room list above the workspace tabs at the bottom: it scrolls instead of running under them
+      setInterval(() => {
+        if (!running || !listEl) return;
+        const nav = document.querySelector("#stage .wb-nav"), top = listEl.getBoundingClientRect().top, bottom = nav ? nav.getBoundingClientRect().top - 14 : innerHeight - 20;
+        const want = Math.max(120, Math.round(bottom - top)) + "px"; if (listEl.style.maxHeight !== want) listEl.style.maxHeight = want;
+      }, 400);
+      addEventListener("resize", () => setTimeout(resize, 50));
+    }
     function tapAt(e) {
       if (pop) { closePop(); return; }
       const d = pickDevice(e);

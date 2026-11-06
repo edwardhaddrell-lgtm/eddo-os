@@ -678,3 +678,4 @@ html.eddo-touch .eddo-house-bar button{min-height:34px;padding-top:8px;padding-b
 html.eddo-touch .eddo-house-pop button,html.eddo-touch .eddo-car-acts button,html.eddo-touch .eddo-house-preview button{min-height:40px}
 html.eddo-touch .eddo-house-pop{font-size:11px}
 html.eddo-touch .eddo-house-item{padding-top:6px;padding-bottom:6px}
+html.eddo-touch #stage[data-eddo-house] .eddo-house-list{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding-right:4px}
