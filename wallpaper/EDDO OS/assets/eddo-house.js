@@ -262,7 +262,7 @@
   let T = null, renderer, scene, camera, pivot, canvas, labelsEl, running = false, building = null;
   let anim = null, orbitMode = "drift", tour = null;
   const TOUCH = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;   // phone / tablet only, never the Mac or PC
-  const HOME = { dist: 52, phi: 0.72 };
+  const HOME = TOUCH ? { dist: 70, phi: 0.8 } : { dist: 52, phi: 0.72 };   // on a phone the model gets less room, so it starts further back (house, car and office all in view)
   // ease the camera to a new view; theta (the turn) is optional and takes the short way round
   function goTo(goal, dur = 1200) {
     const from = { target: view.target ? view.target.clone() : goal.target.clone(), dist: view.dist, phi: view.phi, theta: view.theta };
@@ -271,7 +271,7 @@
     view.goal = { target: goal.target, dist: goal.dist, phi: goal.phi };
     anim = view.target ? { from, dTheta, t0: performance.now(), dur } : null;
   }
-  const view = { theta: -0.75, phi: 0.72, dist: 52, target: null, goal: null, t0: performance.now() };
+  const view = { theta: -0.75, phi: HOME.phi, dist: HOME.dist, target: null, goal: null, t0: performance.now() };
   let focused = null, hovered = null, hoveredDev = null, drag = null, lastFrame = 0;
   let energyMode = false;
   let floorSel = null, heatMode = false, whatsOn = false, dayK = 1, sunInfo = null;
@@ -1793,7 +1793,7 @@
       if (!running || !tch) return;
       e.preventDefault(); lastInput = performance.now();
       if (e.touches.length >= 2 && tch.pinch) {
-        view.goal.dist = Math.max(8, Math.min(60, tch.dist * tch.pinch / Math.max(20, tdist(e.touches))));
+        view.goal.dist = Math.max(8, Math.min(90, tch.dist * tch.pinch / Math.max(20, tdist(e.touches))));
         return;
       }
       if (tch.pinch) return;   // one finger left over from a pinch: don't spin
