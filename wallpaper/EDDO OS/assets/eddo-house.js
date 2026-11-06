@@ -1586,6 +1586,7 @@
     updateCar(dt, now);
     updateLive(dt, now);
     updateKit(dt, now);
+    updatePad(dt, now);
     updateStars(dt, now);
     updateSmoke(dt, now);
     pollPlex(now);
@@ -1781,7 +1782,8 @@
       dwell(hoveredDev);
       hovered = ui ? null : hoveredDev ? hoveredDev.roomRef : pick(e);
       CAR.hover = !ui && !hoveredDev && pickCar(e);
-      if (canvas) { const want = !ui && (hoveredDev || CAR.hover || hovered) ? "pointer" : ""; if (stage.style.cursor !== want) stage.style.cursor = want; }
+      PAD.hover = !ui && !hoveredDev ? pickPad(e) : null;
+      if (canvas) { const want = !ui && (hoveredDev || CAR.hover || PAD.hover || hovered) ? "pointer" : ""; if (stage.style.cursor !== want) stage.style.cursor = want; }
     });
     window.addEventListener("mouseup", (e) => {
       if (!running || !drag) return;
@@ -1845,6 +1847,7 @@
     }
     function tapAt(e) {
       if (pop) { closePop(); return; }
+      const pd = pickPad(e); if (pd) { padAction(pd); return; }
       const d = pickDevice(e);
       if (d && d.cam && window.eddoCams && (focused === d.roomRef || previews.has(d))) { window.eddoCams.open(d.cam); return; }
       if (d && canToggle(d) && focused === d.roomRef) { toggleDevice(d); return; }     // click a light in the focused room to switch it
@@ -1972,6 +1975,7 @@
     LIVE.root = root;
     LIVE.dyn = new T.Group(); root.add(LIVE.dyn); buildLiveDyn();
     buildLiveStatic(root, maxX, maxZ);
+    buildPad(root);
   }
   // doors and players depend on what Home Assistant has, so they're rebuilt whenever it (re)connects
   function buildLiveDyn() {
@@ -2534,6 +2538,72 @@
       p.sp.position.x += (wx * drift + p.dx) * dt; p.sp.position.z += (wz * drift + p.dz) * dt; p.sp.position.y += (0.55 - p.t * 0.25) * dt;
       const s = 0.35 + p.t * 1.6; p.sp.scale.set(s, s, 1);
       p.sp.material.opacity = 0.16 * SKY.smokeK * Math.sin(Math.PI * Math.min(1, p.t * 1.4)) * (1 - p.t * 0.4) * (0.55 + 0.45 * (1 - dayK * 0.5));
+    }
+  }
+
+  // ------------------------------------------------------------ the floor menu: three tiles lying on the ground
+  // beside the house, in the model's own perspective. Movie time, all lights off, and every camera preview at once.
+  const PAD = { g: null, tiles: [], hover: null, k: 0 };
+  const PAD_ITEMS = [
+    { id: "movie", label: "MOVIE TIME", sub: "SCENE", icon: "▶" },
+    { id: "off", label: "ALL LIGHTS OFF", sub: "WHOLE HOUSE", icon: "◐" },
+    { id: "cams", label: "CAMERAS", sub: "SHOW ALL", subOn: "HIDE ALL", icon: "◉" },
+  ];
+  function padTex(it, hot) {
+    const c = document.createElement("canvas"); c.width = 512; c.height = 176; const g = c.getContext("2d");
+    g.clearRect(0, 0, 512, 176);
+    g.fillStyle = hot ? "rgba(255,166,74,.16)" : "rgba(143,185,194,.07)"; g.fillRect(4, 4, 504, 168);
+    g.strokeStyle = hot ? "rgba(255,180,110,.95)" : "rgba(143,185,194,.6)"; g.lineWidth = 3; g.strokeRect(4, 4, 504, 168);
+    g.fillStyle = hot ? "#ffb36b" : "rgba(143,185,194,.9)"; g.fillRect(4, 4, 10, 168);                  // accent bar
+    g.font = "500 30px MiSans, system-ui, sans-serif"; g.fillStyle = hot ? "#ffd9b0" : "#c9d6d9"; g.textBaseline = "middle";
+    g.fillText(it.icon, 40, 88);
+    g.font = "500 40px MiSans, system-ui, sans-serif"; g.fillStyle = "#ece9e2"; g.fillText(it.label.split("").join(String.fromCharCode(8202)), 92, 72);
+    g.font = "400 24px MiSans, system-ui, sans-serif"; g.fillStyle = hot ? "#ffb36b" : "rgba(160,170,172,.9)";
+    g.fillText((it.id === "cams" && previews.size ? it.subOn : it.sub).split("").join(String.fromCharCode(8202)), 92, 124);
+    const t = new T.CanvasTexture(c); t.anisotropy = 4; return t;
+  }
+  function buildPad(root) {
+    const g = new T.Group(); g.scale.z = -1;   // the model is mirrored in z; un-mirror so the text reads the right way round
+    g.position.set(-1.75, 0.03, 0.9); root.add(g);   // on the ground along the left side of the house, from the front wall back
+    PAD_ITEMS.forEach((it, i) => {
+      const m = new T.Mesh(new T.PlaneGeometry(2.6, 0.9), new T.MeshBasicMaterial({ map: padTex(it, false), transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide }));
+      m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2;   // flat on the ground, reading along the side of the house
+      m.position.set(0, 0, -i * 1.15); m.userData.pad = it; g.add(m);   // (z is flipped in this group)
+      PAD.tiles.push({ m, it, hot: false });
+    });
+    PAD.g = g;
+  }
+  function pickPad(ev) {
+    if (!PAD.g || PAD.k < 0.3) return null;
+    const rect = canvas.getBoundingClientRect(), ray = new T.Raycaster();
+    ray.setFromCamera(new T.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1), camera);
+    const h = ray.intersectObjects(PAD.tiles.map((t) => t.m), false)[0];
+    return h ? h.object.userData.pad : null;
+  }
+  function padAction(it) {
+    haptic();
+    if (it.id === "movie") call("scene", "turn_on", { target: { entity_id: "scene.movie_time" } });
+    else if (it.id === "off") {
+      const ids = [...new Set(devices.filter((d) => /light|lamp/.test(d.kind)).flatMap((d) => d.ids))];
+      const lights = ids.filter((id) => id.startsWith("light.")), sw = ids.filter((id) => id.startsWith("switch."));
+      if (lights.length) call("light", "turn_off", { target: { entity_id: lights } });
+      if (sw.length) call("switch", "turn_off", { target: { entity_id: sw } });
+    } else if (it.id === "cams") {
+      if (previews.size) closeAllPreviews();
+      else devices.filter((d) => d.kind === "camera" && d.cam && d.mesh && !hiddenFloor(d.roomRef.floor)).forEach((d) => openPreview(d));
+    }
+    const t = PAD.tiles.find((x) => x.it === it); if (t) { t.flash = performance.now(); }
+  }
+  function updatePad(dt, now) {
+    if (!PAD.g) return;
+    const show = !heatMode && !energyMode && !focused && !floorSel && !CAR.open;
+    PAD.k += ((show ? 1 : 0) - PAD.k) * Math.min(1, dt * 4);
+    for (const t of PAD.tiles) {
+      const hot = PAD.hover === t.it || (t.flash && now - t.flash < 600) || (t.it.id === "cams" && previews.size > 0);
+      const key = hot + ":" + (t.it.id === "cams" ? previews.size > 0 : "");
+      if (t.key !== key) { t.key = key; t.m.material.map.dispose(); t.m.material.map = padTex(t.it, hot); t.m.material.needsUpdate = true; }
+      t.m.material.opacity = PAD.k * (hot ? 1 : 0.8) * LIVE.bootShell;
+      t.m.visible = PAD.k > 0.02;
     }
   }
 
