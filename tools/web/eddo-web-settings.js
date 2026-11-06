@@ -21,6 +21,9 @@ window.EDDO_WEB_SETTINGS = {
       jarvistalk: false,     // the mic button needs the PC controller
       music: false,          // no audio-reactive feed outside Wallpaper Engine
       audioreactive: false,
+      sound: false,          // no interface sounds on the MacBook
+      clicksound: false,
+      soundvolume: 0,
     },
     tv: {
       uimargintop: 0,
