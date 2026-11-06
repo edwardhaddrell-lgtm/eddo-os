@@ -1764,6 +1764,49 @@
       if (!running || !drag) return;
       const dr = drag, moved = dr.moved; drag = null; clearTimeout(dr.hold); holdRing(null);
       if (dr.held || moved || overUi(e.target)) return;
+      tapAt(e);
+    });
+    // ---- touch: one finger spins (and taps / long-presses like the mouse), two fingers pinch to zoom
+    let tch = null;
+    const tdist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    stage.addEventListener("touchstart", (e) => {
+      if (!running || overUi(e.target)) return;
+      e.preventDefault();   // no page scroll / zoom, and no fake mouse events afterwards
+      lastInput = performance.now(); stopTour(); anim = null; clearTimeout(dwellTimer);
+      if (e.touches.length >= 2) {
+        if (tch && tch.hold) { clearTimeout(tch.hold); holdRing(null); }
+        tch = { pinch: tdist(e.touches), dist: view.goal.dist, moved: true };
+        return;
+      }
+      const t = e.touches[0];
+      tch = { x: t.clientX, y: t.clientY, theta: view.theta, phi: view.goal.phi, moved: false, target: e.target };
+      const d = pickDevice(t);
+      if (d) { const tc = tch; holdRing(d, 550); tc.hold = setTimeout(() => { if (tch === tc && !tc.moved) { tc.held = true; holdRing(null); openPop(d); } }, 550); }
+    }, { passive: false });
+    stage.addEventListener("touchmove", (e) => {
+      if (!running || !tch) return;
+      e.preventDefault(); lastInput = performance.now();
+      if (e.touches.length >= 2 && tch.pinch) {
+        view.goal.dist = Math.max(8, Math.min(60, tch.dist * tch.pinch / Math.max(20, tdist(e.touches))));
+        return;
+      }
+      if (tch.pinch) return;   // one finger left over from a pinch: don't spin
+      const t = e.touches[0], dx = t.clientX - tch.x, dy = t.clientY - tch.y;
+      if (!tch.moved && Math.abs(dx) + Math.abs(dy) > 10) { tch.moved = true; clearTimeout(tch.hold); holdRing(null); }
+      if (!tch.moved) return;
+      view.theta = tch.theta - dx * 0.007;
+      view.goal.phi = Math.max(0.12, Math.min(1.35, tch.phi + dy * 0.005));
+    }, { passive: false });
+    stage.addEventListener("touchend", (e) => {
+      if (!running || !tch) return;
+      if (e.touches.length) return;   // still fingers down (end of a pinch)
+      const tc = tch; tch = null; clearTimeout(tc.hold); holdRing(null);
+      if (tc.held || tc.moved || tc.pinch) return;
+      const t = e.changedTouches[0]; tapAt({ clientX: t.clientX, clientY: t.clientY, target: tc.target });
+    });
+    stage.addEventListener("touchcancel", () => { if (tch) { clearTimeout(tch.hold); holdRing(null); tch = null; } });
+    if (matchMedia("(pointer: coarse)").matches) document.documentElement.classList.add("eddo-touch");
+    function tapAt(e) {
       if (pop) { closePop(); return; }
       const d = pickDevice(e);
       if (d && d.cam && window.eddoCams && (focused === d.roomRef || previews.has(d))) { window.eddoCams.open(d.cam); return; }
@@ -1771,7 +1814,7 @@
       if (d) return focus(d.roomRef);
       if (pickCar(e)) { openCar(); return; }
       clickRoom(e);
-    });
+    }
     stage.addEventListener("wheel", (e) => {
       if (!running || overUi(e.target)) return;
       const lid = hoveredDev && lightOf(hoveredDev);

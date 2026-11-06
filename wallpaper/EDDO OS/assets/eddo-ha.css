@@ -672,3 +672,9 @@ html.eddo-web :is(.eddo-quick,.eddo-j-talk){display:none!important}
 .eddo-kit-tag span[data-warn=true]{color:#ffb36b}
 .eddo-ac-modes{flex-wrap:wrap}.eddo-ac-modes button.on{color:#6fd6ff;border-color:rgba(111,214,255,.6)}
 .eddo-house-night{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transition:opacity 2s}
+/* touch screens (phone / Fold): the model takes the gestures, and controls get finger-sized */
+#stage[data-eddo-house]{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html.eddo-touch .eddo-house-bar button{min-height:34px;padding-top:8px;padding-bottom:8px}
+html.eddo-touch .eddo-house-pop button,html.eddo-touch .eddo-car-acts button,html.eddo-touch .eddo-house-preview button{min-height:40px}
+html.eddo-touch .eddo-house-pop{font-size:11px}
+html.eddo-touch .eddo-house-item{padding-top:6px;padding-bottom:6px}
