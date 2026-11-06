@@ -2564,10 +2564,10 @@
   }
   function buildPad(root) {
     const g = new T.Group(); g.scale.z = -1;   // the model is mirrored in z; un-mirror so the text reads the right way round
-    g.position.set(-1.75, 0.03, 0.9); root.add(g);   // on the ground along the left side of the house, from the front wall back
+    g.position.set(-1.95, 0.03, 0.8); root.add(g);   // on the ground along the left side of the house, from the front wall back
     PAD_ITEMS.forEach((it, i) => {
       const m = new T.Mesh(new T.PlaneGeometry(2.6, 0.9), new T.MeshBasicMaterial({ map: padTex(it, false), transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide }));
-      m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2;   // flat on the ground, reading along the side of the house
+      m.rotation.x = -Math.PI / 2;   // flat on the ground; the tiles stack one behind another along the side of the house
       m.position.set(0, 0, -i * 1.15); m.userData.pad = it; g.add(m);   // (z is flipped in this group)
       PAD.tiles.push({ m, it, hot: false });
     });
