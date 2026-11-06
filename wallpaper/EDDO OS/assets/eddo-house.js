@@ -1318,14 +1318,14 @@
     const tf = `translate(${((p.x * 0.5 + 0.5) * canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * canvas.clientHeight).toFixed(1)}px)`;
     if (carCard.style.transform !== tf) carCard.style.transform = tf;
     const bar = (v, warn) => v == null ? "" : `<i style="--v:${v}%" data-low="${v < warn}"></i>`;
-    // the same readings whether it's home or away; away just says so (and where) in the title
-    const html = (c.home
-      ? `<b>${esc(c.name.toUpperCase())}${c.charging ? ' <em class="chg">⚡ CHARGING</em>' : c.plugged ? ' <em class="chg">PLUGGED IN</em>' : ""}</b>`
-      : `<b>${esc(c.name.toUpperCase())} <em>AWAY${c.where ? " · " + esc(c.where.toUpperCase()) : ""}</em></b>`) +
-        (c.fuel != null || c.fuelRange != null ? `<span>FUEL ${c.fuel != null ? bar(c.fuel, 15) : "<i></i>"}<small>${c.fuel != null ? c.fuel + "%" : ""}</small><small class="mi">${c.fuelRange != null && c.fuelRange !== c.range ? c.fuelRange + " MI" : ""}</small></span>` : "") +
-        (c.battery != null || c.rangeEv != null ? `<span>BATT ${c.battery != null ? bar(c.battery, 10) : "<i></i>"}<small>${c.battery != null ? c.battery + "%" : ""}</small><small class="mi">${c.rangeEv != null ? c.rangeEv + " MI" : ""}</small></span>` : "") +
-        (c.range != null ? `<span class="rng">${c.range} <small>MI RANGE</small></span>` : "") +
-        (c.openDoors.length || c.openWindows.length ? `<em class="warn">${c.openDoors.length ? "DOOR OPEN" : "WINDOW OPEN"}</em>` : c.locked === false ? `<em class="warn">UNLOCKED</em>` : c.locked ? `<small class="lk">LOCKED</small>` : "");
+    // one tidy block: name + a single status, the range, then the fuel / battery meters
+    const warn = c.openDoors.length ? "DOOR OPEN" : c.openWindows.length ? "WINDOW OPEN" : c.locked === false ? "UNLOCKED" : "";
+    const [stTxt, stKind] = warn ? [warn, "warn"] : c.charging ? ["⚡ CHARGING", "ok"] : c.plugged ? ["PLUGGED IN", "ok"] : !c.home ? ["AWAY" + (c.where ? " · " + c.where.toUpperCase() : ""), "away"] : c.locked ? ["LOCKED", "ok"] : ["", ""];
+    const meter = (label, v, warnAt, extra) => v == null ? "" : `<div class="m"><span>${label}</span>${bar(v, warnAt)}<small>${v}%${extra ? ` · ${extra}` : ""}</small></div>`;
+    const html = `<div class="h"><b>${esc(c.name.toUpperCase())}</b>${stTxt ? `<em data-k="${stKind}">${esc(stTxt)}</em>` : ""}</div>` +
+      (c.range != null ? `<div class="r">${c.range}<small>MI RANGE</small></div>` : "") +
+      meter("FUEL", c.fuel, 15, c.fuelRange != null && c.fuelRange !== c.range ? c.fuelRange + " MI" : "") +
+      meter("BATT", c.battery, 10, c.rangeEv != null && c.rangeEv !== c.range ? c.rangeEv + " MI" : "");
     if (carCard.innerHTML !== html) carCard.innerHTML = html;
   }
   function placeLabels() {
