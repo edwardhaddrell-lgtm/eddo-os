@@ -584,7 +584,7 @@
   // =====================================================================
   const CAMS = { list: [], loaded: false, error: "", live: null };
   // "Label" matches by name; "Label=keyword" matches the keyword against the entity, its device or its integration.
-  const camWords = () => String(cfg().cameras || "Front door, Garden, Shed=side:ring, Living room=downstairs:ring, Fox's room=camera.nanit_nursery:auto, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
+  const camWords = () => String(cfg().cameras || "Front door, Garden, Shed=side:ring, Downstairs=downstairs!_2:ring, Living room=downstairs&_2:ring, Fox's room=camera.nanit_nursery:auto, Fox's room Ring=fox_s_room:ring, EDDO-PRINT=bambu").split(",").map((w) => w.trim()).filter(Boolean);
   const camMeta = new Map();   // camera entity -> "platform device manufacturer model" (from the HA registries)
   window.addEventListener("eddo-ha-ready", (e) => {
     const { devices, ents } = e.detail; const dev = new Map(devices.map((d) => [d.id, d]));
@@ -601,7 +601,9 @@
         const [kw, ...flags] = String(kwRaw || "").split(":").map((t) => t.trim().toLowerCase());
         const k = slug(w);
         if (kw && flags.includes("ring")) {
-          const kk = slug(kw), mine = cams.filter((x) => x.entity_id.includes(kk) || slug(x.attributes.friendly_name || "").includes(kk));
+          // "a&b" = must contain both, "a!b" = contains a but not b (two Ring cameras with the same name: downstairs / downstairs_2)
+          const [incRaw, ...excRaw] = kw.split("!"), inc = incRaw.split("&").map(slug).filter(Boolean), exc = excRaw.map(slug).filter(Boolean);
+          const mine = cams.filter((x) => inc.every((t) => x.entity_id.includes(t)) && !exc.some((t) => x.entity_id.includes(t)));
           const live = mine.find((x) => /live/.test(x.entity_id)) || null;
           const still = mine.find((x) => /last_recording|recording|snapshot/.test(x.entity_id)) || mine.find((x) => x !== live) || live;
           const pics = [still && still.attributes.entity_picture, live && live.attributes.entity_picture, ...mine.map((x) => x.attributes.entity_picture)].filter(Boolean);
