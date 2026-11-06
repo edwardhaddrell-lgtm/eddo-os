@@ -1529,8 +1529,8 @@
     camera.aspect = w / h;
     // draw the model left of centre, clear of the workspace column on the right
     if (TOUCH) {   // phone: the controls are a sheet along the bottom, so centre the model in the space above it
-      const mod = document.querySelector("#stage[data-eddo-house] .wb-module"), sr = stage.getBoundingClientRect();
-      const top = mod ? (mod.getBoundingClientRect().top - sr.top) / k : h * 0.6, cy = Math.max(0.25, Math.min(0.5, top / 2 / h)), G = 2 * (1 - cy);
+      const tabbar = 58, peek = Math.min(232, h * 0.4);   // matches the CSS: the tab bar and the sheet's resting height
+      const top = h - tabbar - peek, cy = Math.max(0.25, Math.min(0.5, top / 2 / h)), G = 2 * (1 - cy);
       camera.setViewOffset(w, h * G, 0, h * (G - 1), w, h);
       // fit the whole site (house, car, garden office) into the space above the sheet, whatever the screen shape
       const vh = Math.tan(camera.fov * Math.PI / 360), hh = vh * camera.aspect, room = Math.max(0.35, Math.min(1, top / h));
@@ -1841,8 +1841,6 @@
     stage.addEventListener("touchcancel", () => { if (tch) { clearTimeout(tch.hold); holdRing(null); tch = null; } });
     if (TOUCH) {
       // the sheet's height changes with what's in it: keep the model centred above it
-      let lastTop = -1;
-      setInterval(() => { if (!running) return; const m = document.querySelector("#stage .wb-module"), t = m ? Math.round(m.getBoundingClientRect().top / 8) : 0; if (t !== lastTop) { lastTop = t; resize(); } }, 400);
       addEventListener("resize", () => setTimeout(resize, 50));
     }
     function tapAt(e) {
@@ -2723,7 +2721,7 @@
     // bottom sheet: peeks with the floor tabs and buttons; a handle (tap or swipe) opens it to the full room list.
     // It opens by itself when you pick a floor, room or the car, and tucks away again when you go back.
     let sheetOpen = false, lastWant = null;
-    const setSheet = (open) => { if (open === sheetOpen) return; sheetOpen = open; document.documentElement.classList.toggle("eddo-sheet-open", open); haptic(); setTimeout(resize, 380); };
+    const setSheet = (open) => { if (open === sheetOpen) return; sheetOpen = open; document.documentElement.classList.toggle("eddo-sheet-open", open); haptic(); };   // the sheet slides over the model; the model stays put
     setInterval(() => {
       const mod = document.querySelector("#stage[data-eddo-house] .wb-module"); if (!mod) return;
       if (!mod.dataset.sheet) {
@@ -2734,8 +2732,10 @@
         mod.addEventListener("touchstart", (e) => { const r = mod.getBoundingClientRect(); sy = e.touches[0].clientY - r.top < 56 ? e.touches[0].clientY : null; }, { passive: true });
         mod.addEventListener("touchmove", (e) => { if (sy == null) return; const dy = e.touches[0].clientY - sy; if (dy < -28) { setSheet(true); sy = null; } else if (dy > 28) { setSheet(false); sy = null; } }, { passive: true });
       }
-      const want = !!(focused || CAR.open || floorSel);
-      if (want !== lastWant) { lastWant = want; setSheet(want); }
+      // the model comes first: picking a room doesn't open the sheet. In the peek, the room (or car) header takes
+      // the place of the VIEW / SHOW rows so you can see what you picked; open the sheet for the full list.
+      const sel = !!(focused || CAR.open);
+      if (sel !== lastWant) { lastWant = sel; document.documentElement.classList.toggle("eddo-picked", sel); }
     }, 300);
     // room names that would sit on top of each other: show the first, hide the rest (the focused room always wins)
     setInterval(() => {

@@ -711,3 +711,7 @@ html.eddo-phone #stage[data-eddo-house] .eddo-car-panel{max-height:none;overflow
 /* labels on the model: a touch bigger, and room names that collide are hidden */
 html.eddo-phone .eddo-house-label{font-size:11px}
 html.eddo-phone .eddo-house-label[data-clash=true]{opacity:0!important}
+
+html.eddo-phone #stage .wb-nav>[hidden]{display:none!important}   /* tabs the workspace hides (Now playing, Focus timer) */
+html.eddo-phone.eddo-picked:not(.eddo-sheet-open) #stage[data-eddo-house] .eddo-house-views{display:none!important}
+html.eddo-phone.eddo-picked:not(.eddo-sheet-open) #stage[data-eddo-house] .eddo-house-hero{display:none}
