@@ -1129,3 +1129,21 @@
     if (idle && m !== idleMinute) { idleMinute = m; tickIdle(m % 2 === 0); }
   }, 5000);
 })();
+
+// Mac web edition: play the full boot animation only on the first load of the day.
+// Lid open / login reloads the page in Plash; later loads that day skip straight in.
+(() => {
+  if (!window.EDDO_WEB || String(window.EDDO_DEVICE || "mac") !== "mac") return;
+  const KEY = "eddo-boot-day", d = new Date();
+  const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  let seen = null; try { seen = localStorage.getItem(KEY); } catch {}
+  if (seen !== today) { try { localStorage.setItem(KEY, today); } catch {} return; }
+  const t0 = Date.now();
+  const tick = () => {
+    const stage = document.querySelector("#stage"), btn = document.querySelector(".mobile-entry");
+    if (stage && btn && stage.dataset.mode === "boot") { setTimeout(() => { if (stage.dataset.mode === "boot") btn.click(); }, 150); return; }
+    if (stage && stage.dataset.mode && stage.dataset.mode !== "boot") return;
+    if (Date.now() - t0 < 15000) setTimeout(tick, 50);
+  };
+  tick();
+})();
