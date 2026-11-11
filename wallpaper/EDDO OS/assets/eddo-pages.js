@@ -109,7 +109,8 @@
     if (!V3.running) return;
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, V3.last ? (now - V3.last) / 1000 : 0.016); V3.last = now;
-    const v = V3.view; if (v.auto) v.theta += dt * 0.12;
+    const v = V3.view, pg = V3.page;
+    if (v.auto) { if (pg && pg.sway) { v.swayT = (v.swayT || 0) + dt; v.theta = pg.view.theta + Math.sin(v.swayT / 7) * 0.32; } else v.theta += dt * 0.12; }
     const T = V3.T, cam = V3.camera;
     cam.position.set(v.tx + v.dist * Math.sin(v.phi) * Math.sin(v.theta), v.ty + v.dist * Math.cos(v.phi), v.tz + v.dist * Math.sin(v.phi) * Math.cos(v.theta));
     cam.lookAt(v.tx, v.ty, v.tz);
@@ -127,7 +128,7 @@
     let g = V3.built.get(page.id);
     if (!g) { g = new T.Group(); page.build(g, T); V3.built.set(page.id, g); }
     V3.scene.add(g);
-    V3.page = page; Object.assign(V3.view, { theta: 0.7, phi: 1.05, auto: true }, page.view || {});
+    V3.page = page; Object.assign(V3.view, { theta: 0.7, phi: 1.05, auto: true, tx: 0, ty: 0.6, tz: 0 }, page.view || {});
     V3.labels.innerHTML = ""; V3.tags.clear();
     document.querySelector("#stage")?.setAttribute("data-eddo-page", page.id);
     if (!V3.running) { V3.running = true; V3.last = 0; requestAnimationFrame(frame); }
@@ -144,6 +145,7 @@
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2, b = ((i + 1) / n) * Math.PI * 2;
       if (ax === "y") pts.push(cx + Math.cos(a) * r, y, cz + Math.sin(a) * r, cx + Math.cos(b) * r, y, cz + Math.sin(b) * r);
+      else if (ax === "z") pts.push(cx + Math.cos(a) * r, y + Math.sin(a) * r, cz, cx + Math.cos(b) * r, y + Math.sin(b) * r, cz);   // ring facing z
       else pts.push(cx, y + Math.sin(a) * r, cz + Math.cos(a) * r, cx, y + Math.sin(b) * r, cz + Math.cos(b) * r);   // ring facing x
     }
     return pts;
@@ -175,8 +177,8 @@
     window.eddoTabs.register({
       id: def.id, label: def.label, pos: def.pos,
       render(c) { def.el = c; c.innerHTML = `<div class="eddo-pg eddo-pg-${def.id}"><p class="wb-muted eddo-pg-note">Loading…</p></div>`; dirty = true; },
-      async onShow() { await registry(); def.discover && def.discover(REG); if (def.build) show3D(def); dirty = true; def.onShow && def.onShow(); },
-      onHide() { if (def.build) hide3D(); def.onHide && def.onHide(); },
+      async onShow() { const stg = document.querySelector("#stage"); if (stg) stg.dataset.eddoTabpage = def.id; await registry(); def.discover && def.discover(REG); if (def.build) show3D(def); dirty = true; def.onShow && def.onShow(); },
+      onHide() { const stg = document.querySelector("#stage"); if (stg && stg.dataset.eddoTabpage === def.id) delete stg.dataset.eddoTabpage; if (def.build) hide3D(); def.onHide && def.onHide(); },
     });
   }
   setInterval(() => {
@@ -279,11 +281,19 @@
     window.eddoHouse.carAction(b.dataset.garage); dirty = true; setTimeout(() => { dirty = true; }, 1600); setTimeout(() => { dirty = true; }, 4200);
   });
 
-  // ============================================================ 2. MEDIA — Plex and the cartridge shelf
-  const MED = { carts: [], cartAt: 0, cartBusy: false, cartId: "sensor.cartridge_player_cartridge_id", present: "binary_sensor.cartridge_player_cartridge_present", script: "cartridge_play_on_frame" };
+  // ============================================================ 2. MEDIA — Plex, and the cartridges as Game Boy carts you drag into a player
+  const MED = { carts: [], cartAt: 0, cartBusy: false, cartId: "sensor.cartridge_player_cartridge_id", present: "binary_sensor.cartridge_player_cartridge_present", script: "script.cartridge_play_on_frame",
+    cast: null, server: null, posters: new Map(), postBusy: false, el: null, loaded: null, drag: null };
   async function loadCarts() {
     if (MED.cartBusy || Date.now() - MED.cartAt < 10 * 60e3 || !REG) return;
     MED.cartBusy = true;
+    // which TV the cartridge script casts to (its play_media target)
+    try {
+      const sc = await HA().send({ type: "script/config", entity_id: MED.script }), seq = JSON.stringify((sc && sc.config && sc.config.sequence) || []);
+      const m = /"action":"media_player\.play_media"[^}]*?"entity_id":"(media_player\.[a-z0-9_]+)"|"entity_id":"(media_player\.[a-z0-9_]+)"[^}]*?"action":"media_player\.play_media"/.exec(seq);
+      MED.cast = m ? m[1] || m[2] : null;
+      if (!MED.cast) { const all = [...seq.matchAll(/media_player\.[a-z0-9_]+/g)].map((x) => x[0]); MED.cast = all[all.length - 1] || null; }
+    } catch (_) {}
     const autos = REG.allStates.filter((x) => x.entity_id.startsWith("automation."));
     const out = [];
     await Promise.all(autos.map(async (a) => {
@@ -292,17 +302,89 @@
         const conds = [].concat(cfg.conditions || cfg.condition || []), acts = [].concat(cfg.actions || cfg.action || []);
         const cond = conds.find((c) => c && [].concat(c.entity_id || []).includes(MED.cartId)); if (!cond) return;
         const act = acts.find((x) => x && /cartridge_play/.test(String(x.action || x.service || ""))); if (!act) return;
-        const data = act.data || {};
-        out.push({ name: cfg.alias || a.attributes.friendly_name, tag: String(cond.state || ""), media: String(data.media_id ?? ""), action: String(act.action || act.service), data, auto: a.entity_id });
+        const raw = String((act.data || {}).media_id ?? ""), ids = [...raw.matchAll(/\d+/g)].map((x) => x[0]);
+        out.push({ name: cfg.alias || a.attributes.friendly_name, tag: String(cond.state || ""), ids, random: ids.length > 1, auto: a.entity_id });
       } catch (_) {}
     }));
     out.sort((a, b) => a.name.localeCompare(b.name));
-    MED.carts = out; MED.cartAt = Date.now(); MED.cartBusy = false; dirty = true;
+    MED.carts = out; MED.cartAt = Date.now(); MED.cartBusy = false; dirty = true; MED.stageKey = "";
+    loadPosters();
   }
-  const hue = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+  // posters come from Plex through Home Assistant's media browser (the cast TV can browse the Plex library)
+  async function loadPosters() {
+    if (MED.postBusy || !MED.cast) return; MED.postBusy = true;
+    const browse = (type, id) => HA().send({ type: "media_player/browse_media", entity_id: MED.cast, media_content_type: type, media_content_id: id });
+    try {
+      if (!MED.server) { const root = await browse("plex", ""); const m = /^plex:\/\/([^/]+)/.exec((root && root.media_content_id) || ""); MED.server = m && m[1]; MED.libs = (root && root.children) || []; }
+      if (!MED.server) throw 0;
+      let shows = null;
+      for (const c of MED.carts) {
+        if (MED.posters.has(c.name) || !c.ids.length) continue;
+        try {
+          const it = await browse("movie", `plex://${MED.server}/${c.ids[0]}`).catch(() => browse("episode", `plex://${MED.server}/${c.ids[0]}`));
+          let pic = it && it.thumbnail;
+          if (it && /episode|season/.test(it.media_class)) {   // a TV cartridge: use the show's poster rather than one episode's still
+            if (!shows) { shows = []; for (const lib of (MED.libs || []).filter((l) => l.children_media_class === "tv_show")) { const r = await browse(lib.media_content_type, lib.media_content_id).catch(() => null); shows.push(...((r && r.children) || [])); } }
+            const nm = c.name.toLowerCase().replace(/^the\s+/, ""), show = shows.find((x) => String(x.title).toLowerCase().replace(/^the\s+/, "").startsWith(nm)) || shows.find((x) => String(it.title).toLowerCase().startsWith(String(x.title).toLowerCase()));
+            if (show && show.thumbnail) pic = show.thumbnail;
+          }
+          MED.posters.set(c.name, pic ? (pic.startsWith("/") ? HA().baseUrl() + pic : pic) : "");
+        } catch (_) { MED.posters.set(c.name, ""); }
+        MED.stageKey = ""; drawMediaStage();
+      }
+    } catch (_) {}
+    MED.postBusy = false;
+  }
+  const hue = (t) => { let h = 0; for (const ch of String(t)) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+  const nowPlaying = () => {
+    const pref = MED.cast && st(MED.cast);
+    if (pref && /^(playing|paused)$/.test(pref.s)) return [MED.cast, pref];
+    return [...S.entries()].find(([id, x]) => id.startsWith("media_player.") && x.s === "playing") || [...S.entries()].find(([id, x]) => id.startsWith("media_player.") && x.s === "paused") || null;
+  };
+  function cartHtml(c, i, inPlayer) {
+    const pic = MED.posters.get(c.name);
+    return `<div class="eddo-gb" data-gb="${i}"${inPlayer ? ' data-in="true"' : ""} style="--h:${hue(c.name)}"><i class="eddo-gb-grip"></i><div class="eddo-gb-label">${pic ? `<img src="${esc(pic)}" alt="" draggable="false">` : `<span>${esc(c.name)}</span>`}</div><b>${esc(c.name)}</b><em>${c.random ? "RANDOM EPISODE" : "▼"}</em></div>`;
+  }
+  // the stage layer: the shelf of carts, the player in the middle, transport controls under it
+  function drawMediaStage() {
+    const stage = document.querySelector("#stage"), on = window.eddoTabs.active() === "media";
+    if (!on) { if (MED.el) MED.el.hidden = true; return; }
+    if (!MED.el || !MED.el.isConnected) {
+      MED.el = document.createElement("div"); MED.el.className = "eddo-media-stage";
+      MED.el.innerHTML = `<div class="eddo-gb-player" data-drop><div class="eddo-gb-slot"><div class="eddo-gb-in"></div></div><div class="eddo-gb-face"><span class="eddo-gb-led"></span><b>EDDO · CARTRIDGE PLAYER</b><em class="eddo-gb-hint">DRAG A CARTRIDGE IN</em></div>` +
+        `<div class="eddo-gb-now"><small></small><strong></strong><i class="eddo-pg-prog"><s></s></i></div><div class="eddo-gb-ctl"><button data-mctl="eject" title="Stop">■</button><button data-mctl="play" title="Play / pause">▶</button><button data-mctl="next" title="Next">⏭</button></div></div><div class="eddo-gb-shelf"></div>`;
+      stage.append(MED.el); MED.stageKey = "";
+    }
+    MED.el.hidden = false;
+    const cur = st(MED.cartId), present = st(MED.present), phys = present && present.s === "on" && cur ? MED.carts.findIndex((c) => c.tag === cur.s) : -1;
+    const inIdx = MED.loaded != null ? MED.loaded : phys;
+    const key = MED.carts.map((c) => c.name + (MED.posters.get(c.name) || "")).join("|") + "#" + inIdx;
+    if (key !== MED.stageKey) {
+      MED.stageKey = key;
+      MED.el.querySelector(".eddo-gb-shelf").innerHTML = MED.carts.length ? MED.carts.map((c, i) => (i === inIdx ? `<div class="eddo-gb-gap"></div>` : cartHtml(c, i))).join("") : `<p class="wb-muted">${MED.cartBusy || !MED.cartAt ? "Reading your cartridges…" : "No cartridge automations found."}</p>`;
+      MED.el.querySelector(".eddo-gb-in").innerHTML = inIdx >= 0 && MED.carts[inIdx] ? cartHtml(MED.carts[inIdx], inIdx, true) : "";
+      MED.el.querySelector(".eddo-gb-player").dataset.loaded = String(inIdx >= 0);
+    }
+    const np = nowPlaying(), a = np ? np[1].a : {}, playing = np && np[1].s === "playing";
+    MED.el.querySelector(".eddo-gb-led").dataset.on = String(!!playing);
+    MED.el.querySelector(".eddo-gb-now small").textContent = np ? (playing ? "NOW PLAYING" : "PAUSED") + " · " + String(a.friendly_name || "").replace(/^Plex \((.*)\)$/, "$1").toUpperCase() : inIdx >= 0 ? "LOADED" : "";
+    MED.el.querySelector(".eddo-gb-now strong").textContent = np ? (a.media_series_title ? `${a.media_series_title} · ${a.media_title || ""}` : a.media_title || a.app_name || "") : inIdx >= 0 ? MED.carts[inIdx].name : "";
+    MED.el.querySelector(".eddo-gb-now s").style.width = np && a.media_duration ? `${Math.min(100, ((a.media_position || 0) / a.media_duration) * 100).toFixed(1)}%` : "0%";
+    MED.el.querySelector('[data-mctl="play"]').textContent = playing ? "❚❚" : "▶";
+  }
+  setInterval(drawMediaStage, 700);
+  function playCart(i) {
+    const c = MED.carts[i]; if (!c) return;
+    MED.loaded = i; MED.stageKey = ""; drawMediaStage();
+    const p = MED.el && MED.el.querySelector(".eddo-gb-player"); if (p) { p.dataset.flash = "true"; setTimeout(() => { p.dataset.flash = "false"; }, 900); }
+    // run the cartridge's own automation (skipping its "is this cartridge in?" check), so random-episode carts still pick at random
+    call("automation", "trigger", { target: { entity_id: c.auto }, service_data: { skip_condition: true } });
+  }
   page({
     id: "media", label: "Media", pos: 3,
     discover(R) { if (!R) return; watch([MED.cartId, MED.present, ...R.allStates.filter((x) => x.entity_id.startsWith("media_player.")).map((x) => x.entity_id)]); loadCarts(); },
+    onShow() { drawMediaStage(); },
+    onHide() { if (MED.el) MED.el.hidden = true; },
     panel() {
       const players = [...S.entries()].filter(([id, x]) => id.startsWith("media_player.") && /^(playing|paused)$/.test(x.s))
         .sort((a, b) => (a[1].s === "playing" ? 0 : 1) - (b[1].s === "playing" ? 0 : 1));
@@ -315,27 +397,50 @@
           `<div><small>${esc(x.s === "playing" ? "NOW PLAYING" : "PAUSED")} · ${esc(where.toUpperCase())}</small><b>${esc(title)}</b><em>${esc(sub)}</em>${pos != null ? `<i class="eddo-pg-prog"><s style="width:${pos.toFixed(1)}%"></s></i>` : ""}</div>` +
           `<button class="eddo-pg-btn" data-media="${esc(id)}">${x.s === "playing" ? "❚❚" : "▶"}</button></div>`;
       }).join("") : `<p class="wb-muted eddo-pg-note">Nothing playing.</p>`;
-      const cur = st(MED.cartId), present = st(MED.present), inId = present && present.s === "on" && cur ? cur.s : "";
-      const shelf = MED.carts.length ? `<div class="eddo-pg-shelf">${MED.carts.map((c, i) => `<button class="eddo-cart" data-cart="${i}" data-in="${c.tag === inId}" style="--h:${hue(c.name)}"><i></i><b>${esc(c.name)}</b><small>${c.tag === inId ? "IN THE PLAYER" : "PLAY ON FRAME"}</small></button>`).join("")}</div>`
-        : `<p class="wb-muted eddo-pg-note">${MED.cartBusy || !MED.cartAt ? "Reading the cartridge automations…" : "No cartridge automations found."}</p>`;
-      return `<p class="eddo-pg-h">ACROSS THE HOUSE</p>${now}<p class="eddo-pg-h">CARTRIDGE SHELF <span>${MED.carts.length}</span></p>${shelf}`;
+      return `<p class="eddo-pg-h">ACROSS THE HOUSE</p>${now}<p class="wb-muted eddo-pg-note">Drag a cartridge into the player to play it on the Frame, or click one.</p>`;
     },
+  });
+  // drag a cart: a copy follows the pointer; drop it on the player to play
+  document.addEventListener("pointerdown", (e) => {
+    const c = e.target.closest && e.target.closest(".eddo-gb-shelf .eddo-gb[data-gb]"); if (!c || e.button !== 0) return;
+    e.preventDefault();
+    const r = c.getBoundingClientRect();
+    MED.drag = { c, i: +c.dataset.gb, x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height, ghost: null, moved: false };
+  });
+  window.addEventListener("pointermove", (e) => {
+    const d = MED.drag; if (!d) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    if (!d.moved) { d.moved = true; d.ghost = d.c.cloneNode(true); d.ghost.classList.add("eddo-gb-ghost"); d.ghost.style.width = d.w + "px"; d.ghost.style.height = d.h + "px"; document.body.append(d.ghost); d.c.dataset.lifted = "true"; }
+    d.ghost.style.transform = `translate(${e.clientX - d.dx}px, ${e.clientY - d.dy}px) rotate(${Math.max(-8, Math.min(8, (e.clientX - d.x) / 40))}deg)`;
+    const pl = MED.el && MED.el.querySelector("[data-drop]"), pr = pl && pl.getBoundingClientRect();
+    if (pl) pl.dataset.over = String(!!pr && e.clientX > pr.left && e.clientX < pr.right && e.clientY > pr.top && e.clientY < pr.bottom);
+  });
+  window.addEventListener("pointerup", () => {
+    const d = MED.drag; MED.drag = null; if (!d) return;
+    const pl = MED.el && MED.el.querySelector("[data-drop]"), over = pl && pl.dataset.over === "true";
+    if (pl) pl.dataset.over = "false";
+    if (d.ghost) d.ghost.remove(); delete d.c.dataset.lifted;
+    if (!d.moved || over) playCart(d.i);   // a plain click plays it too
   });
   document.addEventListener("click", (e) => {
     if (!e.target.closest) return;
     const m = e.target.closest("[data-media]"); if (m) { call("media_player", "media_play_pause", { target: { entity_id: m.dataset.media } }); return; }
-    const c = e.target.closest("[data-cart]"); if (!c) return;
-    const cart = MED.carts[+c.dataset.cart]; if (!cart) return;
-    const [dom, svc] = cart.action.split(".");
-    c.dataset.busy = "true"; setTimeout(() => { c.dataset.busy = "false"; }, 2500);
-    call(dom, svc, { service_data: cart.data });
+    const b = e.target.closest("[data-mctl]"); if (!b) return;
+    const np = nowPlaying(), id = np ? np[0] : MED.cast; if (!id) return;
+    if (b.dataset.mctl === "play") call("media_player", "media_play_pause", { target: { entity_id: id } });
+    else if (b.dataset.mctl === "next") {
+      // a random-episode cartridge (Bluey…) picks another episode; anything else skips to the next track
+      const cur = st(MED.cartId), present = st(MED.present), phys = present && present.s === "on" && cur ? MED.carts.findIndex((c) => c.tag === cur.s) : -1, li = MED.loaded != null && MED.loaded >= 0 ? MED.loaded : phys;
+      if (li >= 0 && MED.carts[li] && MED.carts[li].random) playCart(li); else call("media_player", "media_next_track", { target: { entity_id: id } });
+    }
+    else if (b.dataset.mctl === "eject") { call("media_player", "media_stop", { target: { entity_id: id } }); MED.loaded = -1; MED.stageKey = ""; }
   });
 
   // ============================================================ 3. NETWORK — signal map and the NAS
   const NET = { devs: [], areas: [], wan: null, ip: null, nas: {}, nodes: null };
   const rssiCol = (v) => (v == null ? COL.bad : v >= -60 ? COL.ok : v >= -72 ? COL.warn : COL.bad);
   page({
-    id: "network", label: "Network", pos: 4, view: { dist: 15, ty: 0.4, phi: 0.95 }, minDist: 7, maxDist: 30,
+    id: "network", label: "Network", pos: 4, view: { dist: 21, ty: 0.4, phi: 0.95 }, minDist: 8, maxDist: 34,
     discover(R) {
       if (!R) return;
       const devById = new Map(R.devices.map((d) => [d.id, d])), areaName = new Map(R.areas.map((a) => [a.area_id, a.name]));
@@ -411,81 +516,144 @@
     },
   });
 
-  // ============================================================ 4. WORKSHOP — Bambu P1S, filament and the print queue
-  const WS = { p: null, trays: [], queue: null, items: [], itemsAt: 0, obj: null };
-  async function loadQueue(force) {
-    if (!WS.queue || (!force && Date.now() - WS.itemsAt < 60e3)) return;
-    WS.itemsAt = Date.now();
-    try { const r = await HA().send({ type: "call_service", domain: "todo", service: "get_items", target: { entity_id: WS.queue }, return_response: true }); WS.items = ((r && r.response && r.response[WS.queue]) || {}).items || []; dirty = true; } catch (_) {}
+  // ============================================================ 4. WORKSHOP — Bambu P1S + AMS, the filament shelf, the print queue
+  const WS = { p: null, trays: [], queue: null, items: [], itemsAt: 0, stock: null, stockItems: [], stockAt: 0, obj: null, shelf: null, shelfKey: "" };
+  async function loadList(id, force, at) {
+    if (!id || (!force && Date.now() - WS[at] < 60e3)) return null;
+    WS[at] = Date.now();
+    try { const r = await HA().send({ type: "call_service", domain: "todo", service: "get_items", target: { entity_id: id }, return_response: true }); dirty = true; return ((r && r.response && r.response[id]) || {}).items || []; } catch (_) { return null; }
+  }
+  async function loadQueue(force) { const it = await loadList(WS.queue, force, "itemsAt"); if (it) WS.items = it; }
+  async function loadStock(force) { const it = await loadList(WS.stock, force, "stockAt"); if (it) { WS.stockItems = it; buildShelfSpools(); } }
+  const hexOf = (t) => { const m = /#([0-9a-f]{6})/i.exec(String(t || "")); return m ? parseInt(m[1], 16) : null; };
+  const shortName = (t) => String(t || "").replace(/\(2nd spool\)/i, "").replace(/^(PLA|PETG|ABS|TPU|ASA)\s+(Basic|Matte|Silk|Silk Multi-Color|Tough|HF|CF)?\s*/i, "").trim() || String(t || "");
+  // a spool: two flanges, the hub, and the wound filament between them; axis "z" faces the camera, "x" sits side-on (in the AMS)
+  function spoolPts(ax, cx, cy, cz, r = 1, w = 0.66) {
+    const fl = [], fil = [], off = (k) => (ax === "z" ? [cx, cy, cz + k] : [cx + k, cy, cz]);
+    for (const k of [-w / 2, w / 2]) { const [x, y, z] = off(k); ring(fl, x, y, z, r, 40, ax); ring(fl, x, y, z, r * 0.28, 18, ax); }
+    for (let i = 0; i < 4; i++) { const k = -w / 2 + 0.06 + (i / 3) * (w - 0.12), [x, y, z] = off(k); ring(fil, x, y, z, r * 0.84, 36, ax); }
+    for (const k of [-w / 2 + 0.03, w / 2 - 0.03]) { const [x, y, z] = off(k); for (let rr = 0.4; rr <= 0.84; rr += 0.11) ring(fil, x, y, z, r * rr, 30, ax); }
+    return { fl, fil };
+  }
+  const SHELF = { cols: 5, rows: 4, cell: 2.3, x0: -13.2, y0: 0.2 };
+  function buildShelfSpools() {
+    const g = WS.shelf, T = V3.T; if (!g || !T) return;
+    const items = WS.stockItems.filter((i) => i.status === "needs_action").slice(0, SHELF.cols * SHELF.rows);
+    const key = items.map((i) => i.uid + (i.description || "")).join("|"); if (key === WS.shelfKey) return; WS.shelfKey = key;
+    g.children.slice().forEach((c) => { g.remove(c); c.geometry && c.geometry.dispose(); });
+    WS.spools = [];
+    for (const [k, el] of V3.tags) if (k.startsWith("sh") && k !== "shelf") el.dataset.hidden = "true";
+    items.forEach((it, n) => {
+      const c = n % SHELF.cols, r = Math.floor(n / SHELF.cols), cx = SHELF.x0 + (c + 0.5) * SHELF.cell, cy = SHELF.y0 + (SHELF.rows - r - 0.5) * SHELF.cell;
+      const { fl, fil } = spoolPts("z", cx, cy, 0, 0.98);
+      const col = hexOf(it.description) ?? 0x8fb9c2;
+      const a = segs(T, fl, 0xb8c4c8, 0.35), b = segs(T, fil, col, 0.9);
+      g.add(a, b); WS.spools.push({ it, a, b, x: cx, y: cy });
+    });
   }
   page({
-    id: "workshop", label: "Workshop", pos: 5, view: { dist: 8.5, ty: 1.4, phi: 1.12 }, minDist: 4, maxDist: 16,
+    id: "workshop", label: "Workshop", pos: 5, view: { dist: 25, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 40,
     discover(R) {
       if (!R) return;
       const bam = R.ents.filter((e) => e.platform === "bambu_lab" && !e.disabled_by);
       const f = (re) => { const x = bam.find((e) => re.test(e.entity_id)); return x ? x.entity_id : null; };
       WS.p = bam.length ? { progress: f(/print_progress$/), status: f(/print_status$/), stage: f(/current_stage$/), task: f(/task_name$/), layer: f(/current_layer$/), layers: f(/total_layer_count$/), remain: f(/remaining_time$/), end: f(/end_time$/),
-        nozzle: f(/nozzle_temperature$/), bed: f(/bed_temperature$/), nozzleT: f(/nozzle_target_temperature$/), bedT: f(/sensor\..*bed_target_temperature$/), hum: f(/ams_1_humidity$/), amsT: f(/ams_1_temperature$/), active: f(/active_tray$/), weight: f(/print_weight$/), online: f(/_online$/), light: f(/^light\..*chamber_light$/), cover: f(/^image\..*cover_image$/) } : null;
-      WS.trays = bam.filter((e) => /_tray_\d+$|external_spool$/.test(e.entity_id) && e.entity_id.startsWith("sensor.")).map((e) => e.entity_id).sort();
-      WS.queue = (R.allStates.find((s) => s.entity_id.startsWith("todo.") && /print/.test(s.entity_id + " " + String(s.attributes.friendly_name || "").toLowerCase())) || {}).entity_id || null;
-      watch([...(WS.p ? Object.values(WS.p) : []), ...WS.trays, WS.queue]);
-      loadQueue(true);
+        nozzle: f(/nozzle_temperature$/), bed: f(/bed_temperature$/), nozzleT: f(/nozzle_target_temperature$/), bedT: f(/sensor\..*bed_target_temperature$/), hum: f(/ams_1_humidity$/), amsT: f(/ams_1_temperature$/), active: f(/active_tray$/), weight: f(/print_weight$/), online: f(/_online$/) } : null;
+      WS.trays = bam.filter((e) => /_ams_\d+_tray_\d+$/.test(e.entity_id) && e.entity_id.startsWith("sensor.")).map((e) => e.entity_id).sort();
+      const todo = (re) => (R.allStates.find((s) => s.entity_id.startsWith("todo.") && re.test(s.entity_id + " " + String(s.attributes.friendly_name || "").toLowerCase())) || {}).entity_id || null;
+      WS.queue = todo(/print.?queue|print/); WS.stock = todo(/filament/);
+      watch([...(WS.p ? Object.values(WS.p) : []), ...WS.trays, WS.queue, WS.stock]);
+      loadQueue(true); loadStock(true);
     },
     build(g, T) {
-      g.add(floorGrid(T, 4.5));
-      const s = 3.2, h = 3.4;   // the P1S: a box frame, the bed, the toolhead on its gantry
-      g.add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(s, h, s)), lineMat(T, COL.edge, 0.45)).translateY(h / 2));
-      const bed = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(s * 0.8, 0.06, s * 0.8)), lineMat(T, COL.edge, 0.7)); g.add(bed);
-      const gridPts = []; for (let i = -4; i <= 4; i++) { const k = (i / 4) * s * 0.4; gridPts.push(k, 0, -s * 0.4, k, 0, s * 0.4, -s * 0.4, 0, k, s * 0.4, 0, k); }
-      const bedGrid = segs(T, gridPts, COL.edge, 0.15); g.add(bedGrid);
-      const gantry = segs(T, [-s / 2, 0, 0, s / 2, 0, 0], COL.edge, 0.6); g.add(gantry);
-      const head = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.42, 0.5, 0.42)), lineMat(T, COL.cyan, 0.9)); g.add(head);
-      // the part: stacked layer rings, revealed up to the progress
-      const L = 60, objPts = [], r0 = 0.62;
-      for (let i = 0; i < L; i++) { const y = (i / L) * 1.6, r = r0 * (1 - 0.35 * Math.sin((i / L) * Math.PI) * 0.6 + 0.1 * Math.sin(i / 3)); ring(objPts, 0, y, 0, r, 36); }
-      const obj = segs(T, objPts, COL.cyan, 0.85); g.add(obj);
-      // AMS spools beside it
-      const spools = [];
-      for (let i = 0; i < 4; i++) { const sp = segs(T, ring(ring([], 0, 0, 0, 0.36, 32, "x"), 0, 0, 0, 0.16, 20, "x"), COL.edge, 0.7); sp.position.set(-s / 2 - 0.9, 0.55 + i * 0.85, 0); g.add(sp); spools.push(sp); }
-      WS.obj = { bed, bedGrid, gantry, head, obj, L, spools, perLayer: 36 * 2 * 3 };
+      g.add(floorGrid(T, 14).translateX(-3.6));
+      const PX = 3.8, s = 3.9, h = 4.6, d = 3.9;   // P1S: 389 × 458 × 389 mm, 1 unit = 100 mm
+      const P = new T.Group(); P.position.x = PX; g.add(P);
+      const L = [];   // body outline
+      const box = (x0, x1, y0, y1, z0, z1, out) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; out.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
+      box(-s / 2, s / 2, 0, h, -d / 2, d / 2, L);
+      const det = [], F = d / 2 + 0.01;
+      det.push(-s / 2, 0.42, F, s / 2, 0.42, F);   // base band
+      for (const [a, b] of [[[-1.72, 0.6], [1.72, 0.6]], [[1.72, 0.6], [1.72, 4.42]], [[1.72, 4.42], [-1.72, 4.42]], [[-1.72, 4.42], [-1.72, 0.6]]]) det.push(a[0], a[1], F, b[0], b[1], F);   // glass door
+      det.push(1.5, 1.9, F + 0.04, 1.5, 3.1, F + 0.04);   // door handle
+      det.push(-s / 2 + 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, d / 2 - 0.25, s / 2 - 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, -d / 2 + 0.25);   // top glass
+      det.push(-1.3, 0.22, F, -0.7, 0.22, F);   // screen strip
+      P.add(segs(T, L, COL.edge, 0.6), segs(T, det, COL.edge, 0.3));
+      // AMS on top: 372 × 218 × 280 mm, sloped smoked lid, four spools side by side
+      const A = [], aw = 3.72, ad = 2.8, ay = h + 0.02, ah = 2.0;
+      box(-aw / 2, aw / 2, ay, ay + 0.9, -ad / 2, ad / 2, A);
+      const lid = [[-aw / 2, ay + 0.9, ad / 2], [aw / 2, ay + 0.9, ad / 2], [aw / 2, ay + ah, ad / 2 - 0.55], [-aw / 2, ay + ah, ad / 2 - 0.55]];
+      const back = [[-aw / 2, ay + ah, -ad / 2], [aw / 2, ay + ah, -ad / 2]];
+      const P2 = (a, b) => A.push(...a, ...b);
+      lid.forEach((p, k) => P2(p, lid[(k + 1) % 4])); P2(lid[3], back[0]); P2(lid[2], back[1]); P2(back[0], back[1]);
+      P2([-aw / 2, ay + 0.9, -ad / 2], back[0]); P2([aw / 2, ay + 0.9, -ad / 2], back[1]);
+      P.add(segs(T, A, COL.edge, 0.55));
+      const amsSp = [];
+      for (let k = 0; k < 4; k++) {
+        const cx = -1.29 + k * 0.86, { fl, fil } = spoolPts("x", cx, ay + 1.0, -0.1, 0.92, 0.62);
+        const a = segs(T, fl, 0xb8c4c8, 0.3), b = segs(T, fil, COL.edge, 0.85); P.add(a, b); amsSp.push({ a, b, x: PX + cx, y: ay + 2.25 });
+      }
+      // inside: the bed (moves down as the part grows), the gantry and toolhead at the top, the part itself
+      const bed = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(2.56, 0.05, 2.56)), lineMat(T, COL.edge, 0.7)); P.add(bed);
+      const gp = []; for (let k = -4; k <= 4; k++) { const v = (k / 4) * 1.28; gp.push(v, 0, -1.28, v, 0, 1.28, -1.28, 0, v, 1.28, 0, v); }
+      const bedGrid = segs(T, gp, COL.edge, 0.15); P.add(bedGrid);
+      const gantry = segs(T, [-1.8, 3.95, 0, 1.8, 3.95, 0, -1.8, 3.95, -0.1, -1.8, 3.95, 0.1], COL.edge, 0.6); P.add(gantry);
+      const head = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.5, 0.55, 0.45)), lineMat(T, COL.cyan, 0.9)); head.position.y = 3.95; P.add(head);
+      const NL = 60, op = [];
+      for (let k = 0; k < NL; k++) { const y = (k / NL) * 1.6, r = 0.62 * (1 - 0.2 * Math.sin((k / NL) * Math.PI) + 0.08 * Math.sin(k / 3)); ring(op, 0, y, 0, r, 36); }
+      const obj = segs(T, op, COL.cyan, 0.85); P.add(obj);
+      // the filament shelf: 5 × 4 cubbies
+      const sh = [], { cols, rows, cell, x0, y0 } = SHELF, x1 = x0 + cols * cell, y1 = y0 + rows * cell, zf = 0.55, zb = -0.55;
+      for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y0, zf, x, y1, zf, x, y0, zb, x, y1, zb); }
+      for (let r = 0; r <= rows; r++) { const y = y0 + r * cell; sh.push(x0, y, zf, x1, y, zf, x0, y, zb, x1, y, zb); for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y, zf, x, y, zb); } }
+      sh.push(x0, 0, zf, x0, y0, zf, x1, 0, zf, x1, y0, zf);   // feet
+      g.add(segs(T, sh, COL.edge, 0.28));
+      WS.shelf = new T.Group(); g.add(WS.shelf); WS.shelfKey = "";
+      WS.obj = { P, bed, bedGrid, gantry, head, obj, NL, amsSp, PX };
+      buildShelfSpools();
     },
     tick(g, dt, now) {
-      const o = WS.obj, P = WS.p; if (!o || !P) return;
-      const prog = n(st(P.progress)) ?? 0, status = String((st(P.status) || {}).s || ""), printing = /running|printing|prepare/.test(status) || /print|heat|level|calib/.test(String((st(P.stage) || {}).s || "")) && !/idle|finish/.test(status);
+      const o = WS.obj, P = WS.p; if (!o) return;
+      if (WS.shelf && WS.shelf.children.length === 0 && WS.stockItems.length) { WS.shelfKey = ""; buildShelfSpools(); }
+      const prog = P ? n(st(P.progress)) ?? 0 : 0, status = P ? String((st(P.status) || {}).s || "") : "", stage = P ? String((st(P.stage) || {}).s || "") : "";
+      const printing = /running|printing|prepare/.test(status) || (/print|heat|level|calib/.test(stage) && !/idle|finish/.test(status));
       const done = /finish/.test(status), k = Math.max(0, Math.min(1, prog / 100));
-      const bedY = 0.35, topY = bedY + 0.05 + 1.6 * k;
-      o.bed.position.y = bedY; o.bedGrid.position.y = bedY + 0.035; o.obj.position.y = bedY + 0.04;
-      o.obj.geometry.setDrawRange(0, Math.round(o.L * k) * 36 * 2);
-      const act = String((st(P.active) || {}).s || ""), tray = WS.trays.find((id) => act && (id.endsWith(act) || (st(id) || { a: {} }).a.active)) || WS.trays.find((id) => (st(id) || { a: {} }).a.active);
-      const colHex = tray && (st(tray) || { a: {} }).a.color ? parseInt(String(st(tray).a.color).slice(1, 7), 16) : COL.cyan;
-      o.obj.material.color.setHex(colHex); o.obj.material.opacity = printing ? 0.9 : done ? 0.55 : 0.18;
-      const hx = printing ? Math.sin(now / 180) * 0.5 : 0, hz = printing ? Math.cos(now / 240) * 0.45 : 0;
-      o.gantry.position.y = topY + 0.3; o.head.position.set(hx, topY + 0.3 + 0.25, hz);
-      o.head.material.opacity = printing ? 0.95 : 0.4;
-      WS.trays.slice(0, 4).forEach((id, i) => {
-        const t = st(id), sp = o.spools[i]; if (!sp || !t) return;
-        const c = t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!t.a.active;
-        sp.material.color.setHex(t.a.empty ? 0x333333 : c); sp.material.opacity = on ? 0.95 : 0.55; if (on && printing) sp.rotation.x += dt * 1.5;
-        tag("s" + i, sp.position.x - 0.1, sp.position.y + 0.42, 0, `<b>${esc(String(t.s || "EMPTY").toUpperCase())}</b><span>${on ? "FEEDING" : "SLOT " + (i + 1)}</span>`, true, "eddo-page-tag-sm");
+      // the P1S lowers its bed as the part grows; the nozzle stays at the top
+      const bedY = 3.7 - 1.6 * k - 0.05;
+      o.bed.position.y = bedY; o.bedGrid.position.y = bedY + 0.03; o.obj.position.y = bedY + 0.03;
+      o.obj.geometry.setDrawRange(0, Math.round(o.NL * k) * 36 * 2);
+      const trays = WS.trays.map((id) => st(id));
+      const act = trays.find((t) => t && t.a.active);
+      const colHex = act && act.a.color ? parseInt(String(act.a.color).slice(1, 7), 16) : COL.cyan;
+      o.obj.material.color.setHex(colHex); o.obj.material.opacity = printing ? 0.9 : done ? 0.55 : 0.15;
+      o.head.position.x = printing ? Math.sin(now / 180) * 0.7 : 0; o.head.position.z = printing ? Math.cos(now / 240) * 0.6 : 0; o.head.material.opacity = printing ? 0.95 : 0.45;
+      o.amsSp.forEach((sp, i) => {
+        const t = trays[i];
+        const c = t && t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!(t && t.a.active), empty = !t || t.a.empty;
+        sp.b.material.color.setHex(c); sp.b.material.opacity = empty ? 0 : on ? 0.95 : 0.75;
+        if (on && printing) { sp.a.rotation.x += dt * 1.2; sp.b.rotation.x += dt * 1.2; }
+        tag("ams" + i, sp.x, sp.y, 0.3, `<b>${esc(empty ? "EMPTY" : shortName(t.a.name || t.s).toUpperCase())}</b><span>${on ? "FEEDING" : "AMS " + (i + 1)}</span>`, true, "eddo-page-tag-sm");
       });
-      const task = st(P.task);
-      tag("job", 0, topY + 1.15, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, true);
+      (WS.spools || []).forEach((sp, i) => tag("sh" + i, sp.x, sp.y - 1.25, 0.6, `<b>${esc(shortName(sp.it.summary).toUpperCase())}</b>`, true, "eddo-page-tag-sm eddo-page-tag-shelf"));
+      const task = P && st(P.task);
+      tag("job", o.PX, 7.5, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
+      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0, `<b>FILAMENT</b><span>${(WS.spools || []).length} SPOOLS${WS.stock ? "" : " · NO LIST"}</span>`, true);
     },
     panel() {
       const P = WS.p; if (!P) return `<p class="wb-muted eddo-pg-note">No Bambu Lab printer in Home Assistant.</p>`;
       const prog = n(st(P.progress)), status = String((st(P.status) || {}).s || "—"), stage = String((st(P.stage) || {}).s || "").replace(/_/g, " ");
       const rem = n(st(P.remain)), end = st(P.end), task = st(P.task);
       const printing = /running|printing|prepare/.test(status);
-      const trays = WS.trays.map((id) => st(id)).filter(Boolean);
       const items = WS.items.filter((i) => i.status === "needs_action"), doneN = WS.items.length - items.length;
+      const stockN = WS.stockItems.filter((i) => i.status === "needs_action").length;
       return `<div class="wb-large">${prog != null ? Math.round(prog) : "—"}<small>${printing ? "% PRINTED" : status === "finish" ? "% · FINISHED" : "% · " + esc(status.toUpperCase())}</small></div>` +
         `<p class="eddo-pg-task">${esc(live(task) ? task.s : "No job")}</p><i class="eddo-pg-prog"><s style="width:${prog || 0}%"></s></i>` +
         `<div class="eddo-pg-grid">${card("LAYER", `${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}`, esc(stage.toUpperCase()))}${card("TIME LEFT", rem != null && printing ? (rem >= 1 ? `${Math.floor(rem)} h ${Math.round((rem % 1) * 60)} m` : `${Math.round(rem * 60)} min`) : "—", printing && live(end) ? "done " + new Date(end.s).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "")}` +
-        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("WEIGHT", n(st(P.weight)) != null ? fmt(n(st(P.weight))) + " g" : "—", "this job")}</div>` +
-        `<p class="eddo-pg-h">FILAMENT</p><div class="eddo-pg-trays">${trays.map((t) => `<div data-on="${!!t.a.active}" data-empty="${!!t.a.empty}"><i style="background:${esc(String(t.a.color || "#555").slice(0, 7))}"></i><b>${esc(t.a.empty ? "Empty" : t.s)}</b><small>${esc(t.a.type || "")}${t.a.remain >= 0 ? " · " + t.a.remain + "%" : ""}</small></div>`).join("")}</div>` +
+        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("ON THE SHELF", stockN, "spools")}</div>` +
         `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
         (WS.queue ? `<div class="eddo-pg-queue">${items.map((i) => `<button data-q="${esc(i.uid)}"><i></i><b>${esc(i.summary)}</b>${i.description ? `<small>${esc(i.description)}</small>` : ""}</button>`).join("") || `<p class="wb-muted eddo-pg-note">Queue's empty.</p>`}</div><form class="eddo-pg-add" data-qadd><input name="t" placeholder="Add a model to print…" autocomplete="off"><button>ADD</button></form>`
-          : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`);
+          : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`) +
+        `<p class="wb-muted eddo-pg-note">The shelf is the "Filament stock" list in Home Assistant: tick a spool off there when it's used up, add new ones with a colour like #FF8800 in the description.</p>`;
     },
   });
   document.addEventListener("click", (e) => {
@@ -499,6 +667,7 @@
     f.reset();
     HA().send({ type: "call_service", domain: "todo", service: "add_item", target: { entity_id: WS.queue }, service_data: { item: t } }).catch(() => {}).finally(() => setTimeout(() => loadQueue(true), 500));
   });
+  setInterval(() => { if (window.eddoTabs.active() === "workshop") { loadStock(false); loadQueue(false); } }, 30e3);
 
   // ============================================================ 5. ENERGY — Octopus today vs yesterday, and the biggest users
   const EN = { e: {}, g: {}, power: [], hist: [], histAt: 0 };
