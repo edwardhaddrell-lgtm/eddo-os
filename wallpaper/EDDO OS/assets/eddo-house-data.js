@@ -116,6 +116,7 @@ window.EDDO_HOUSE = {
     // living room
     { room: "living", name: "Doughnut lamp", kind: "lamp", u: 0.1, v: 0.85, entity: "light.dougnut_lamp", match: ["doughnut", "dougnut"] },
     { room: "living", name: "Frame TV", kind: "tv", u: 0.135, v: 0.52, y: 1.425, screen: [0.97, 0.75], entities: ["media_player.living_room_tv_qe50ls03fauxxu", "media_player.plex_plex_cast_chromecast"], plexAny: true },   // the TV + its Plex player; other Plex players that start playing show here too
+    { room: "living", name: "KEF LSX II", kind: "speakers", u: 0.135, v: 0.52, y: 1.17, pair: 0.74, entities: ["media_player.living_room_speaker_2", "media_player.lsx_ii_0408c2_2"] },   // either side of the Frame TV
     { room: "living", name: "Living room light", kind: "light", u: 0.52, v: 0.47, entity: "light.living_room_light" },
     { room: "living", name: "Candle", kind: "lamp", u: 0.09, v: 0.17, entity: "light.candle" },
     { room: "living", name: "Dyson fan", kind: "fan", u: 0.3, v: 0.08, match: ["dyson"], domains: ["fan", "climate"] },
@@ -144,6 +145,7 @@ window.EDDO_HOUSE = {
     // garden office
     { room: "office", name: "3D printer", kind: "printer", u: 0.9, v: 0.84, match: ["print status", "print_status"], domains: ["sensor"], cam: "eddo_print" },
     { room: "office", name: "Desk Hue", kind: "lamp", u: 0.9, v: 0.45, entities: ["light.deskhue", "switch.ed_skadis_plug_localbytes_plug_pm_d5f029"] },
+    { room: "office", name: "KEF (desk)", kind: "speakers", u: 0.9, v: 0.51, y: 0.88, pair: 0.7, entities: ["media_player.office_2", "media_player.office"] },   // on the desk, either side of the monitors
     { room: "office", name: "Office lights", kind: "light", u: 0.49, v: 0.47, entity: "light.garden_office_lights" },
     { room: "office", name: "Shelf lights", kind: "lamp", u: 0.27, v: 0.88, match: ["shelf"], entity: "light.hue_play_gradient_lightstrip_1" },
     { room: "office", name: "AC unit", kind: "climate", u: 0.12, v: 0.99, y: 2.25, entities: ["climate.garden_office", "climate.garden_office_ac"], ac: true, mountY: 2.0 },   // wall-mounted mini split, back wall by the corner

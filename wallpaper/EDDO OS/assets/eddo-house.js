@@ -25,7 +25,7 @@
   const devices = (H.devices || []).map((d) => ({ ...d, ids: [], roomRef: rooms.find((r) => r.id === d.room) })).filter((d) => d.roomRef);
   const KIND_DOMAINS = { light: ["light", "switch"], lamp: ["light", "switch"], appliance: ["switch", "water_heater", "binary_sensor", "select", "sensor"], tv: ["media_player"],
     climate: ["climate"], fan: ["fan", "climate", "switch"], camera: ["camera"], printer: ["sensor"], pc: [] };
-  const KIND_HEIGHT = { light: 2.3, lamp: 1.0, appliance: 0.6, tv: 1.25, climate: 1.9, fan: 0.7, camera: 1.9, printer: 0.95, pc: 0.75 };
+  const KIND_HEIGHT = { speakers: 1.0, light: 2.3, lamp: 1.0, appliance: 0.6, tv: 1.25, climate: 1.9, fan: 0.7, camera: 1.9, printer: 0.95, pc: 0.75 };
 
   const LIGHTY = /light|lamp|bulb|strip|candle/i;
   window.addEventListener("eddo-ha-ready", (e) => {
@@ -869,6 +869,15 @@
         add(new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(sw, sh)), lmat()), "both", 0.9);
         if (d.screen) core.rotation.y = d.u < 0.5 ? Math.PI / 2 : d.u > 0.5 && d.v > 0.05 && d.v < 0.95 ? -Math.PI / 2 : 0;   // flat on its wall
         else faceCentre();
+      } else if (k === "speakers") {   // a stereo pair at real size (KEF LSX II: 155 × 240 × 180 mm), either side of what they flank
+        for (const side of [-1, 1]) {
+          const sx = side * (d.pair || 0.6) / 2, box = new T.BoxGeometry(0.155, 0.24, 0.18);
+          const e = add(new T.LineSegments(new T.EdgesGeometry(box), lmat()), "both", 0.85); e.position.x = sx;
+          const f = add(new T.Mesh(box, mat({ blending: T.AdditiveBlending })), "on", 0.35); f.position.x = sx;
+          const woof = add(new T.Mesh(new T.RingGeometry(0.035, 0.05, 24), mat()), "both", 0.9); woof.position.set(sx, -0.01, 0.091);   // the Uni-Q driver
+          const tw = add(new T.Mesh(new T.CircleGeometry(0.014, 16), mat()), "on", 1); tw.position.set(sx, -0.01, 0.092);
+        }
+        core.rotation.y = d.u < 0.5 ? Math.PI / 2 : d.u > 0.5 && d.v > 0.05 && d.v < 0.95 ? -Math.PI / 2 : 0;   // facing into the room, like the TV
       } else if (k === "climate") {
         const e = add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.12, 0.12, 0.12)), lmat()), "both", 0.6); // a diamond
         e.rotation.set(Math.PI / 4, 0, Math.PI / 4);
@@ -881,7 +890,7 @@
         ring.rotation.x = -Math.PI / 2;
         add(new T.Mesh(new T.SphereGeometry(0.045, 10, 8), mat()), "on", 1);
       }
-      const hs = d.screen ? Math.max(0.6, ...d.screen) : 0.6, hit = new T.Mesh(new T.BoxGeometry(hs, hs, hs), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const hs = d.screen ? Math.max(0.6, ...d.screen) : d.pair ? d.pair + 0.25 : 0.6, hit = new T.Mesh(new T.BoxGeometry(hs, hs, hs), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       hit.position.copy(core.position); hit.userData.device = d; g.add(hit);
       let pool = null;
       if (k === "light" || k === "lamp") {
@@ -1197,7 +1206,7 @@
       // cameras stay red whenever they're linked (a camera that's idle or briefly unavailable is still a camera)
       const lit = d.kind === "camera" ? st.linked && d.ids.length > 0 : st.active;
       m.glow += ((lit ? 1 : 0) - m.glow) * Math.min(1, dt * 3);      // fade over about a second
-      const col = new T.Color(...(d.kind === "camera" ? [0.95, 0.26, 0.2] : st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" ? [0.62, 0.83, 1] : d.kind === "camera" ? [1, 0.38, 0.32] : [1, 0.64, 0.29])));
+      const col = new T.Color(...(d.kind === "camera" ? [0.95, 0.26, 0.2] : st.color || (d.kind === "light" || d.kind === "lamp" ? [1, 0.72, 0.45] : d.kind === "tv" || d.kind === "speakers" ? [0.62, 0.83, 1] : d.kind === "camera" ? [1, 0.38, 0.32] : [1, 0.64, 0.29])));
       const idle = new T.Color(st.linked ? 0x7d9599 : 0x3c4648);
       const dim = hiddenFloor(d.roomRef.floor) || (whatsOn && !focused && !devActive(d));
       const near = hoveredDev === d || focused === d.roomRef;
@@ -1210,7 +1219,7 @@
       }
       // same size on screen at any zoom; a little bigger under the mouse
       m.core.getWorldPosition(tmp);
-      const want = d.screen ? (hoveredDev === d ? 1.05 : 1) : Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);   // real-size screens stay real size
+      const want = d.screen || d.pair ? (hoveredDev === d ? 1.05 : 1) : Math.max(0.7, Math.min(2.4, camera.position.distanceTo(tmp) / 26)) * (hoveredDev === d ? 1.45 : 1);   // real-size screens stay real size
       m.size += (want - m.size) * Math.min(1, dt * 8); m.core.scale.setScalar(m.size);
       if (m.pool) { m.pool.material.color.copy(col); m.pool.material.opacity = dim || heatMode || energyMode ? 0 : m.glow * (st.bri ?? 1) * (d.kind === "light" ? 0.28 : 0.22) * FLOOR_GLOW; }
     }
@@ -1954,7 +1963,7 @@
     LIVE.doors = conf.filter((d) => d.ids.length);
     for (const d of LIVE.doors) { const lk = allStates.find((st) => st.entity_id.startsWith("lock.") && (d.match || []).some((m) => text(st).includes(m))); d.lockId = lk ? lk.entity_id : null; }
     // music & TV: media players, grouped onto the TV they belong to or the room they're in
-    const tvs = devices.filter((d) => d.kind === "tv"), groups = new Map();
+    const tvs = devices.filter((d) => d.kind === "tv" || d.kind === "speakers"), groups = new Map();   // speakers get their own music rings and now-playing label
     for (const st of allStates) {
       if (!st.entity_id.startsWith("media_player.") || !live(st)) continue;
       const t = text(st); let d = tvs.find((v) => v.ids.includes(st.entity_id) || (v.match || []).some((m) => t.includes(m)));
