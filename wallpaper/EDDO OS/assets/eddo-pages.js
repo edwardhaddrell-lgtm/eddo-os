@@ -73,16 +73,24 @@
     V3.camera = new T.PerspectiveCamera(32, 1, 0.1, 400);
     stage.addEventListener("pointerdown", (e) => {
       if (!V3.running || e.button !== 0 || e.target.closest("button,a,input,select,textarea,.workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip,.system-footer,.system-nav,.brand,.eddo-page-card")) return;
-      V3.drag = { x: e.clientX, y: e.clientY, th: V3.view.theta, ph: V3.view.phi }; V3.view.auto = false;
+      const p = V3.page, swipe = !!(p && p.dragStart && p.dragStart(e.clientX, e.clientY));
+      V3.drag = { x: e.clientX, y: e.clientY, th: V3.view.theta, ph: V3.view.phi, hover: V3.hover, swipe }; if (!swipe) V3.view.auto = false;
     });
     window.addEventListener("pointermove", (e) => {
       const d = V3.drag; if (!d) return;
+      if (d.swipe) { V3.page && V3.page.dragMove && V3.page.dragMove(e.clientX - d.x); return; }
       V3.view.theta = d.th - (e.clientX - d.x) * 0.006; V3.view.phi = Math.max(0.35, Math.min(1.45, d.ph - (e.clientY - d.y) * 0.004));
     });
     window.addEventListener("pointerup", (e) => {
       const d = V3.drag; if (!d) return;
-      V3.drag = null; clearTimeout(V3.resume); V3.resume = setTimeout(() => { V3.view.auto = true; }, 8000);
-      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) { V3.pinned = V3.hover ? V3.hover : null; V3.confirm = null; drawCard(); }   // a click pins what's under the mouse (or clears)
+      V3.drag = null;
+      if (d.swipe) {
+        V3.page && V3.page.dragEnd && V3.page.dragEnd(e.clientX - d.x);
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) { V3.pinned = d.hover || null; V3.confirm = null; drawCard(); }   // a tap on a spool still opens it
+        return;
+      }
+      clearTimeout(V3.resume); V3.resume = setTimeout(() => { V3.view.auto = true; }, 8000);
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) { V3.pinned = d.hover || null; V3.confirm = null; V3.view.auto = !d.hover && V3.view.auto; drawCard(); }   // a click pins what was under the mouse (or clears)
     });
     stage.addEventListener("pointermove", (e) => {
       if (!V3.running) return;
@@ -93,7 +101,12 @@
     stage.addEventListener("wheel", (e) => {
       if (!V3.running || e.target.closest(".workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip")) return;
       const p = V3.page;
-      if (p && p.onSwipe && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { V3.swipe = (V3.swipe || 0) + e.deltaX; clearTimeout(V3.swipeT); V3.swipeT = setTimeout(() => { V3.swipe = 0; }, 250); if (Math.abs(V3.swipe) > 80 && !V3.swipeLock) { p.onSwipe(Math.sign(V3.swipe)); V3.swipe = 0; V3.swipeLock = true; setTimeout(() => { V3.swipeLock = false; }, 600); } return; }
+      if (p && p.onSwipe && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.8) {
+        V3.swipe = (V3.swipe || 0) + e.deltaX; clearTimeout(V3.swipeT);
+        V3.swipeT = setTimeout(() => { V3.swipe = 0; V3.swipeLock = false; }, 220);   // the gesture (and its momentum) has finished
+        if (!V3.swipeLock && Math.abs(V3.swipe) > 35) { p.onSwipe(Math.sign(V3.swipe)); V3.swipeLock = true; }
+        return;
+      }
       V3.view.dist = Math.max((p && p.minDist) || 4, Math.min((p && p.maxDist) || 30, V3.view.dist * (1 + Math.sign(e.deltaY) * 0.08)));
     }, { passive: true });
     return true;
@@ -165,7 +178,7 @@
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, V3.last ? (now - V3.last) / 1000 : 0.016); V3.last = now;
     const v = V3.view, pg = V3.page;
-    if (v.auto) { if (pg && pg.sway) { v.swayT = (v.swayT || 0) + dt; v.theta = pg.view.theta + Math.sin(v.swayT / 7) * 0.32; } else v.theta += dt * 0.12; }
+    if (v.auto && !V3.pinned) { if (pg && pg.sway) { v.swayT = (v.swayT || 0) + dt; v.theta = pg.view.theta + Math.sin(v.swayT / 7) * 0.32; } else v.theta += dt * 0.12; }
     const T = V3.T, cam = V3.camera;
     cam.position.set(v.tx + v.dist * Math.sin(v.phi) * Math.sin(v.theta), v.ty + v.dist * Math.cos(v.phi), v.tz + v.dist * Math.sin(v.phi) * Math.cos(v.theta));
     cam.lookAt(v.tx, v.ty, v.tz);
@@ -669,14 +682,35 @@
       g.add(a, b); WS.spools.push({ it, a, b, x: cx, y: cy });
     });
   }
-  function shelfPage(dir) {
-    const pages = WS.pages || 1, next = Math.max(0, Math.min(pages - 1, (WS.page || 0) + dir)); if (next === WS.page) return;
-    WS.page = next; buildShelfSpools(); if (WS.shelf) WS.shelf.position.x = dir * 6;   // slides in from the side it came from
+  const SHELF_W = () => SHELF.cols * SHELF.cell;
+  function shelfPage(dir, from) {
+    const pages = WS.pages || 1, next = Math.max(0, Math.min(pages - 1, (WS.page || 0) + dir));
+    if (next === WS.page || !WS.shelf) { if (WS.shelf) WS.shelf.userData.goal = 0; return; }
+    // the current page slides out (keeping its spools), the next slides in from the other side
+    const T = V3.T, out = new T.Group(), w = SHELF_W() + 1.5;
+    WS.shelf.children.slice().forEach((c) => { WS.shelf.remove(c); out.add(c); });
+    out.position.x = from != null ? from : WS.shelf.position.x; out.userData.goal = -dir * w; WS.shelf.parent.add(out);
+    if (WS.shelfOut) { WS.shelfOut.parent && WS.shelfOut.parent.remove(WS.shelfOut); }
+    WS.shelfOut = out;
+    WS.page = next; WS.shelfKey = ""; buildShelfSpools();
+    WS.shelf.position.x = dir * w + (from != null ? from : 0); WS.shelf.userData.goal = 0;
+    haptic && haptic();
+  }
+  const haptic = () => { try { navigator.vibrate && navigator.vibrate(8); } catch (_) {} };
+  // drag the shelf sideways to flip pages (starts only on the shelf itself)
+  function shelfRect() {
+    const a = toCanvas(SHELF.x0, SHELF.y0, 0.6), b = toCanvas(SHELF.x0 + SHELF_W(), SHELF.y0 + SHELF.rows * SHELF.cell, 0.6); if (!a || !b) return null;
+    const r = V3.canvas.getBoundingClientRect(), k = (r.width || 1) / V3.canvas.clientWidth;
+    return { l: r.left + Math.min(a.x, b.x) * k, r: r.left + Math.max(a.x, b.x) * k, t: r.top + Math.min(a.y, b.y) * k, b: r.top + Math.max(a.y, b.y) * k, pxPerUnit: (Math.abs(b.x - a.x) * k) / SHELF_W() };
   }
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-shelf]"); if (b) shelfPage(+b.dataset.shelf); });
   window.addEventListener("keydown", (e) => { if (window.eddoTabs.active() !== "workshop" || /input|textarea/i.test((document.activeElement || {}).tagName || "")) return; if (e.key === "ArrowRight") shelfPage(1); else if (e.key === "ArrowLeft") shelfPage(-1); });
   page({
     id: "workshop", label: "Workshop", pos: 5, view: { dist: 33, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 48, onSwipe: (d) => shelfPage(d),
+    dragStart(x, y) { const r = shelfRect(); if (!r || (WS.pages || 1) < 2 || x < r.l || x > r.r || y < r.t || y > r.b) return false; WS.dragPx = r.pxPerUnit || 30; WS.dragging = true; return true; },
+    dragMove(dx) { if (!WS.shelf) return; let x = dx / WS.dragPx; const pages = WS.pages || 1; if ((WS.page === 0 && x > 0) || (WS.page >= pages - 1 && x < 0)) x *= 0.3; WS.shelf.position.x = x; },   // resists at the ends
+    dragEnd(dx) { WS.dragging = false; const x = dx / WS.dragPx, pages = WS.pages || 1, dir = dx < 0 ? 1 : -1, ok = dir > 0 ? WS.page < pages - 1 : WS.page > 0;
+      if (Math.abs(dx) > 60 && ok) shelfPage(dir, WS.shelf.position.x); else if (WS.shelf) WS.shelf.userData.goal = 0; },
     discover(R) {
       if (!R) return;
       const bam = R.ents.filter((e) => e.platform === "bambu_lab" && !e.disabled_by);
@@ -763,13 +797,22 @@
       (WS.spools || []).forEach((sp, i) => {
         const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
         const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
+        if (sliding) { tag("sh" + i, 0, 0, 0, "", false); return; }
         tag("sh" + i, sp.x + WS.shelf.position.x, sp.y - 1.3, 0.6, `<b>${esc(shortName(it.summary).toUpperCase())}</b><span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>`, true, "eddo-page-tag-sm eddo-page-tag-shelf");
         pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 0.4, () => `<b>${esc(it.summary.toUpperCase())}</b><dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[1] ? `<dt>TYPE</dt><dd>${esc(parts[1])}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
           { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
       });
       const task = P && st(P.task);
       tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
-      if (WS.shelf) { WS.shelf.position.x += (0 - WS.shelf.position.x) * Math.min(1, dt * 7); if (Math.abs(WS.shelf.position.x) < 0.01) WS.shelf.position.x = 0; }
+      const ease = Math.min(1, dt * 9);
+      if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease; if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
+      if (WS.shelfOut) {
+        const o = WS.shelfOut; o.position.x += (o.userData.goal - o.position.x) * ease;
+        const left = Math.abs(o.userData.goal - o.position.x) / (SHELF_W() + 1.5);
+        o.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * Math.min(1, left * 1.6); });
+        if (left < 0.02) { o.parent && o.parent.remove(o); o.children.forEach((c) => c.geometry && c.geometry.dispose()); WS.shelfOut = null; }
+      }
+      const sliding = !!WS.shelfOut || (WS.shelf && Math.abs(WS.shelf.position.x) > 0.3);
       const pages = WS.pages || 1;
       tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
         `<b>FILAMENT · ${WS.stockTotal || 0} SPOOLS</b><span class="eddo-shelf-nav">${pages > 1 ? `<button data-shelf="-1"${WS.page ? "" : " disabled"}>‹</button>PAGE ${WS.page + 1} / ${pages}<button data-shelf="1"${WS.page < pages - 1 ? "" : " disabled"}>›</button>` : "ALL ON THE SHELF"}${WS.stock ? "" : " · NO LIST"}</span>`, true, "eddo-page-tag-nav");
