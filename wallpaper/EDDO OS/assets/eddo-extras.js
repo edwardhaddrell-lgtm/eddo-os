@@ -145,6 +145,7 @@
     try { const res = await fetch(base + "/pc"); pcData = res.ok ? await res.json() : null; } catch (_) { pcData = null; }
     renderPc();
   }
+  window.eddoPc = () => pcData;
   pollPc(); setInterval(pollPc, 5000);
   setInterval(() => { if (!pcEl || !pcEl.isConnected) { pcHtml = ""; renderPc(); } }, 2000);
   document.addEventListener("click", (e) => {
@@ -627,6 +628,50 @@
       CAMS.error = missing.length ? "Not found in Home Assistant: " + missing.join(", ") + "." : "";
     } catch (e) { CAMS.error = "Couldn't read cameras from Home Assistant."; }
   }
+  // ---- pinned camera: one camera as a small floating tile that stays on every page ----
+  const PIN = { key: (() => { try { return localStorage.getItem("eddo-cam-pin") || ""; } catch (_) { return ""; } })(), el: null, timer: 0, src: "" };
+  function pinCam(key) {
+    PIN.key = PIN.key === key ? "" : key;
+    try { PIN.key ? localStorage.setItem("eddo-cam-pin", PIN.key) : localStorage.removeItem("eddo-cam-pin"); } catch (_) {}
+    document.querySelectorAll("#stage [data-cam-pin]").forEach((b) => { const on = b.dataset.camPin === PIN.key; b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "◆ PINNED" : "◇ PIN"; });
+    drawPin(true);
+  }
+  async function drawPin(force) {
+    const stage = document.querySelector("#stage"); if (!stage || !HA() || !HA().send) return;
+    if (!PIN.key) { if (PIN.el) { PIN.el.remove(); PIN.el = null; } return; }
+    if (!CAMS.loaded) await loadCameras();
+    const c = CAMS.list.find((x) => x.key === PIN.key); if (!c) return;
+    if (!PIN.el || !PIN.el.isConnected) {
+      PIN.el = document.createElement("div"); PIN.el.className = "eddo-pip";
+      PIN.el.innerHTML = `<div class="eddo-pip-head"><span></span><button data-pip-open title="Open Cameras">⤢</button><button data-pip-close title="Unpin">×</button></div><img alt="">`;
+      stage.append(PIN.el); force = true;
+    }
+    PIN.el.querySelector("span").textContent = c.label.toUpperCase();
+    // the House tab shows its own camera previews; hide the tile there and while a camera is big on screen
+    PIN.el.hidden = window.eddoTabs && (window.eddoTabs.active() === "cameras");
+    const img = PIN.el.querySelector("img");
+    if (!force && img.dataset.ok === "true" && c.other) return;   // a motion-JPEG feed keeps itself going
+    try {
+      const all = await HA().send({ type: "get_states" });
+      const st = [c.live, c.still].map((id) => id && all.find((x) => x.entity_id === id)).find((x) => x && x.attributes.entity_picture);
+      if (!st) return;
+      const pic = st.attributes.entity_picture;
+      const url = c.other ? HA().baseUrl() + pic.replace("/api/camera_proxy/", "/api/camera_proxy_stream/") : picUrl(pic);
+      img.onload = () => { img.dataset.ok = "true"; }; img.onerror = () => { img.dataset.ok = "false"; };
+      if (c.other && img.src === url) return;
+      img.src = url;
+    } catch (_) {}
+  }
+  setInterval(() => drawPin(false), 6000);
+  setInterval(() => { if (PIN.el) PIN.el.hidden = !!(window.eddoTabs && window.eddoTabs.active() === "cameras"); else if (PIN.key) drawPin(true); }, 1000);
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest) return;
+    const pb = e.target.closest("[data-cam-pin]"); if (pb) { pinCam(pb.dataset.camPin); return; }
+    if (e.target.closest("[data-pip-close]")) { pinCam(PIN.key); return; }
+    if (e.target.closest("[data-pip-open]")) { document.querySelector('#stage .wb-nav [data-eddo-tab="cameras"]')?.click(); }
+  });
+  window.eddoCams = { list: () => CAMS.list, load: loadCameras, pin: pinCam, pinned: () => PIN.key };
+
   const lastFrame = new Map();   // key -> dataURL of the last live frame
   const picUrl = (p) => `${HA().baseUrl()}${p}${p.includes("?") ? "&" : "?"}t=${Date.now()}`;
   // try each snapshot source in turn; fall back to the last live frame, then a placeholder
@@ -665,7 +710,8 @@
     return `<div class="eddo-cam" data-cam="${c.key}">` +
       `<div class="eddo-cam-head"><span>${esc(c.label.toUpperCase())}</span><em class="eddo-cam-state">${c.live ? "READY" : "NO LIVE VIEW"}</em></div>` +
       `<div class="eddo-cam-media" data-cam-expand="${c.key}" data-empty="true"><div class="eddo-cam-empty">NO SNAPSHOT</div><img alt=""><video muted playsinline autoplay></video><i class="eddo-cam-zoom">⤢</i></div>` +
-      `<button class="eddo-cam-btn" data-cam-live="${c.key}"${c.live ? "" : " disabled"}>◉ LIVE</button></div>`;
+      `<div class="eddo-cam-btns"><button class="eddo-cam-btn" data-cam-live="${c.key}"${c.live ? "" : " disabled"}>◉ LIVE</button>` +
+      `<button class="eddo-cam-btn eddo-cam-pinbtn" data-cam-pin="${c.key}" aria-pressed="${PIN.key === c.key}">${PIN.key === c.key ? "◆ PINNED" : "◇ PIN"}</button></div></div>`;
   }
   function camEl(key) { return document.querySelector(`#stage [data-cam="${key}"]`); }
   // the picture/video box can be inside the card or moved into the big view

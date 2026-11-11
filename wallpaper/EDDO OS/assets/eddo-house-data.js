@@ -41,7 +41,7 @@ window.EDDO_HOUSE = {
       { name: "Planters", x0: 0.15, x1: 0.45, z0: 12.45, z1: 12.8, h: 0.45 },
       { name: "Rotary washing line", kind: "rotary", x: 2.35, z: 13.9, h: 1.9, r: 1.1 },
       { name: "Garden chair", kind: "chair", x0: 0.45, x1: 1.05, z0: 13.7, z1: 14.3, h: 0.9 },
-      { name: "Weber BBQ", kind: "bbq", x0: 4.0, x1: 4.6, z0: 15.2, z1: 15.95, h: 1.15 },
+      { name: "Weber Searwood", kind: "bbq", x0: 3.95, x1: 4.6, z0: 14.85, z1: 16.0, h: 1.2 },
       { name: "Maple", kind: "tree", x: 0.1, z: 15.9, r: 1.5, y0: 1.8, h: 4.2 },
       { name: "Shrubs", kind: "tree", x: 4.85, z: 13.9, r: 0.8, y0: 0.6, h: 2.6 },
     ],

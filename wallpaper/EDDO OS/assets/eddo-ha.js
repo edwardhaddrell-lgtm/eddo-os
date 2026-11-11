@@ -124,6 +124,7 @@
     const devName = new Map(devices.map((d) => [d.id, d.name_by_user || d.name]));
     const reg = new Map(ents.map((e) => [e.entity_id, e]));
     const stateMap = new Map(allStates.map((s) => [s.entity_id, s]));
+    window.eddoHAReady = { allStates, devices, ents, areas };
     window.dispatchEvent(new CustomEvent("eddo-ha-ready", { detail: { allStates, devices, ents, areas } }));
     const fixed = parseList(cfg.haentities);
     if (fixed.length) {
@@ -253,6 +254,7 @@
     window.dispatchEvent(new CustomEvent("rhine-wallpaper-properties", { detail }));
   }
   let taskUids = [];
+  window.eddoTasks = { uids: () => taskUids.slice() };
   document.addEventListener("click", (e) => {
     const b = e.target.closest && e.target.closest("[data-wb-task]");
     if (!b || !cfg.hatasks || !todoEntity || !ws) return;
@@ -657,7 +659,7 @@
     render(c) {
       c.innerHTML = `<div class="wb-large">STEAM<small>GAME MODE</small></div>` +
         `<div class="eddo-game">${GAME_LINKS.map(([l, u, sub]) => `<button data-steam="${u}"><b>${l}</b><small>${sub}</small><span>↗</span></button>`).join("")}</div>` +
-        `<p class="wb-muted eddo-game-note"></p>`;
+        `<p class="wb-muted eddo-game-note"></p><div class="eddo-cockpit"></div>`;
     },
   });
   document.addEventListener("click", (e) => {

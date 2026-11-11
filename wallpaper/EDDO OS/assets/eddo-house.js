@@ -741,10 +741,18 @@
               for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2, b2 = (i + 1) / 20 * Math.PI * 2; tp.push(Math.cos(a) * rr, y, Math.sin(a) * rr, Math.cos(b2) * rr, y, Math.sin(b2) * rr); }
             }
             LIVE.treeDefs.push({ x: it.x, z: it.z, pts: tp });
-          } else if (it.kind === "bbq") {   // kettle-ish grill under its cover: body, rounded lid, legs
-            box(x0, x1, z0, z1, 0.25, h - 0.25, det);
-            for (const zz of [z0, z1]) { let prev = null; for (let i = 0; i <= 8; i++) { const a = Math.PI * i / 8, p = [cx + Math.cos(a) * (x1 - x0) / 2, h - 0.25 + Math.sin(a) * 0.25, zz]; if (prev) L(prev, p, det); prev = p; } }
-            L([x0, h - 0.25, z0], [x0, h - 0.25, z1], det); L([x1, h - 0.25, z0], [x1, h - 0.25, z1], det); L([cx, h, z0], [cx, h, z1], det);
+          } else if (it.kind === "bbq") {   // Weber Searwood pellet grill: cart on legs, cook box with a rounded lid, pellet hopper at one end, side shelf at the other
+            const hz = z0 + 0.3, sz = z1 - 0.18, top = h - 0.27;   // hopper and shelf ends of the long (z) axis
+            for (const [xx, zz] of [[x0 + 0.04, hz], [x1 - 0.04, hz], [x0 + 0.04, sz], [x1 - 0.04, sz]]) L([xx, 0, zz], [xx, 0.7, zz], det);   // legs
+            rect([[x0 + 0.04, 0.18, hz], [x1 - 0.04, 0.18, hz], [x1 - 0.04, 0.18, sz], [x0 + 0.04, 0.18, sz]], det);   // bottom shelf
+            box(x0, x1, hz, sz, 0.7, top);   // cook box
+            for (const zz of [hz, sz]) { let prev = null; for (let i = 0; i <= 10; i++) { const a = Math.PI * i / 10, p = [cx + Math.cos(a) * (x1 - x0) / 2, top + Math.sin(a) * 0.27, zz]; if (prev) L(prev, p); prev = p; } }
+            for (const a of [0.35, 0.8, 1.57, 2.34, 2.79]) L([cx + Math.cos(a) * (x1 - x0) / 2, top + Math.sin(a) * 0.27, hz], [cx + Math.cos(a) * (x1 - x0) / 2, top + Math.sin(a) * 0.27, sz], det);   // lid
+            L([x0 - 0.06, top + 0.05, hz + 0.1], [x0 - 0.06, top + 0.05, sz - 0.1], det);   // handle
+            box(x0 + 0.06, x1 - 0.06, z0, hz, 0.62, h + 0.05);   // pellet hopper
+            rect([[x0 + 0.02, 0.98, z0 + 0.06], [x0 + 0.02, 0.98, hz - 0.06], [x0 + 0.02, 0.86, hz - 0.06], [x0 + 0.02, 0.86, z0 + 0.06]], det);   // controller screen
+            rect([[x0 + 0.04, top - 0.02, sz], [x1 - 0.04, top - 0.02, sz], [x1 - 0.04, top - 0.02, z1], [x0 + 0.04, top - 0.02, z1]], det);   // side shelf
+            KIT.bbqAt = [cx, h + 0.35, (hz + sz) / 2];
           } else if (it.kind === "chair") {
             box(x0, x1, z0, z1, 0, 0.45, det); box(x0, x1, z1 - 0.05, z1, 0.45, h, det);
           } else {   // covered furniture, planters, storage: a soft box (top edges pulled in)
@@ -2171,6 +2179,9 @@
     }
     const bins = LIVE.binsDue || [];
     liveTag("bins", 0.45 + (Math.max(1, bins.length) - 1) * 0.375, 1.6, -1.15, `<b>${bins.some((b) => b.days === 0) ? "BIN DAY" : "BINS OUT TONIGHT"}</b><span>${esc(bins.map((b) => b.name.toUpperCase()).join(" · "))}</span>`, bins.length > 0 && LIVE.binMeshes[0] && LIVE.binMeshes[0].visible);
+    { const g = KIT.bbq, at = KIT.bbqAt, t = g && num(g.temp), pr = g && num(g.probe), tg = g && num(g.target);
+      liveTag("bbq", at ? at[0] : 0, at ? at[1] : 0, at ? at[2] : 0, `<b>SEARWOOD${t != null ? ` · ${Math.round(t)}°` : ""}${tg != null ? `<em> → ${Math.round(tg)}°</em>` : ""}</b>${pr != null ? `<span>PROBE ${Math.round(pr)}°</span>` : ""}`,
+        !!(at && t != null && (t >= 45 || (tg || 0) > 0)) && !energyMode, "eddo-live-bbq"); }
     liveTag("parcel", 4.25, 0.9, -0.75, `<b>${LIVE.parcelCount} PARCEL${LIVE.parcelCount === 1 ? "" : "S"} DUE</b>`, LIVE.parcel && LIVE.parcel.visible);
   }
 
@@ -2215,6 +2226,11 @@
     const uf = (re) => { const x = ur.find((st) => re.test(st.entity_id)); return x ? x.entity_id : null; };
     KIT.nas = H.server ? { ...H.server, temp: uf(/cpu_temp/), load: uf(/cpu_(usage|utili[sz]ation|load)/), ram: uf(/(ram|memory)_(usage|utili[sz]ation|used)/), array: uf(/array_(usage|utili[sz]ation|used)/) } : null;
     if (KIT.nas) ids.push(KIT.nas.temp, KIT.nas.load, KIT.nas.ram, KIT.nas.array);
+    // Weber Searwood (Weber Connect, or any grill/smoker probe in Home Assistant): grill, target and probe temperatures
+    const gr = allStates.filter((st) => /^(sensor|climate|number)\./.test(st.entity_id) && /searwood|weber|smoker|pellet|grill|bbq/.test(st.entity_id + " " + String(st.attributes.friendly_name || "").toLowerCase()) && ok(st.entity_id));
+    const gf = (re, not) => { const x = gr.find((st) => re.test(st.entity_id + " " + String(st.attributes.friendly_name || "").toLowerCase()) && !(not && not.test(st.entity_id))); return x ? x.entity_id : null; };
+    KIT.bbq = gr.length ? { temp: gf(/grill|chamber|pit|cook|temp/, /probe|target|set/), target: gf(/target|set_?point|setpoint/), probe: gf(/probe|meat|food/) } : null;
+    if (KIT.bbq) ids.push(KIT.bbq.temp, KIT.bbq.target, KIT.bbq.probe);
     // office AC: the climate device flagged ac: true in the model
     const acDev = devices.find((d) => d.ac);
     KIT.ac = acDev ? { d: acDev, id: acDev.ids.find((x) => x.startsWith("climate.")) || null } : null;
@@ -2847,6 +2863,8 @@
       if (b) { clearInterval(t); if (!window.eddoTabs.active()) b.click(); } else if (++tries > 80) clearInterval(t);
     }, 250);
   }
+  // shared with the other EDDO pages (Garage reuses the car readings and actions)
+  window.eddoHouse = { carData: () => carData(), carAction: (a) => carAction(a), car: CAR, states, three: async () => { if (!T) { try { T = await import("./three-eddo-2.min.js"); } catch (_) { return null; } } return T; } };
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {
