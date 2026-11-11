@@ -636,7 +636,7 @@
   async function loadQueue(force) { const it = await loadList(WS.queue, force, "itemsAt"); if (it) WS.items = it; }
   async function loadStock(force) { const it = await loadList(WS.stock, force, "stockAt"); if (it) { WS.stockItems = it; buildShelfSpools(); } }
   const hexOf = (t) => { const m = /#([0-9a-f]{6})/i.exec(String(t || "")); return m ? parseInt(m[1], 16) : null; };
-  const shortName = (t) => String(t || "").replace(/\(2nd spool\)/i, "").replace(/^(PLA|PETG|ABS|TPU|ASA)\s+(Basic|Matte|Silk|Silk Multi-Color|Tough|HF|CF)?\s*/i, "").trim() || String(t || "");
+  const shortName = (t) => String(t || "").replace(/\([^)]*\)/g, "").replace(/^(PLA|PETG|ABS|TPU|ASA)\s+(Basic|Matte|Silk|Silk Multi-Color|Tough|HF|CF)?\s*/i, "").trim() || String(t || "");
   // a spool: two flanges, the hub, and the wound filament between them; axis "z" faces the camera, "x" sits side-on (in the AMS)
   function spoolPts(ax, cx, cy, cz, r = 1, w = 0.66) {
     const fl = [], fil = [], off = (k) => (ax === "z" ? [cx, cy, cz + k] : [cx + k, cy, cz]);
@@ -648,7 +648,12 @@
   const SHELF = { cols: 5, rows: 4, cell: 2.3, x0: -13.2, y0: 0.2 };
   function buildShelfSpools() {
     const g = WS.shelf, T = V3.T; if (!g || !T) return;
-    const items = WS.stockItems.filter((i) => i.status === "needs_action").slice(0, SHELF.cols * SHELF.rows);
+    // newest purchases first (the date at the end of the description, e.g. "Amazon, Oct 2026"); the shelf holds 20
+    const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    const when = (i) => { const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(\d{4})/i.exec(i.description || ""); return m ? +m[2] * 12 + MON[m[1].toLowerCase()] : 0; };
+    const all = WS.stockItems.filter((i) => i.status === "needs_action").map((i, k) => ({ i, k })).sort((a, b) => when(b.i) - when(a.i) || a.k - b.k).map((x) => x.i);
+    WS.stockTotal = all.length;
+    const items = all.slice(0, SHELF.cols * SHELF.rows);
     const key = items.map((i) => i.uid + (i.description || "")).join("|"); if (key === WS.shelfKey) return; WS.shelfKey = key;
     g.children.slice().forEach((c) => { g.remove(c); c.geometry && c.geometry.dispose(); });
     WS.spools = [];
@@ -754,7 +759,7 @@
       });
       const task = P && st(P.task);
       tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
-      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0, `<b>FILAMENT</b><span>${(WS.spools || []).length} SPOOLS${WS.stock ? "" : " · NO LIST"}</span>`, true);
+      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0, `<b>FILAMENT</b><span>${(WS.spools || []).length} SPOOLS${(WS.stockTotal || 0) > (WS.spools || []).length ? ` · ${WS.stockTotal - WS.spools.length} MORE IN STORAGE` : ""}${WS.stock ? "" : " · NO LIST"}</span>`, true);
     },
     panel() {
       const P = WS.p; if (!P) return `<p class="wb-muted eddo-pg-note">No Bambu Lab printer in Home Assistant.</p>`;
@@ -766,7 +771,7 @@
       return `<div class="wb-large">${prog != null ? Math.round(prog) : "—"}<small>${printing ? "% PRINTED" : status === "finish" ? "% · FINISHED" : "% · " + esc(status.toUpperCase())}</small></div>` +
         `<p class="eddo-pg-task">${esc(live(task) ? task.s : "No job")}</p><i class="eddo-pg-prog"><s style="width:${prog || 0}%"></s></i>` +
         `<div class="eddo-pg-grid">${card("LAYER", `${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}`, esc(stage.toUpperCase()))}${card("TIME LEFT", rem != null && printing ? (rem >= 1 ? `${Math.floor(rem)} h ${Math.round((rem % 1) * 60)} m` : `${Math.round(rem * 60)} min`) : "—", printing && live(end) ? "done " + new Date(end.s).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "")}` +
-        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("ON THE SHELF", stockN, "spools")}</div>` +
+        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("FILAMENT", stockN, stockN > 20 ? `20 on the shelf · ${stockN - 20} stored` : "spools on the shelf")}</div>` +
         `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
         (WS.queue ? `<div class="eddo-pg-queue">${items.map((i) => `<button data-q="${esc(i.uid)}"><i></i><b>${esc(i.summary)}</b>${i.description ? `<small>${esc(i.description)}</small>` : ""}</button>`).join("") || `<p class="wb-muted eddo-pg-note">Queue's empty.</p>`}</div><form class="eddo-pg-add" data-qadd><input name="t" placeholder="Add a model to print…" autocomplete="off"><button>ADD</button></form>`
           : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`) +
