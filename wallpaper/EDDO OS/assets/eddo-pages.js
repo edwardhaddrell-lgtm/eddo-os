@@ -92,7 +92,9 @@
     stage.addEventListener("pointerleave", () => { V3.mouse = null; });
     stage.addEventListener("wheel", (e) => {
       if (!V3.running || e.target.closest(".workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip")) return;
-      const p = V3.page; V3.view.dist = Math.max((p && p.minDist) || 4, Math.min((p && p.maxDist) || 30, V3.view.dist * (1 + Math.sign(e.deltaY) * 0.08)));
+      const p = V3.page;
+      if (p && p.onSwipe && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { V3.swipe = (V3.swipe || 0) + e.deltaX; clearTimeout(V3.swipeT); V3.swipeT = setTimeout(() => { V3.swipe = 0; }, 250); if (Math.abs(V3.swipe) > 80 && !V3.swipeLock) { p.onSwipe(Math.sign(V3.swipe)); V3.swipe = 0; V3.swipeLock = true; setTimeout(() => { V3.swipeLock = false; }, 600); } return; }
+      V3.view.dist = Math.max((p && p.minDist) || 4, Math.min((p && p.maxDist) || 30, V3.view.dist * (1 + Math.sign(e.deltaY) * 0.08)));
     }, { passive: true });
     return true;
   }
@@ -653,8 +655,9 @@
     const when = (i) => { const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(\d{4})/i.exec(i.description || ""); return m ? +m[2] * 12 + MON[m[1].toLowerCase()] : 0; };
     const all = WS.stockItems.filter((i) => i.status === "needs_action").map((i, k) => ({ i, k })).sort((a, b) => when(b.i) - when(a.i) || a.k - b.k).map((x) => x.i);
     WS.stockTotal = all.length;
-    const items = all.slice(0, SHELF.cols * SHELF.rows);
-    const key = items.map((i) => i.uid + (i.description || "")).join("|"); if (key === WS.shelfKey) return; WS.shelfKey = key;
+    const per = SHELF.cols * SHELF.rows; WS.pages = Math.max(1, Math.ceil(all.length / per)); WS.page = Math.min(WS.page || 0, WS.pages - 1);
+    const items = all.slice(WS.page * per, WS.page * per + per);
+    const key = WS.page + ":" + items.map((i) => i.uid + (i.description || "")).join("|"); if (key === WS.shelfKey) return; WS.shelfKey = key;
     g.children.slice().forEach((c) => { g.remove(c); c.geometry && c.geometry.dispose(); });
     WS.spools = [];
     for (const [k, el] of V3.tags) if (k.startsWith("sh") && k !== "shelf") el.dataset.hidden = "true";
@@ -666,8 +669,14 @@
       g.add(a, b); WS.spools.push({ it, a, b, x: cx, y: cy });
     });
   }
+  function shelfPage(dir) {
+    const pages = WS.pages || 1, next = Math.max(0, Math.min(pages - 1, (WS.page || 0) + dir)); if (next === WS.page) return;
+    WS.page = next; buildShelfSpools(); if (WS.shelf) WS.shelf.position.x = dir * 6;   // slides in from the side it came from
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-shelf]"); if (b) shelfPage(+b.dataset.shelf); });
+  window.addEventListener("keydown", (e) => { if (window.eddoTabs.active() !== "workshop" || /input|textarea/i.test((document.activeElement || {}).tagName || "")) return; if (e.key === "ArrowRight") shelfPage(1); else if (e.key === "ArrowLeft") shelfPage(-1); });
   page({
-    id: "workshop", label: "Workshop", pos: 5, view: { dist: 33, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 48,
+    id: "workshop", label: "Workshop", pos: 5, view: { dist: 33, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 48, onSwipe: (d) => shelfPage(d),
     discover(R) {
       if (!R) return;
       const bam = R.ents.filter((e) => e.platform === "bambu_lab" && !e.disabled_by);
@@ -752,14 +761,18 @@
       // one label for the whole AMS (four separate ones sit on top of each other)
       tag("ams", o.PX, 7.15, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
       (WS.spools || []).forEach((sp, i) => {
-        tag("sh" + i, sp.x, sp.y - 1.25, 0.6, `<b>${esc(shortName(sp.it.summary).toUpperCase())}</b>`, true, "eddo-page-tag-sm eddo-page-tag-shelf");
         const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
-        pick("sp:" + it.uid, sp.x, sp.y, 0.4, () => `<b>${esc(it.summary.toUpperCase())}</b><dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[1] ? `<dt>TYPE</dt><dd>${esc(parts[1])}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
+        const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
+        tag("sh" + i, sp.x + WS.shelf.position.x, sp.y - 1.3, 0.6, `<b>${esc(shortName(it.summary).toUpperCase())}</b><span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>`, true, "eddo-page-tag-sm eddo-page-tag-shelf");
+        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 0.4, () => `<b>${esc(it.summary.toUpperCase())}</b><dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[1] ? `<dt>TYPE</dt><dd>${esc(parts[1])}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
           { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
       });
       const task = P && st(P.task);
       tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
-      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0, `<b>FILAMENT</b><span>${(WS.spools || []).length} SPOOLS${(WS.stockTotal || 0) > (WS.spools || []).length ? ` · ${WS.stockTotal - WS.spools.length} MORE IN STORAGE` : ""}${WS.stock ? "" : " · NO LIST"}</span>`, true);
+      if (WS.shelf) { WS.shelf.position.x += (0 - WS.shelf.position.x) * Math.min(1, dt * 7); if (Math.abs(WS.shelf.position.x) < 0.01) WS.shelf.position.x = 0; }
+      const pages = WS.pages || 1;
+      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
+        `<b>FILAMENT · ${WS.stockTotal || 0} SPOOLS</b><span class="eddo-shelf-nav">${pages > 1 ? `<button data-shelf="-1"${WS.page ? "" : " disabled"}>‹</button>PAGE ${WS.page + 1} / ${pages}<button data-shelf="1"${WS.page < pages - 1 ? "" : " disabled"}>›</button>` : "ALL ON THE SHELF"}${WS.stock ? "" : " · NO LIST"}</span>`, true, "eddo-page-tag-nav");
     },
     panel() {
       const P = WS.p; if (!P) return `<p class="wb-muted eddo-pg-note">No Bambu Lab printer in Home Assistant.</p>`;
@@ -771,7 +784,7 @@
       return `<div class="wb-large">${prog != null ? Math.round(prog) : "—"}<small>${printing ? "% PRINTED" : status === "finish" ? "% · FINISHED" : "% · " + esc(status.toUpperCase())}</small></div>` +
         `<p class="eddo-pg-task">${esc(live(task) ? task.s : "No job")}</p><i class="eddo-pg-prog"><s style="width:${prog || 0}%"></s></i>` +
         `<div class="eddo-pg-grid">${card("LAYER", `${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}`, esc(stage.toUpperCase()))}${card("TIME LEFT", rem != null && printing ? (rem >= 1 ? `${Math.floor(rem)} h ${Math.round((rem % 1) * 60)} m` : `${Math.round(rem * 60)} min`) : "—", printing && live(end) ? "done " + new Date(end.s).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "")}` +
-        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("FILAMENT", stockN, stockN > 20 ? `20 on the shelf · ${stockN - 20} stored` : "spools on the shelf")}</div>` +
+        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("FILAMENT", stockN, (WS.pages || 1) > 1 ? `${WS.pages} shelf pages · swipe or ‹ ›` : "spools on the shelf")}</div>` +
         `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
         (WS.queue ? `<div class="eddo-pg-queue">${items.map((i) => `<button data-q="${esc(i.uid)}"><i></i><b>${esc(i.summary)}</b>${i.description ? `<small>${esc(i.description)}</small>` : ""}</button>`).join("") || `<p class="wb-muted eddo-pg-note">Queue's empty.</p>`}</div><form class="eddo-pg-add" data-qadd><input name="t" placeholder="Add a model to print…" autocomplete="off"><button>ADD</button></form>`
           : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`) +

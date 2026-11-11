@@ -885,3 +885,13 @@ html.eddo-phone .eddo-gb{--w:84px}
 .eddo-ams-row{display:flex;gap:4px;margin-top:2px}
 .eddo-ams-row i{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
 .eddo-ams-row i[data-on=true]{box-shadow:0 0 0 2px #8fe0be,0 0 8px #8fe0be}
+/* filament shelf: plastic type chips and page arrows */
+.eddo-ply{margin-top:1px;padding:0 4px;border:1px solid rgba(143,185,194,.4);border-radius:2px;font-size:7px;letter-spacing:1px;color:#b9d6dc}
+.eddo-ply[data-k^=ABS],.eddo-ply[data-k^=ASA]{border-color:rgba(255,138,122,.55);color:#ffb0a4}
+.eddo-ply[data-k^=PETG]{border-color:rgba(143,224,190,.55);color:#9fe8c8}
+.eddo-ply[data-k^=TPU]{border-color:rgba(216,170,255,.55);color:#dcc0ff}
+.eddo-page-tag-nav{pointer-events:auto}
+.eddo-shelf-nav{display:flex;align-items:center;gap:8px}
+.eddo-shelf-nav button{width:22px;height:22px;border:1px solid rgba(143,185,194,.45);border-radius:50%;font-size:14px;line-height:19px;color:var(--theme-ink,#ece9e2);cursor:pointer;background:rgba(6,9,12,.6)}
+.eddo-shelf-nav button:hover{border-color:#8fe0be;color:#8fe0be}
+.eddo-shelf-nav button:disabled{opacity:.25;cursor:default}
