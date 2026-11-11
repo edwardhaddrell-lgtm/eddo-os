@@ -865,3 +865,23 @@ html.eddo-phone .eddo-cockpit-row{grid-template-columns:repeat(2,minmax(0,1fr))}
 html.eddo-phone .eddo-media-stage{left:8px;right:8px;top:8%;bottom:calc(var(--tabbar,58px) + 40vh)}
 html.eddo-phone .eddo-gb{--w:84px}
 .eddo-page-tag-busy b{color:#8fe0be}
+/* hover cards on the 3D pages */
+.eddo-page-card{position:absolute;left:0;top:0;z-index:20;min-width:190px;max-width:270px;padding:10px 12px 9px;border:1px solid rgba(143,185,194,.35);background:rgba(6,9,12,.94);box-shadow:0 10px 30px rgba(0,0,0,.5);font:11px/1.35 MiSans,system-ui,sans-serif;color:var(--theme-ink,#ece9e2);pointer-events:none}
+.eddo-page-card[hidden]{display:none}
+.eddo-page-card[data-pinned=true]{pointer-events:auto;border-color:rgba(143,224,190,.55)}
+.eddo-page-card>b{display:block;padding-right:18px;font-weight:500;font-size:11px;letter-spacing:1.6px;margin-bottom:6px}
+.eddo-page-card dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0}
+.eddo-page-card dt{font-size:8.5px;letter-spacing:1.4px;color:var(--theme-muted,#9a978f);padding-top:1px}
+.eddo-page-card dd{margin:0;font-size:11px;word-break:break-all}
+.eddo-page-card-hint{display:block;margin-top:7px;font-style:normal;font-size:8px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
+.eddo-page-card-x{position:absolute;top:5px;right:6px;width:20px;height:20px;font-size:15px;line-height:18px;color:var(--theme-muted,#9a978f);cursor:pointer}
+.eddo-page-card-x:hover{color:#ece9e2}
+.eddo-page-card-rm{display:block;margin-top:9px;font-size:9px;letter-spacing:1.4px;color:#ff8a7a;cursor:pointer}
+.eddo-page-card-confirm{margin-top:9px;padding-top:8px;border-top:1px solid rgba(143,185,194,.2)}
+.eddo-page-card-confirm p{margin:0 0 7px;font-size:11px}
+.eddo-page-card-confirm button{padding:5px 10px;margin-right:6px;border:1px solid rgba(143,185,194,.4);font-size:9px;letter-spacing:1.4px;cursor:pointer}
+.eddo-page-card-confirm [data-pcard-yes]{border-color:#ff8a7a;color:#ff8a7a}
+.eddo-sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
+.eddo-ams-row{display:flex;gap:4px;margin-top:2px}
+.eddo-ams-row i{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
+.eddo-ams-row i[data-on=true]{box-shadow:0 0 0 2px #8fe0be,0 0 8px #8fe0be}

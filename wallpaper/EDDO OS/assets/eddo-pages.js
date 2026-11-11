@@ -72,14 +72,24 @@
     V3.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     V3.camera = new T.PerspectiveCamera(32, 1, 0.1, 400);
     stage.addEventListener("pointerdown", (e) => {
-      if (!V3.running || e.button !== 0 || e.target.closest("button,a,input,select,textarea,.workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip,.system-footer,.system-nav,.brand")) return;
+      if (!V3.running || e.button !== 0 || e.target.closest("button,a,input,select,textarea,.workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip,.system-footer,.system-nav,.brand,.eddo-page-card")) return;
       V3.drag = { x: e.clientX, y: e.clientY, th: V3.view.theta, ph: V3.view.phi }; V3.view.auto = false;
     });
     window.addEventListener("pointermove", (e) => {
       const d = V3.drag; if (!d) return;
       V3.view.theta = d.th - (e.clientX - d.x) * 0.006; V3.view.phi = Math.max(0.35, Math.min(1.45, d.ph - (e.clientY - d.y) * 0.004));
     });
-    window.addEventListener("pointerup", () => { if (V3.drag) { V3.drag = null; clearTimeout(V3.resume); V3.resume = setTimeout(() => { V3.view.auto = true; }, 8000); } });
+    window.addEventListener("pointerup", (e) => {
+      const d = V3.drag; if (!d) return;
+      V3.drag = null; clearTimeout(V3.resume); V3.resume = setTimeout(() => { V3.view.auto = true; }, 8000);
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) { V3.pinned = V3.hover ? V3.hover : null; V3.confirm = null; drawCard(); }   // a click pins what's under the mouse (or clears)
+    });
+    stage.addEventListener("pointermove", (e) => {
+      if (!V3.running) return;
+      const ui = e.target.closest("button,a,input,.workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip,.system-footer,.system-nav,.eddo-page-card");
+      V3.mouse = ui ? null : { x: e.clientX, y: e.clientY };
+    });
+    stage.addEventListener("pointerleave", () => { V3.mouse = null; });
     stage.addEventListener("wheel", (e) => {
       if (!V3.running || e.target.closest(".workbench,.wb-overview,.eddo-ha,.eddo-srv,.eddo-pip")) return;
       const p = V3.page; V3.view.dist = Math.max((p && p.minDist) || 4, Math.min((p && p.maxDist) || 30, V3.view.dist * (1 + Math.sign(e.deltaY) * 0.08)));
@@ -105,6 +115,49 @@
     el.style.transform = `translate(${((p.x * 0.5 + 0.5) * V3.canvas.clientWidth).toFixed(1)}px, ${((-p.y * 0.5 + 0.5) * V3.canvas.clientHeight).toFixed(1)}px)`;
     if (el.innerHTML !== html) el.innerHTML = html;
   }
+  // ---- hover a thing in the scene for its details; click to keep the card open, × to close ----
+  function pick(key, x, y, z, info, actions) { V3.picks.push({ key, x, y, z, info, actions }); }
+  function toCanvas(x, y, z) {
+    const p = new V3.T.Vector3(x, y, z).project(V3.camera); if (p.z > 1) return null;
+    return { x: (p.x * 0.5 + 0.5) * V3.canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * V3.canvas.clientHeight };
+  }
+  function updatePicks() {
+    let best = null;
+    if (V3.mouse && !V3.drag && V3.canvas) {
+      const r = V3.canvas.getBoundingClientRect(), k = V3.canvas.clientWidth / (r.width || 1), mx = (V3.mouse.x - r.left) * k, my = (V3.mouse.y - r.top) * k;
+      let bd = 26;
+      for (const pk of V3.picks) { const c = toCanvas(pk.x, pk.y, pk.z); if (!c) continue; const dd = Math.hypot(c.x - mx, c.y - my); if (dd < bd) { bd = dd; best = pk.key; } }
+    }
+    V3.hover = best;
+    const stage = document.querySelector("#stage"); if (stage) { const want = best ? "pointer" : ""; if (stage.style.cursor !== want && (best || stage.style.cursor === "pointer")) stage.style.cursor = want; }
+    drawCard();
+  }
+  function drawCard() {
+    const stage = document.querySelector("#stage"); if (!stage || !V3.canvas) return;
+    const key = V3.pinned || V3.hover, pk = key && V3.picks.find((x) => x.key === key);
+    if (V3.pinned && !pk && V3.picks.length) V3.pinned = null;   // it went away
+    let el = V3.card;
+    if (!pk || !V3.running) { if (el) el.hidden = true; return; }
+    if (!el || !el.isConnected) { el = V3.card = document.createElement("div"); el.className = "eddo-page-card"; (V3.labels.parentNode || stage).insertBefore(el, V3.labels.nextSibling); }
+    const c = toCanvas(pk.x, pk.y, pk.z); if (!c) { el.hidden = true; return; }
+    el.hidden = false; el.dataset.pinned = String(V3.pinned === key);
+    el.style.transform = `translate(${(c.x + 16).toFixed(1)}px, ${(c.y - 12).toFixed(1)}px)`;
+    const conf = V3.confirm === key && pk.actions && pk.actions.remove;
+    const html = `${V3.pinned === key ? '<button class="eddo-page-card-x" data-pcard-close aria-label="Close">×</button>' : ""}${pk.info()}` +
+      (conf ? `<div class="eddo-page-card-confirm"><p>${esc(pk.actions.remove.ask)}</p><button data-pcard-yes>REMOVE</button><button data-pcard-no>CANCEL</button></div>`
+        : pk.actions && pk.actions.remove && V3.pinned === key ? `<button class="eddo-page-card-rm" data-pcard-rm>× ${esc(pk.actions.remove.label || "REMOVE")}</button>` : "") +
+      (V3.pinned === key ? "" : `<em class="eddo-page-card-hint">CLICK TO KEEP OPEN</em>`);
+    if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
+  }
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest || !e.target.closest(".eddo-page-card")) return;
+    const pk = V3.picks.find((x) => x.key === V3.pinned);
+    if (e.target.closest("[data-pcard-close]") || e.target.closest("[data-pcard-no]") && !V3.confirm) { V3.pinned = null; V3.confirm = null; }
+    else if (e.target.closest("[data-pcard-no]")) V3.confirm = null;
+    else if (e.target.closest("[data-pcard-rm]")) V3.confirm = V3.pinned;
+    else if (e.target.closest("[data-pcard-yes]") && pk && pk.actions && pk.actions.remove) { pk.actions.remove.run(); V3.pinned = null; V3.confirm = null; }
+    drawCard();
+  });
   function frame(now) {
     if (!V3.running) return;
     requestAnimationFrame(frame);
@@ -116,7 +169,9 @@
     cam.lookAt(v.tx, v.ty, v.tz);
     size();
     const p = V3.page, g = p && V3.built.get(p.id);
+    V3.picks = [];
     if (p && g && p.tick) p.tick(g, dt, now, T);
+    updatePicks();
     V3.renderer.render(V3.scene, cam);
   }
   async function show3D(page) {
@@ -135,7 +190,7 @@
     return true;
   }
   function hide3D() {
-    V3.running = false; V3.page = null; V3.drag = null;
+    V3.running = false; V3.page = null; V3.drag = null; V3.pinned = null; V3.hover = null; V3.confirm = null; if (V3.card) V3.card.hidden = true;
     document.querySelector("#stage")?.removeAttribute("data-eddo-page");
     if (V3.labels) { V3.labels.innerHTML = ""; V3.tags.clear(); }
   }
@@ -478,6 +533,14 @@
     const on = c ? c.s === "on" : !!(t && t.s === "home");
     return { hub: t && t.a.connected_to, on, wired: (t && t.a.connection_type === "wired") || d.wired, band: c && c.a.operating_band };
   }
+  function netCard(d) {
+    const t = st(d.tracker), a = (t && t.a) || {}, c = st(d.conn), v = n(st(d.sig)), dl = rate(d.dl), ul = rate(d.ul), p = netPlace(d);
+    const row = (k, val) => (val == null || val === "" ? "" : `<dt>${k}</dt><dd>${esc(val)}</dd>`);
+    return `<b>${esc(d.name.toUpperCase())}</b><dl>` +
+      row("IP", a.ip) + row("MAC", a.mac) + row("MAKER", a.manufacturer) + row("HOSTNAME", a.host_name && a.host_name !== d.name ? a.host_name : "") +
+      row(NET.mode === "eero" ? "EERO" : "ROOM", p.hub) + row("LINK", p.wired ? "Wired" : [c && c.a.operating_band, c && c.a.channel ? "ch " + c.a.channel : ""].filter(Boolean).join(" · ")) +
+      row("SIGNAL", !p.wired && v != null ? `${v} dBm` : "") + row("TRAFFIC", dl || ul ? `↓ ${fmt(dl, 1)} · ↑ ${fmt(ul, 1)} Mbit/s` : "idle") + `</dl>`;
+  }
   page({
     id: "network", label: "Network", pos: 4, view: { dist: 23, ty: 0.6, phi: 0.98 }, minDist: 8, maxDist: 40,
     discover(R) { if (!R) return; netDiscover(R); const key = NET.mode + NET.hubs.map((h) => h.name).join() + NET.devs.length; if (key !== NET.key) { NET.key = key; V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); } } },
@@ -517,6 +580,7 @@
         hub.m.rotation.y += dt * 0.3;
         const hs = st(hub.h.status), ok = !hs || /green|connected|online|on/.test(hs.s);
         hub.m.material.color.setHex(ok ? 0xe8f4ff : COL.bad);
+        pick("h:" + hub.h.name, hub.x, 1.0, hub.z, () => `<b>${esc(String(hub.h.name).toUpperCase())}</b><dl><dt>MODEL</dt><dd>${esc(hub.h.model || "—")}</dd><dt>STATUS</dt><dd>${esc(hs ? hs.s : "—")}</dd><dt>DEVICES</dt><dd>${list.length} online</dd><dt>WIRED</dt><dd>${list.filter((x) => x.p.wired).length}</dd></dl>`);
         tag("h" + hub.h.name, hub.x, 1.75, hub.z, `<b>${esc(String(hub.h.name).toUpperCase())}</b><span data-warn="${!ok}">${list.length} ${NET.mode === "eero" ? "ON THIS EERO" : "DEVICES"}${ok ? "" : " · " + esc(String(hs.s).toUpperCase())}</span>`, true);
         list.forEach(({ d, p }, i) => {
           if (k >= N.devs.length) return;
@@ -529,6 +593,7 @@
           m.scale.setScalar(1 + Math.min(1.5, bw / 20) + (bw > 0.5 ? 0.15 * Math.sin(now / 120 + k) : 0));
           sp.set([hub.x, 1.0, hub.z, x, y, z], k * 6);
           if (bw > 0.5) busiest.push({ d, bw, x, y, z });
+          pick("c:" + (d.tracker || d.sig), x, y, z, () => netCard(d));
           const weak = !p.wired && v != null && v < -72;
           tag("d" + k, x, y + 0.34, z, `<b>${esc(d.name.toUpperCase())}</b><span data-warn="true">${v} dBm</span>`, weak, "eddo-page-tag-sm");
           k++;
@@ -597,7 +662,7 @@
     });
   }
   page({
-    id: "workshop", label: "Workshop", pos: 5, view: { dist: 25, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 40,
+    id: "workshop", label: "Workshop", pos: 5, view: { dist: 33, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 48,
     discover(R) {
       if (!R) return;
       const bam = R.ents.filter((e) => e.platform === "bambu_lab" && !e.disabled_by);
@@ -677,11 +742,18 @@
         const c = t && t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!(t && t.a.active), empty = !t || t.a.empty;
         sp.b.material.color.setHex(c); sp.b.material.opacity = empty ? 0 : on ? 0.95 : 0.75;
         if (on && printing) { sp.a.rotation.x += dt * 1.2; sp.b.rotation.x += dt * 1.2; }
-        tag("ams" + i, sp.x, sp.y, 0.3, `<b>${esc(empty ? "EMPTY" : shortName(t.a.name || t.s).toUpperCase())}</b><span>${on ? "FEEDING" : "AMS " + (i + 1)}</span>`, true, "eddo-page-tag-sm");
+        pick("ams" + i, sp.x, sp.y - 1.1, 0, () => `<b>AMS SLOT ${i + 1}${on ? " · FEEDING" : ""}</b><dl><dt>FILAMENT</dt><dd>${esc(empty ? "Empty" : t.a.name || t.s)}</dd><dt>TYPE</dt><dd>${esc((t && t.a.type) || "—")}</dd><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(String((t && t.a.color) || "#555").slice(0, 7))}"></i>${esc(String((t && t.a.color) || "").slice(0, 7))}</dd>${t && t.a.remain >= 0 ? `<dt>LEFT</dt><dd>${t.a.remain}%</dd>` : ""}${t && t.a.nozzle_temp_min ? `<dt>NOZZLE</dt><dd>${esc(t.a.nozzle_temp_min)}–${esc(t.a.nozzle_temp_max)}°</dd>` : ""}</dl>`);
       });
-      (WS.spools || []).forEach((sp, i) => tag("sh" + i, sp.x, sp.y - 1.25, 0.6, `<b>${esc(shortName(sp.it.summary).toUpperCase())}</b>`, true, "eddo-page-tag-sm eddo-page-tag-shelf"));
+      // one label for the whole AMS (four separate ones sit on top of each other)
+      tag("ams", o.PX, 7.15, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
+      (WS.spools || []).forEach((sp, i) => {
+        tag("sh" + i, sp.x, sp.y - 1.25, 0.6, `<b>${esc(shortName(sp.it.summary).toUpperCase())}</b>`, true, "eddo-page-tag-sm eddo-page-tag-shelf");
+        const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
+        pick("sp:" + it.uid, sp.x, sp.y, 0.4, () => `<b>${esc(it.summary.toUpperCase())}</b><dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[1] ? `<dt>TYPE</dt><dd>${esc(parts[1])}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
+          { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
+      });
       const task = P && st(P.task);
-      tag("job", o.PX, 7.5, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
+      tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
       tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0, `<b>FILAMENT</b><span>${(WS.spools || []).length} SPOOLS${WS.stock ? "" : " · NO LIST"}</span>`, true);
     },
     panel() {
