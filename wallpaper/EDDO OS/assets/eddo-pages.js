@@ -436,83 +436,128 @@
     else if (b.dataset.mctl === "eject") { call("media_player", "media_stop", { target: { entity_id: id } }); MED.loaded = -1; MED.stageKey = ""; }
   });
 
-  // ============================================================ 3. NETWORK — signal map and the NAS
-  const NET = { devs: [], areas: [], wan: null, ip: null, nas: {}, nodes: null };
-  const rssiCol = (v) => (v == null ? COL.bad : v >= -60 ? COL.ok : v >= -72 ? COL.warn : COL.bad);
-  page({
-    id: "network", label: "Network", pos: 4, view: { dist: 21, ty: 0.4, phi: 0.95 }, minDist: 8, maxDist: 34,
-    discover(R) {
-      if (!R) return;
-      const devById = new Map(R.devices.map((d) => [d.id, d])), areaName = new Map(R.areas.map((a) => [a.area_id, a.name]));
-      const stOf = new Map(R.allStates.map((x) => [x.entity_id, x]));
+  // ============================================================ 3. NETWORK — the eero mesh (schmittx/home-assistant-eero), every client on the eero it's using, and the NAS
+  // Falls back to Home Assistant's own Wi-Fi signal sensors (grouped by room) when the eero integration isn't there.
+  const NET = { mode: "rooms", hubs: [], devs: [], net: {}, nas: {}, nodes: null, key: "" };
+  const rssiCol = (v) => (v == null ? COL.edge : v >= -60 ? COL.ok : v >= -72 ? COL.warn : COL.bad);
+  const rate = (id) => { const v = n(st(id)); return v == null ? 0 : v; };
+  function netDiscover(R) {
+    const devById = new Map(R.devices.map((d) => [d.id, d])), areaName = new Map(R.areas.map((a) => [a.area_id, a.name]));
+    const stOf = new Map(R.allStates.map((x) => [x.entity_id, x]));
+    const byDev = new Map(); for (const e of R.ents) { if (e.disabled_by || !e.device_id) continue; if (!byDev.has(e.device_id)) byDev.set(e.device_id, []); byDev.get(e.device_id).push(e.entity_id); }
+    const pick = (devId, re) => (byDev.get(devId) || []).find((id) => re.test(id)) || null;
+    const eeroDevs = R.devices.filter((d) => (d.manufacturer || "").toLowerCase() === "eero");
+    if (eeroDevs.length) {
+      NET.mode = "eero";
+      const netDev = eeroDevs.find((d) => /network/i.test(d.model || ""));
+      NET.net = netDev ? { status: pick(netDev.id, /_status$/), down: pick(netDev.id, /_download_speed$/), up: pick(netDev.id, /_upload_speed$/), ip: pick(netDev.id, /_public_ip$/), clients: pick(netDev.id, /_connected_clients$/), guests: pick(netDev.id, /_connected_guest_clients$/), name: netDev.name_by_user || netDev.name } : {};
+      NET.hubs = eeroDevs.filter((d) => /^eero/i.test(d.model || "") && !/client|profile|network/i.test(d.model || "")).map((d) => ({ name: d.name_by_user || d.name, model: d.model, status: pick(d.id, /_status$/), clients: pick(d.id, /_connected_clients$/) }));
+      NET.devs = eeroDevs.filter((d) => /client/i.test(d.model || "")).map((d) => {
+        const tr = pick(d.id, /^device_tracker\./);
+        return { name: String(d.name_by_user || d.name || "").replace(/\s*\((wired|wireless)\)$/i, ""), tracker: tr, sig: pick(d.id, /_signal_strength$/), conn: pick(d.id, /^binary_sensor\..*_connected$/), dl: pick(d.id, /_download_rate$/), ul: pick(d.id, /_upload_rate$/), wired: /wired/i.test(d.model || "") && !/wireless/i.test(d.model || "") };
+      }).filter((x) => x.tracker);
+    } else {
+      NET.mode = "rooms";
       const sig = R.ents.filter((e) => !e.disabled_by && e.entity_id.startsWith("sensor.") && stOf.has(e.entity_id) && (() => { const a = stOf.get(e.entity_id).attributes; return a.device_class === "signal_strength" && /dbm/i.test(a.unit_of_measurement || ""); })());
-      const byDev = new Map(); for (const e of sig) { const k = e.device_id || e.entity_id; if (!byDev.has(k) || /wi_?fi|rssi|signal/.test(e.entity_id)) byDev.set(k, e); }
-      NET.devs = [...byDev.values()].map((e) => {
-        const d = devById.get(e.device_id) || {}, area = areaName.get(e.area_id || d.area_id) || "Unassigned";
-        return { id: e.entity_id, name: d.name_by_user || d.name || stOf.get(e.entity_id).attributes.friendly_name || e.entity_id, area };
-      });
-      const areas = [...new Set(NET.devs.map((d) => d.area))].sort(); NET.areas = areas;
+      const one = new Map(); for (const e of sig) { const k = e.device_id || e.entity_id; if (!one.has(k)) one.set(k, e); }
+      NET.devs = [...one.values()].map((e) => { const d = devById.get(e.device_id) || {}; return { name: d.name_by_user || d.name || e.entity_id, sig: e.entity_id, room: areaName.get(e.area_id || d.area_id) || "Unassigned" }; });
+      NET.hubs = [...new Set(NET.devs.map((d) => d.room))].sort().map((name) => ({ name }));
       const f = (re) => { const x = R.allStates.find((s) => re.test(s.entity_id)); return x ? x.entity_id : null; };
-      NET.wan = f(/^binary_sensor\.eero_wan_status$/) || f(/^binary_sensor\..*wan.*status/);
-      NET.ip = f(/^sensor\.eero_external_ip$/) || f(/^sensor\..*external_ip/);
-      const nf = (re) => f(new RegExp("^sensor\\.eddo_nas_" + re + "$"));
-      NET.nas = { temp: nf("cpu_temperature"), cpu: nf("cpu_usage"), ram: nf("ram_usage"), array: nf("array_usage"), state: nf("array_state"), dcpu: nf("docker_total_cpu"), dmem: nf("docker_total_memory"), inb: nf("network_br0_inbound"), out: nf("network_br0_outbound"), up: nf("up_since"), upd: nf("container_updates_available"), cache: nf("disk_cache_usage"),
-        disks: R.allStates.filter((s) => /^sensor\.eddo_nas_disk_disk\d+_usage$/.test(s.entity_id)).map((s) => s.entity_id) };
-      watch([...NET.devs.map((d) => d.id), NET.wan, NET.ip, ...Object.values(NET.nas).flat()]);
-      V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); }
-    },
+      NET.net = { wan: f(/^binary_sensor\.eero_wan_status$/), ip: f(/^sensor\.eero_external_ip$/) };
+    }
+    const f = (re) => { const x = R.allStates.find((s) => re.test(s.entity_id)); return x ? x.entity_id : null; };
+    const nf = (re) => f(new RegExp("^sensor\\.eddo_nas_" + re + "$"));
+    NET.nas = { temp: nf("cpu_temperature"), cpu: nf("cpu_usage"), ram: nf("ram_usage"), array: nf("array_usage"), state: nf("array_state"), dcpu: nf("docker_total_cpu"), dmem: nf("docker_total_memory"), up: nf("up_since"), upd: nf("container_updates_available"), cache: nf("disk_cache_usage"),
+      disks: R.allStates.filter((x) => /^sensor\.eddo_nas_disk_disk\d+_usage$/.test(x.entity_id)).map((x) => x.entity_id) };
+    watch([...Object.values(NET.net), ...NET.hubs.flatMap((h) => [h.status, h.clients]), ...NET.devs.flatMap((d) => [d.tracker, d.sig, d.conn, d.dl, d.ul]), ...Object.values(NET.nas).flat()].filter(Boolean));
+  }
+  // where a client is: its eero (or room), and whether it's online
+  function netPlace(d) {
+    if (NET.mode !== "eero") return { hub: d.room, on: live(st(d.sig)) };
+    const t = st(d.tracker), c = st(d.conn);
+    const on = c ? c.s === "on" : !!(t && t.s === "home");
+    return { hub: t && t.a.connected_to, on, wired: (t && t.a.connection_type === "wired") || d.wired, band: c && c.a.operating_band };
+  }
+  page({
+    id: "network", label: "Network", pos: 4, view: { dist: 23, ty: 0.6, phi: 0.98 }, minDist: 8, maxDist: 40,
+    discover(R) { if (!R) return; netDiscover(R); const key = NET.mode + NET.hubs.map((h) => h.name).join() + NET.devs.length; if (key !== NET.key) { NET.key = key; V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); } } },
     build(g, T) {
-      g.add(floorGrid(T, 7.5));
-      const core = new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.7, 10, 6)), lineMat(T, COL.cyan, 0.8)); core.position.y = 1.6; g.add(core);
-      const nodes = { core, areas: [], devs: [], links: null };
-      const A = NET.areas.length || 1, R1 = 4.2, linkPts = [];
-      NET.areas.forEach((name, i) => {
-        const a = (i / A) * Math.PI * 2, x = Math.cos(a) * R1, z = Math.sin(a) * R1;
-        const m = new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.32, 4, 2)), lineMat(T, COL.edge, 0.7)); m.position.set(x, 0.9, z); g.add(m);
-        nodes.areas.push({ name, m, x, z, a }); linkPts.push(0, 1.6, 0, x, 0.9, z);
+      g.add(floorGrid(T, 9));
+      const core = new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.75, 10, 6)), lineMat(T, COL.cyan, 0.8)); core.position.y = 2.2; g.add(core);
+      const nodes = { core, hubs: [], devs: [] };
+      const A = NET.hubs.length || 1, R1 = NET.mode === "eero" ? 5.2 : 4.6, link = [];
+      NET.hubs.forEach((h, i) => {
+        const a = (i / A) * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * R1, z = Math.sin(a) * R1;
+        // an eero: a rounded white puck; a room: a small diamond
+        const m = NET.mode === "eero" ? segs(T, [...ring([], 0, -0.18, 0, 0.62, 40), ...ring([], 0, 0.18, 0, 0.62, 40), ...ring([], 0, 0.26, 0, 0.5, 36), ...[0, 1, 2, 3, 4, 5, 6, 7].flatMap((k) => { const b = (k / 8) * Math.PI * 2; return [Math.cos(b) * 0.62, -0.18, Math.sin(b) * 0.62, Math.cos(b) * 0.62, 0.18, Math.sin(b) * 0.62]; })], 0xe8f4ff, 0.85)
+          : new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.32, 4, 2)), lineMat(T, COL.edge, 0.7));
+        m.position.set(x, 1.0, z); g.add(m);
+        nodes.hubs.push({ h, m, x, z }); link.push(0, 2.2, 0, x, 1.0, z);
       });
-      for (const d of NET.devs) {
-        const ar = nodes.areas.find((x) => x.name === d.area); if (!ar) continue;
-        const sibs = NET.devs.filter((x) => x.area === d.area), k = sibs.indexOf(d);
-        const m = new T.Mesh(new T.SphereGeometry(0.11, 4, 2), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0.9, depthWrite: false })); g.add(m);
-        nodes.devs.push({ d, m, ar, r: 0.75 + (k % 3) * 0.28, ph: (k / Math.max(1, sibs.length)) * Math.PI * 2, sp: 0.25 + (k % 4) * 0.06, y: 0.55 + (k % 5) * 0.16 });
-      }
-      nodes.links = segs(T, linkPts, COL.edge, 0.22); g.add(nodes.links);
-      nodes.spokes = segs(T, new Array(nodes.devs.length * 6).fill(0), COL.edge, 0.12); g.add(nodes.spokes);
+      nodes.links = segs(T, link, COL.cyan, 0.3); g.add(nodes.links);
+      const MAXD = 90;   // clients are drawn from a pool and re-assigned each frame to whichever eero they're on
+      for (let k = 0; k < MAXD; k++) { const m = new T.Mesh(new T.SphereGeometry(0.12, 4, 2), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; g.add(m); nodes.devs.push(m); }
+      nodes.spokes = segs(T, new Array(MAXD * 6).fill(0), COL.edge, 0.14); g.add(nodes.spokes);
       NET.nodes = nodes;
     },
     tick(g, dt, now) {
       const N = NET.nodes; if (!N) return;
-      const wan = st(NET.wan), up = !wan || wan.s === "on";
+      const nst = st(NET.net.status) || st(NET.net.wan), up = !nst || /connected|on|online/.test(nst.s);
       N.core.rotation.y += dt * 0.4; N.core.material.color.setHex(up ? COL.cyan : COL.bad); N.core.material.opacity = up ? 0.8 : 0.5 + 0.5 * Math.sin(now / 200);
-      tag("core", 0, 2.55, 0, `<b>INTERNET</b><span data-warn="${!up}">${up ? "ONLINE" : "DOWN"}${st(NET.ip) && live(st(NET.ip)) ? " · " + esc(st(NET.ip).s) : ""}</span>`, true);
-      const sp = N.spokes.geometry.attributes.position.array;
-      N.devs.forEach((o, i) => {
-        const v = n(st(o.d.id)), off = !live(st(o.d.id)), a = o.ph + (now / 1000) * o.sp;
-        const x = o.ar.x + Math.cos(a) * o.r, z = o.ar.z + Math.sin(a) * o.r;
-        o.m.position.set(x, o.y, z); o.m.rotation.y += dt;
-        o.m.material.color.setHex(off ? COL.bad : rssiCol(v)); o.m.material.opacity = off ? 0.4 + 0.5 * Math.abs(Math.sin(now / 300 + i)) : 0.9;
-        sp.set([o.ar.x, 0.9, o.ar.z, x, o.y, z], i * 6);
-        const weak = off || (v != null && v < -72);
-        tag("d" + i, x, o.y + 0.32, z, `<b>${esc(o.d.name.toUpperCase())}</b><span data-warn="true">${off ? "OFFLINE" : v + " dBm"}</span>`, weak, "eddo-page-tag-sm");
-      });
+      const down = n(st(NET.net.down)), upl = n(st(NET.net.up)), ip = st(NET.net.ip);
+      tag("core", 0, 3.25, 0, `<b>INTERNET</b><span data-warn="${!up}">${up ? (down != null ? `↓ ${fmt(down)} · ↑ ${fmt(upl)} MBIT/S` : "ONLINE") : "DOWN"}</span>`, true);
+      // place each online client around its hub
+      const by = new Map(N.hubs.map((h) => [h.h.name, []]));
+      const off = [];
+      for (const d of NET.devs) { const p = netPlace(d); if (!p.on) { off.push(d); continue; } (by.get(p.hub) || by.get([...by.keys()][0]) || []).push({ d, p }); }
+      const sp = N.spokes.geometry.attributes.position.array; sp.fill(0);
+      let k = 0; const busiest = [];
+      for (const hub of N.hubs) {
+        const list = by.get(hub.h.name) || [];
+        hub.m.rotation.y += dt * 0.3;
+        const hs = st(hub.h.status), ok = !hs || /green|connected|online|on/.test(hs.s);
+        hub.m.material.color.setHex(ok ? 0xe8f4ff : COL.bad);
+        tag("h" + hub.h.name, hub.x, 1.75, hub.z, `<b>${esc(String(hub.h.name).toUpperCase())}</b><span data-warn="${!ok}">${list.length} ${NET.mode === "eero" ? "ON THIS EERO" : "DEVICES"}${ok ? "" : " · " + esc(String(hs.s).toUpperCase())}</span>`, true);
+        list.forEach(({ d, p }, i) => {
+          if (k >= N.devs.length) return;
+          const m = N.devs[k], ring1 = Math.floor(i / 14), slot = i % 14, per = Math.min(14, list.length - ring1 * 14);
+          const r = 1.25 + ring1 * 0.65, a = (slot / per) * Math.PI * 2 + (now / 1000) * (0.12 + ring1 * 0.04) * (ring1 % 2 ? -1 : 1);
+          const x = hub.x + Math.cos(a) * r, z = hub.z + Math.sin(a) * r, y = 0.55 + (i % 3) * 0.22;
+          const v = n(st(d.sig)), bw = rate(d.dl) + rate(d.ul);
+          m.visible = true; m.position.set(x, y, z); m.rotation.y += dt;
+          m.material.color.setHex(p.wired ? COL.cyan : rssiCol(v)); m.material.opacity = 0.9;
+          m.scale.setScalar(1 + Math.min(1.5, bw / 20) + (bw > 0.5 ? 0.15 * Math.sin(now / 120 + k) : 0));
+          sp.set([hub.x, 1.0, hub.z, x, y, z], k * 6);
+          if (bw > 0.5) busiest.push({ d, bw, x, y, z });
+          const weak = !p.wired && v != null && v < -72;
+          tag("d" + k, x, y + 0.34, z, `<b>${esc(d.name.toUpperCase())}</b><span data-warn="true">${v} dBm</span>`, weak, "eddo-page-tag-sm");
+          k++;
+        });
+      }
+      for (let j = k; j < N.devs.length; j++) { N.devs[j].visible = false; tag("d" + j, 0, 0, 0, "", false); }
+      busiest.sort((a, b) => b.bw - a.bw).slice(0, 3).forEach((b, i) => tag("bw" + i, b.x, b.y - 0.3, b.z, `<b>${esc(b.d.name.toUpperCase())}</b><span>${fmt(b.bw, 1)} MBIT/S</span>`, true, "eddo-page-tag-sm eddo-page-tag-busy"));
+      for (let i = busiest.length; i < 3; i++) tag("bw" + i, 0, 0, 0, "", false);
       N.spokes.geometry.attributes.position.needsUpdate = true;
-      N.areas.forEach((ar, i) => { ar.m.rotation.y -= dt * 0.5; tag("a" + i, ar.x, 1.45, ar.z, `<b>${esc(ar.name.toUpperCase())}</b><span>${NET.devs.filter((d) => d.area === ar.name).length} DEVICES</span>`, true); });
+      NET.offline = off;
     },
     panel() {
-      const rows = NET.devs.map((d) => ({ d, v: n(st(d.id)), off: !live(st(d.id)) }));
-      const good = rows.filter((r) => !r.off && r.v >= -60).length, ok = rows.filter((r) => !r.off && r.v < -60 && r.v >= -72).length, weak = rows.filter((r) => !r.off && r.v < -72).length, off = rows.filter((r) => r.off).length;
-      const worst = rows.filter((r) => r.off || r.v < -66).sort((a, b) => (a.off ? -999 : a.v) - (b.off ? -999 : b.v)).slice(0, 7);
-      const N = NET.nas, v = (k) => n(st(N[k]));
-      const wan = st(NET.wan);
-      const up = st(N.up), upDays = up && live(up) ? Math.floor((Date.now() - Date.parse(up.s)) / 864e5) : null;
-      return `<div class="eddo-pg-grid">${card("INTERNET", !wan ? "—" : wan.s === "on" ? "Online" : "Down", st(NET.ip) && live(st(NET.ip)) ? esc(st(NET.ip).s) : "", wan && wan.s !== "on" ? ' data-warn="true"' : "")}${card("WI-FI DEVICES", rows.length, `${good} strong · ${ok} fair · ${weak} weak`)}${card("OFFLINE", off, off ? "need a look" : "all reporting", off ? ' data-warn="true"' : "")}</div>` +
-        `<p class="eddo-pg-h">WEAKEST LINKS</p>${worst.length ? worst.map((r) => bar(r.d.name, r.off ? 0 : ((r.v + 95) / 55) * 100, r.off ? "OFFLINE" : r.v + " dBm", r.off || r.v < -72)).join("") : `<p class="wb-muted eddo-pg-note">Every device has a good signal.</p>`}` +
+      const rows = NET.devs.map((d) => ({ d, p: netPlace(d), v: n(st(d.sig)), bw: rate(d.dl) + rate(d.ul) }));
+      const on = rows.filter((r) => r.p.on), wifi = on.filter((r) => !r.p.wired);
+      const good = wifi.filter((r) => r.v != null && r.v >= -60).length, fair = wifi.filter((r) => r.v != null && r.v < -60 && r.v >= -72).length, weak = wifi.filter((r) => r.v != null && r.v < -72).length;
+      const nst = st(NET.net.status) || st(NET.net.wan), up = !nst || /connected|on|online/.test(nst.s), ip = st(NET.net.ip);
+      const down = n(st(NET.net.down)), upl = n(st(NET.net.up)), tested = st(NET.net.down) && st(NET.net.down).a.last_updated;
+      const worst = wifi.filter((r) => r.v != null && r.v < -66).sort((a, b) => a.v - b.v).slice(0, 6);
+      const busy = on.filter((r) => r.bw > 0.1).sort((a, b) => b.bw - a.bw).slice(0, 5), maxbw = Math.max(1, ...busy.map((r) => r.bw));
+      const N = NET.nas, v = (k) => n(st(N[k])), upS = st(N.up), upDays = upS && live(upS) ? Math.floor((Date.now() - Date.parse(upS.s)) / 864e5) : null;
+      const hubs = NET.mode === "eero" ? `<p class="eddo-pg-h">EEROS</p><div class="eddo-pg-grid">${NET.hubs.map((h) => { const hs = st(h.status), ok = !hs || /green|connected|online/.test(hs.s); return card(String(h.name).toUpperCase(), fmt(rows.filter((r) => r.p.on && r.p.hub === h.name).length), `${esc(h.model || "")}${ok ? "" : " · " + esc(String(hs.s))}`, ok ? "" : ' data-warn="true"'); }).join("")}</div>` : "";
+      return `<div class="eddo-pg-grid">${card("INTERNET", up ? "Online" : "Down", ip && live(ip) ? esc(ip.s) : "", up ? "" : ' data-warn="true"')}${card("SPEED TEST", down != null ? `${fmt(down)} / ${fmt(upl)}` : "—", down != null ? `Mbit/s${tested ? " · " + ago(Date.parse(tested)) : ""}` : "")}${card("ONLINE", on.length, `${wifi.length} Wi-Fi · ${on.length - wifi.length} wired`)}</div>` +
+        hubs +
+        `<p class="eddo-pg-h">WI-FI SIGNAL <span>${good} STRONG · ${fair} FAIR · ${weak} WEAK</span></p>${worst.length ? worst.map((r) => bar(r.d.name, ((r.v + 95) / 55) * 100, r.v + " dBm" + (r.p.band ? " · " + String(r.p.band).replace(" GHz", "G") : ""), r.v < -72)).join("") : `<p class="wb-muted eddo-pg-note">Every Wi-Fi device has a good signal.</p>`}` +
+        (busy.length ? `<p class="eddo-pg-h">BUSIEST RIGHT NOW</p>${busy.map((r) => bar(r.d.name, (r.bw / maxbw) * 100, fmt(r.bw, 1) + " Mbit/s")).join("")}` : "") +
         `<p class="eddo-pg-h">EDDO-NAS ${st(N.state) && live(st(N.state)) ? `<span>ARRAY ${esc(st(N.state).s.toUpperCase())}</span>` : ""}</p>` +
         `<div class="eddo-pg-grid">${card("CPU", v("cpu") != null ? fmt(v("cpu")) + "%" : "—", v("temp") != null ? fmt(v("temp")) + "°C" : "", v("temp") >= 85 ? ' data-warn="true"' : "")}${card("RAM", v("ram") != null ? fmt(v("ram")) + "%" : "—")}${card("UP", upDays != null ? upDays + " d" : "—", v("upd") ? `${fmt(v("upd"))} container updates` : "")}</div>` +
-        `${bar("ARRAY", v("array"), v("array") != null ? fmt(v("array")) + "%" : "—", v("array") >= 90)}${N.disks.map((id, i) => bar("DISK " + (i + 1), n(st(id)), n(st(id)) != null ? fmt(n(st(id))) + "%" : "—", n(st(id)) >= 90)).join("")}${bar("CACHE", v("cache"), v("cache") != null ? fmt(v("cache")) + "%" : "—")}` +
-        `${bar("DOCKER CPU", v("dcpu"), v("dcpu") != null ? fmt(v("dcpu")) + "%" : "—")}${bar("DOCKER RAM", v("dmem"), v("dmem") != null ? fmt(v("dmem")) + "%" : "—")}` +
-        `<p class="wb-muted eddo-pg-note">Network ↓ ${fmt(v("inb"), 2)} · ↑ ${fmt(v("out"), 2)} ${esc((st(N.inb) || { a: {} }).a.unit_of_measurement || "")}. The eeros don't report which device is on which eero to Home Assistant, so devices are grouped by room.</p>`;
+        `${bar("ARRAY", v("array"), v("array") != null ? fmt(v("array")) + "%" : "—", v("array") >= 90)}${N.disks.map((id, i) => bar("DISK " + (i + 1), n(st(id)), n(st(id)) != null ? fmt(n(st(id))) + "%" : "—", n(st(id)) >= 90)).join("")}${bar("DOCKER CPU", v("dcpu"), v("dcpu") != null ? fmt(v("dcpu")) + "%" : "—")}` +
+        (NET.mode !== "eero" ? `<p class="wb-muted eddo-pg-note">Install the eero integration to see every device on the eero it's using.</p>` : "");
     },
   });
 

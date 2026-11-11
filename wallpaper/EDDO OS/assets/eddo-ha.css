@@ -864,3 +864,4 @@ html.eddo-phone .eddo-cockpit-row{grid-template-columns:repeat(2,minmax(0,1fr))}
 @keyframes eddo-gb-flash{30%{box-shadow:0 0 50px rgba(127,216,255,.6)}}
 html.eddo-phone .eddo-media-stage{left:8px;right:8px;top:8%;bottom:calc(var(--tabbar,58px) + 40vh)}
 html.eddo-phone .eddo-gb{--w:84px}
+.eddo-page-tag-busy b{color:#8fe0be}
