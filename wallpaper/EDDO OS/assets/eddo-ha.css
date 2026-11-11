@@ -895,3 +895,20 @@ html.eddo-phone .eddo-gb{--w:84px}
 .eddo-shelf-nav button{width:22px;height:22px;border:1px solid rgba(143,185,194,.45);border-radius:50%;font-size:14px;line-height:19px;color:var(--theme-ink,#ece9e2);cursor:pointer;background:rgba(6,9,12,.6)}
 .eddo-shelf-nav button:hover{border-color:#8fe0be;color:#8fe0be}
 .eddo-shelf-nav button:disabled{opacity:.25;cursor:default}
+/* KEF speakers on the Home systems panel: power, volume, input */
+.eddo-ha-kef{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.eddo-ha-spk{padding:7px 9px 8px;border:1px solid var(--theme-line,#bdb8ad)}
+.eddo-ha-spk-head{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px}
+.eddo-ha-spk .eddo-ha-led{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.25}
+.eddo-ha-spk[data-on=true] .eddo-ha-led{background:#8fb9c2;opacity:1;box-shadow:0 0 6px #8fb9c2}
+.eddo-ha-spk .eddo-ha-name{font-size:11px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eddo-ha-spk .eddo-ha-state{font-size:9.5px;letter-spacing:.8px;color:var(--theme-muted,#77756d);white-space:nowrap}
+.eddo-ha-spk-pow{width:26px;height:26px;border:1px solid var(--theme-line,#a6a49c);border-radius:50%;font-size:12px;line-height:24px;cursor:pointer}
+.eddo-ha-spk-pow[aria-pressed=true]{border-color:#8fb9c2;color:#8fb9c2}
+.eddo-ha-spk-vol{display:grid;grid-template-columns:22px 1fr;align-items:center;gap:8px;margin-top:7px}
+.eddo-ha-spk-vol button{font-size:12px;cursor:pointer;opacity:.75}
+.eddo-ha-spk-vol button[aria-pressed=true]{opacity:1}
+.eddo-ha-spk-vol .eddo-slider{margin:0}
+.eddo-ha-spk-src{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.eddo-ha-spk-src button{padding:3px 7px;border:1px solid var(--theme-line,#a6a49c);font-size:8.5px;letter-spacing:1.1px;cursor:pointer}
+.eddo-ha-spk-src button[aria-pressed=true]{border-color:#8fb9c2;color:#8fb9c2;background:rgba(143,185,194,.1)}

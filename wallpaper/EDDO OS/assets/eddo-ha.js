@@ -126,6 +126,10 @@
     const stateMap = new Map(allStates.map((s) => [s.entity_id, s]));
     window.eddoHAReady = { allStates, devices, ents, areas };
     window.dispatchEvent(new CustomEvent("eddo-ha-ready", { detail: { allStates, devices, ents, areas } }));
+    // KEF speakers (kef_connector): always on the panel, with power, volume and input
+    speakers = ents.filter((e) => e.platform === "kef_connector" && e.entity_id.startsWith("media_player.") && !e.disabled_by && stateMap.has(e.entity_id)).map((e) => e.entity_id).sort((a, b) => /living/.test(b) - /living/.test(a));
+    for (const id of speakers) { const st = stateMap.get(id); states.set(id, { s: st.state, a: st.attributes }); }
+    if (speakers.length) subscribe({ type: "subscribe_entities", entity_ids: speakers }, onEntities).catch(() => {});
     const fixed = parseList(cfg.haentities);
     if (fixed.length) {
       entities = fixed.map((f) => f.id);
@@ -326,6 +330,22 @@
   }
   setInterval(placePanel, 1000);
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  var speakers = [];
+  const spkName = (id) => String((states.get(id) || { a: {} }).a.friendly_name || id).replace(/\s*speaker$/i, "").toUpperCase();
+  const volPct = (id) => { const a = (states.get(id) || { a: {} }).a; return a.volume_level != null ? Math.round(a.volume_level * 100) : 0; };
+  function speakerRows() {
+    if (!speakers.length) return "";
+    return `<div class="eddo-ha-kef">` + speakers.map((id) => {
+      const st = states.get(id) || { s: "unavailable", a: {} }, a = st.a, on = !/^(off|standby|unavailable|unknown)$/.test(st.s);
+      const srcs = (a.source_list || []).slice(0, 6), muted = !!a.is_volume_muted;
+      return `<div class="eddo-ha-spk" data-entity="${esc(id)}" data-on="${on}">` +
+        `<div class="eddo-ha-spk-head"><span class="eddo-ha-led"></span><span class="eddo-ha-name">KEF · ${esc(spkName(id))}</span><span class="eddo-ha-state">${on ? esc(String(a.source || st.s).toUpperCase()) + (muted ? " · MUTED" : " · " + volPct(id) + "%") : st.s === "unavailable" ? "OFFLINE" : "OFF"}</span>` +
+        `<button class="eddo-ha-spk-pow" data-act="kpower" aria-label="Power" aria-pressed="${on}">⏻</button></div>` +
+        (on ? `<div class="eddo-ha-spk-vol"><button data-act="kmute" aria-label="Mute" aria-pressed="${muted}">${muted ? "🔇" : "🔈"}</button><div class="eddo-slider eddo-ha-bri" data-kind="vol" data-for="${esc(id)}" data-min="0" data-max="100" data-value="${volPct(id)}" style="--pct:${volPct(id)}%" role="slider" aria-label="Volume"><i></i></div></div>` +
+          (srcs.length ? `<div class="eddo-ha-spk-src">${srcs.map((x) => `<button data-act="ksrc" data-src="${esc(x)}" aria-pressed="${x === a.source}">${esc(String(x).toUpperCase())}</button>`).join("")}</div>` : "") : "") +
+        `</div>`;
+    }).join("") + `</div>`;
+  }
   function render() {
     if (sliding) { renderWaiting = true; return; }
     if (!ensurePanel()) return;
@@ -355,7 +375,8 @@
       (actions.length || cfg.halinks ? `<div class="eddo-ha-actions">${actions.map((id) => `<button data-entity="${esc(id)}" data-act="toggle">${esc(names.get(id) || id)} <span>↗</span></button>`).join("")}${linksRow()}</div>` : "") +
       wide.map(row).join("") +
       (rest.length ? `<div class="eddo-ha-grid">${rest.map(row).join("")}</div>` : "") +
-      (lightOpen && rest.includes(lightOpen) ? lightPanel(lightOpen) : "");
+      (lightOpen && rest.includes(lightOpen) ? lightPanel(lightOpen) : "") +
+      speakerRows();
   }
   // ---------- light controls (brightness + colour) ----------
   var lightOpen = null, sliding = false, renderWaiting = false;
@@ -394,12 +415,14 @@
     const v = Math.round(min + f * (max - min));
     el.dataset.value = v; el.style.setProperty("--pct", (f * 100).toFixed(1) + "%");
     if (el.dataset.kind === "bri") { const st = el.closest(".eddo-ha-row")?.querySelector(".eddo-ha-state"); if (st) st.textContent = v + "%"; }
+    if (el.dataset.kind === "vol") { const st = el.closest(".eddo-ha-spk")?.querySelector(".eddo-ha-state"); if (st) st.textContent = st.textContent.replace(/\d+%$/, v + "%"); }
     return v;
   }
   function sliderCommit(el) {
     const id = el.dataset.for, v = +el.dataset.value;
     if (el.dataset.kind === "bri") lightCall(id, { brightness_pct: v });
     else if (el.dataset.kind === "hue") lightCall(id, { hs_color: [v, 100] });
+    else if (el.dataset.kind === "vol") send({ type: "call_service", domain: "media_player", service: "volume_set", target: { entity_id: id }, service_data: { volume_level: v / 100 } }).catch(() => {});
   }
   document.addEventListener("mousedown", (e) => {
     const el = e.target.closest && e.target.closest(".eddo-slider"); if (!el) return;
@@ -503,6 +526,13 @@
     const b = e.target.closest("button[data-act]"); if (!b) return;
     const host = b.closest("[data-entity]"), id = host.dataset.entity, dom = id.split(".")[0], act = b.dataset.act;
     let call;
+    if (act === "kpower" || act === "kmute" || act === "ksrc") {
+      const st = states.get(id) || { s: "", a: {} }, on = !/^(off|standby|unavailable|unknown)$/.test(st.s);
+      const c = act === "kpower" ? { service: on ? "turn_off" : "turn_on" } : act === "kmute" ? { service: "volume_mute", data: { is_volume_muted: !st.a.is_volume_muted } } : { service: "select_source", data: { source: b.dataset.src } };
+      if (act === "ksrc") st.a.source = b.dataset.src; else if (act === "kmute") st.a.is_volume_muted = !st.a.is_volume_muted; else st.s = on ? "off" : "on";   // feel instant; the real state follows
+      render();
+      return void send({ type: "call_service", domain: "media_player", service: c.service, target: { entity_id: id }, service_data: c.data || {} }).catch((err) => { linkNote = `${spkName(id)}: ${err.message || err}`; render(); });
+    }
     if (act === "expand") { expanded.has(id) ? expanded.delete(id) : expanded.add(id); return render(); }
     if (act === "light") { lightOpen = lightOpen === id ? null : id; return render(); }
     if (act === "hs") return void lightCall(id, { hs_color: [+b.dataset.h, +b.dataset.s] });
