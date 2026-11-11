@@ -794,6 +794,15 @@
       });
       // one label for the whole AMS (four separate ones sit on top of each other)
       tag("ams", o.PX, 7.15, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
+      const ease = Math.min(1, dt * 9);
+      if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease; if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
+      if (WS.shelfOut) {
+        const o = WS.shelfOut; o.position.x += (o.userData.goal - o.position.x) * ease;
+        const left = Math.abs(o.userData.goal - o.position.x) / (SHELF_W() + 1.5);
+        o.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * Math.min(1, left * 1.6); });
+        if (left < 0.02) { o.parent && o.parent.remove(o); o.children.forEach((c) => c.geometry && c.geometry.dispose()); WS.shelfOut = null; }
+      }
+      const sliding = !!WS.shelfOut || (WS.shelf && Math.abs(WS.shelf.position.x) > 0.3);
       (WS.spools || []).forEach((sp, i) => {
         const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
         const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
@@ -804,15 +813,6 @@
       });
       const task = P && st(P.task);
       tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
-      const ease = Math.min(1, dt * 9);
-      if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease; if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
-      if (WS.shelfOut) {
-        const o = WS.shelfOut; o.position.x += (o.userData.goal - o.position.x) * ease;
-        const left = Math.abs(o.userData.goal - o.position.x) / (SHELF_W() + 1.5);
-        o.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * Math.min(1, left * 1.6); });
-        if (left < 0.02) { o.parent && o.parent.remove(o); o.children.forEach((c) => c.geometry && c.geometry.dispose()); WS.shelfOut = null; }
-      }
-      const sliding = !!WS.shelfOut || (WS.shelf && Math.abs(WS.shelf.position.x) > 0.3);
       const pages = WS.pages || 1;
       tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
         `<b>FILAMENT · ${WS.stockTotal || 0} SPOOLS</b><span class="eddo-shelf-nav">${pages > 1 ? `<button data-shelf="-1"${WS.page ? "" : " disabled"}>‹</button>PAGE ${WS.page + 1} / ${pages}<button data-shelf="1"${WS.page < pages - 1 ? "" : " disabled"}>›</button>` : "ALL ON THE SHELF"}${WS.stock ? "" : " · NO LIST"}</span>`, true, "eddo-page-tag-nav");
