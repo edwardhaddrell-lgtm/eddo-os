@@ -563,7 +563,7 @@
   const RACK = { view: "rack", g: null, mesh: null, tex: null, canvas: null, drawn: 0, blink: [] };
   const RU = [   // unit height in front-panel pixels (the panel face is drawn 1024 px wide)
     { id: "logo", name: "EDNET", h: 190 }, { id: "switch", name: "NETGEAR GS308", h: 175 }, { id: "patch", name: "PATCH PANEL", h: 170 },
-    { id: "hue", name: "HUE BRIDGE", h: 160 }, { id: "eero", name: "LIVING ROOM EERO", h: 160 }, { id: "gap", h: 44 },
+    { id: "hue", name: "HUE BRIDGE", h: 160 }, { id: "eero", name: "LIVING ROOM EERO", h: 160 },
     { id: "ha", name: "HOME ASSISTANT YELLOW", h: 150 }, { id: "ring", name: "RING", h: 140 }, { id: "nas", name: "EDDO-NAS", h: 155 },
   ];
   const FACE_W = 1024, FACE_H = RU.reduce((t, u) => t + u.h, 0), W3 = 5.08, H3 = (W3 * FACE_H) / FACE_W, Y0 = 0.35, DEPTH = 3.4;
@@ -654,35 +654,72 @@
     const bg = g.createRadialGradient(FACE_W / 2, nv.y + nv.h / 2, 10, FACE_W / 2, nv.y + nv.h / 2, 340); bg.addColorStop(0, `rgba(70,110,255,${glow})`); bg.addColorStop(1, "rgba(70,110,255,0)");
     g.fillStyle = bg; g.fillRect(100, nv.y + 20, FACE_W - 200, nv.h - 40);
     for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(4,5,6,.82)"; g.fillRect(150 + i * 28, nv.y + 30, 14, nv.h - 60); }
-    RACK.leads = [
-      { a: [128, sy - 6], b: [ports[0][0], ports[0][1] + 18], col: "#e8b52a", sag: 60, units: ["switch"] },
-      ...[1, 2, 3, 4, 5, 6].map((i) => ({ a: [ports[i][0], ports[i][1] + 18], b: [pk[i - 1][0], pk[i - 1][1] + 10], col: "#e8b52a", sag: 50, units: ["switch", "patch"] })),
-      { a: [940, hy + 10], b: [785, hy + 10], col: "#e8b52a", sag: -60, units: ["hue"] },
-      { a: [150, ha.y + 50], b: [660, hy2 + 26], col: "#8a63d6", sag: 140, units: ["ha", "ring"] },
+    if (!RACK.leads) RACK.leads = [   // (fixed positions: work them out once)
+      { a: [128, sy - 6], b: [ports[0][0], ports[0][1]], col: 0xe8b52a, sag: 60, ua: "switch", ub: "switch" },
+      ...[1, 2, 3, 4, 5, 6].map((i) => ({ a: [ports[i][0], ports[i][1]], b: [pk[i - 1][0], pk[i - 1][1]], col: 0xe8b52a, sag: 50, ua: "switch", ub: "patch" })),
+      { a: [940, hy + 4], b: [785, hy + 10], col: 0xe8b52a, sag: -40, ua: "hue", ub: "hue" },
+      { a: [150, ha.y + 40], b: [660, hy2 + 10], col: 0x8a63d6, sag: 90, ua: "ha", ub: "ha" },
     ];
     RACK.drawn = now; if (RACK.tex) RACK.tex.needsUpdate = true;
   }
-  // the patch leads on their own layer, in front of the panels; they wobble when a unit they plug into is hovered
-  function drawLeads(now) {
-    const c = RACK.wires, g = c.getContext("2d"); g.clearRect(0, 0, FACE_W, FACE_H);
-    const flow = Math.max((RACK.unit && RACK.unit.eero && RACK.unit.eero.k) || 0, (RACK.unit && RACK.unit.switch && RACK.unit.switch.k) || 0);
-    const busy = NET.devs.reduce((t, d) => t + rate(d.dl) + rate(d.ul), 0), speed = 0.35 + Math.min(1.6, busy / 40);
-    for (const [i, L] of (RACK.leads || []).entries()) {
-      const k = Math.max(0, ...L.units.map((id) => (RACK.unit[id] || { k: 0 }).k)), j = k * 16 * Math.sin(now / 90 + i * 1.7), dim = RACK.any && k < 0.1 ? 0.35 : 1;
-      g.globalAlpha = dim; g.strokeStyle = L.col; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.moveTo(L.a[0], L.a[1]);
-      g.bezierCurveTo(L.a[0] + j, L.a[1] + L.sag + j * 0.6, L.b[0] - j, L.b[1] - L.sag - j * 0.6, L.b[0], L.b[1]); g.stroke();
-      if (k > 0.05) { g.globalAlpha = k * 0.5; g.strokeStyle = "#fff4c8"; g.lineWidth = 2; g.stroke(); }
-      // traffic: dots run along the leads while the eero or the switch is hovered, faster when the network is busy
-      if (flow > 0.02) {
-        const p0 = L.a, p1 = [L.a[0] + j, L.a[1] + L.sag + j * 0.6], p2 = [L.b[0] - j, L.b[1] - L.sag - j * 0.6], p3 = L.b;
-        const at = (t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
-        for (let q = 0; q < 3; q++) {
-          const t = (((now / 1000) * speed + q / 3 + i * 0.13) % 1 + 1) % 1, [x, y] = at(i % 2 ? 1 - t : t);   // alternate directions: up and down the leads
-          g.globalAlpha = flow; g.fillStyle = "#c8f4ff"; g.shadowColor = "#7fd8ff"; g.shadowBlur = 14; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.shadowBlur = 0;
-        }
+  // ---- the patch leads as real cables: tubes that arc out of the panel, with plugs at each end
+  const faceAt = (px, py) => [(px / FACE_W - 0.5) * W3, Y0 + H3 * (1 - py / FACE_H)];
+  const unitK = (id) => (RACK.unit && RACK.unit[id] ? RACK.unit[id].k : 0);
+  function leadCurve(L, j) {
+    const [ax, ay] = faceAt(...L.a), [bx, by] = faceAt(...L.b), za = 0.1 + 0.22 * unitK(L.ua), zb = 0.1 + 0.22 * unitK(L.ub), sag = (H3 * L.sag) / FACE_H;
+    return [[ax, ay, za], [ax + j * 0.05, ay - sag, za + 0.5 + j * 0.06], [bx - j * 0.05, by + sag * 0.6, zb + 0.5 - j * 0.04], [bx, by, zb]];
+  }
+  const bez = (P, t) => { const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t; return [0, 1, 2].map((k) => a * P[0][k] + b * P[1][k] + c * P[2][k] + d * P[3][k]); };
+  const SEG = 36, RAD = 8, LIGHT = (() => { const v = [-0.4, 0.75, 0.55], m = Math.hypot(...v); return v.map((x) => x / m); })();
+  function makeTube(T, col) {
+    const geo = new T.BufferGeometry(), n = (SEG + 1) * RAD, idx = [];
+    geo.setAttribute("position", new T.Float32BufferAttribute(new Array(n * 3).fill(0), 3));
+    geo.setAttribute("color", new T.Float32BufferAttribute(new Array(n * 3).fill(1), 3));
+    for (let i = 0; i < SEG; i++) for (let r = 0; r < RAD; r++) { const a = i * RAD + r, b = i * RAD + ((r + 1) % RAD), c = a + RAD, d = b + RAD; idx.push(a, c, b, b, c, d); }
+    geo.setIndex(idx);
+    return new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, color: col, transparent: true }));
+  }
+  function updateTube(mesh, P, rad) {
+    const pos = mesh.geometry.attributes.position.array, colr = mesh.geometry.attributes.color.array;
+    for (let i = 0; i <= SEG; i++) {
+      const t = i / SEG, p = bez(P, t), q = bez(P, Math.min(1, t + 0.01)), o = bez(P, Math.max(0, t - 0.01));
+      let tx = q[0] - o[0], ty = q[1] - o[1], tz = q[2] - o[2]; const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      // a frame around the tangent: n1 ⟂ tangent (from world up, or x when the cable runs vertically), n2 = t × n1
+      let ux = 0, uy = 1, uz = 0; if (Math.abs(ty) > 0.9) { ux = 1; uy = 0; }
+      let n1x = uy * tz - uz * ty, n1y = uz * tx - ux * tz, n1z = ux * ty - uy * tx; const nl = Math.hypot(n1x, n1y, n1z) || 1; n1x /= nl; n1y /= nl; n1z /= nl;
+      const n2x = ty * n1z - tz * n1y, n2y = tz * n1x - tx * n1z, n2z = tx * n1y - ty * n1x;
+      for (let r = 0; r < RAD; r++) {
+        const a = (r / RAD) * Math.PI * 2, c = Math.cos(a), s2 = Math.sin(a), nx = n1x * c + n2x * s2, ny = n1y * c + n2y * s2, nz = n1z * c + n2z * s2, k = (i * RAD + r) * 3;
+        pos[k] = p[0] + nx * rad; pos[k + 1] = p[1] + ny * rad; pos[k + 2] = p[2] + nz * rad;
+        const sh = 0.45 + 0.55 * Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]) + 0.25 * Math.pow(Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]), 12);
+        colr[k] = colr[k + 1] = colr[k + 2] = sh;
       }
     }
-    g.globalAlpha = 1; if (RACK.wtex) RACK.wtex.needsUpdate = true;
+    mesh.geometry.attributes.position.needsUpdate = true; mesh.geometry.attributes.color.needsUpdate = true;
+  }
+  function buildLeads(g, T) {
+    RACK.cables = (RACK.leads || []).map((L) => {
+      const tube = makeTube(T, L.col); g.add(tube);
+      const boot = () => { const b = new T.Mesh(new T.BoxGeometry(0.11, 0.11, 0.2), new T.MeshBasicMaterial({ color: 0xb9c8ff, transparent: true, opacity: 0.55 })); g.add(b); return b; };
+      const dots = [0, 1, 2].map(() => { const d = new T.Mesh(new T.SphereGeometry(0.045, 10, 8), new T.MeshBasicMaterial({ color: 0xc8f4ff, transparent: true, opacity: 0, depthWrite: false })); g.add(d); return d; });
+      return { L, tube, ba: boot(), bb: boot(), dots };
+    });
+  }
+  function tickLeads(now) {
+    const flow = Math.max(unitK("eero"), unitK("switch")), busy = NET.devs.reduce((t, d) => t + rate(d.dl) + rate(d.ul), 0), speed = 0.35 + Math.min(1.6, busy / 40);
+    (RACK.cables || []).forEach((c, i) => {
+      const L = c.L, k = Math.max(unitK(L.ua), unitK(L.ub)), j = k * Math.sin(now / 90 + i * 1.7);   // wobble while a unit it plugs into is hovered
+      const P = leadCurve(L, j); updateTube(c.tube, P, 0.034);
+      const dim = RACK.any && k < 0.1 ? 0.3 : 1, hi = 1 + 0.35 * k;
+      c.tube.material.color.setHex(L.col).multiplyScalar(dim * hi);
+      c.ba.position.set(P[0][0], P[0][1], P[0][2] + 0.04); c.bb.position.set(P[3][0], P[3][1], P[3][2] + 0.04);
+      c.ba.material.opacity = c.bb.material.opacity = 0.55 * dim;
+      c.dots.forEach((d, q) => {   // traffic while the eero or switch is hovered
+        if (flow < 0.02) { d.material.opacity = 0; return; }
+        const t = (((now / 1000) * speed + q / 3 + i * 0.13) % 1 + 1) % 1, p = bez(P, i % 2 ? 1 - t : t);
+        d.position.set(p[0], p[1], p[2]); d.material.opacity = flow;
+      });
+    });
   }
   function vents(w, h, cols, rows) {   // a perforated side/back panel texture
     const c = Object.assign(document.createElement("canvas"), { width: w, height: h }), g = c.getContext("2d");
@@ -693,42 +730,48 @@
   function buildRack(g, T) {
     g.add(floorGrid(T, 7));
     RACK.canvas = RACK.canvas || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
-    RACK.wires = RACK.wires || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
     RACK.tex = new T.CanvasTexture(RACK.canvas); RACK.tex.anisotropy = 4;
-    RACK.wtex = new T.CanvasTexture(RACK.wires); RACK.wtex.anisotropy = 4;
-    drawFace(performance.now()); RACK.unit = {}; drawLeads(performance.now());
+    drawFace(performance.now()); RACK.unit = {};
     // each unit is its own slice of the front face, so it can slide out and the others can dim
     for (const u of RU) {
       if (u.id === "gap") continue;
       const h = (H3 * u.h) / FACE_H, geo = new T.PlaneGeometry(W3, h), uv = geo.attributes.uv, v0 = 1 - (u.y + u.h) / FACE_H, v1 = 1 - u.y / FACE_H;
       for (let q = 0; q < uv.count; q++) uv.setY(q, uv.getY(q) > 0.5 ? v1 : v0);
-      const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: RACK.tex, transparent: true })); m.position.set(0, unitY(u), 0.02); g.add(m);
+      const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: RACK.tex })); m.position.set(0, unitY(u), 0.02); m.userData.unit = u.id; g.add(m);
       const ol = segs(T, [-W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, h / 2, 0, W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, -h / 2, 0], COL.cyan, 0); ol.position.copy(m.position); ol.position.z += 0.01; g.add(ol);
       RACK.unit[u.id] = { m, ol, k: 0, d: 0 };
     }
-    RACK.leadPlane = new T.Mesh(new T.PlaneGeometry(W3, H3), new T.MeshBasicMaterial({ map: RACK.wtex, transparent: true, depthWrite: false }));
-    RACK.leadPlane.position.set(0, Y0 + H3 / 2, 0.27); g.add(RACK.leadPlane);
+    buildLeads(g, T);
     // the frame: two aluminium uprights each side, top and bottom rails, corner brackets on top
     const L = [], X = W3 / 2 + 0.36, TOP = Y0 + H3 + 0.62, Z0 = 0.05, Z1 = -DEPTH;
     const bx = (x0, x1, y0, y1, z0, z1) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; L.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
-    for (const sx of [-1, 1]) { bx(sx * X - 0.33, sx * X + 0.0, 0, TOP, Z0 - 0.33, Z0); bx(sx * X - 0.33, sx * X, 0, TOP, Z1, Z1 + 0.33); }
-    bx(-X - 0.33, X, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X, TOP - 0.3, TOP, Z1, Z0);
-    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(sx * X - 0.3, sx * X - 0.03, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
+    const P0 = (sx) => (sx > 0 ? X : -X - 0.33);   // the uprights sit symmetrically either side of the panels
+    for (const sx of [-1, 1]) { bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z0 - 0.33, Z0); bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z1, Z1 + 0.33); }
+    bx(-X - 0.33, X + 0.33, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, TOP - 0.3, TOP, Z1, Z0);
+    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(P0(sx) + 0.03, P0(sx) + 0.3, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
     g.add(segs(T, L, 0xd8dde2, 0.55)); L.length = 0;
     // sides, back and top: dark perforated panels so it reads as a solid box
     const sideTex = new T.CanvasTexture(vents(512, 768, 3, 9)), backTex = new T.CanvasTexture(vents(768, 768, 4, 9));
     const skin = (geo, tex, op) => new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x111316, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: true }));
-    const D = Z0 - Z1, Wt = 2 * X + 0.33;
-    for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D, TOP), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx > 0 ? X : -X - 0.33, TOP / 2, (Z0 + Z1) / 2); g.add(m); }
-    { const m = skin(new T.PlaneGeometry(Wt, TOP), backTex, 0.92); m.position.set(-0.165, TOP / 2, Z1); g.add(m); }
-    { const m = skin(new T.PlaneGeometry(Wt, D), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(-0.165, TOP, (Z0 + Z1) / 2); g.add(m); }
+    const D = Z0 - Z1, Wt = 2 * X + 0.66;
+    for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D, TOP), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx * (X + 0.33), TOP / 2, (Z0 + Z1) / 2); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(Wt, TOP), backTex, 0.92); m.position.set(0, TOP / 2, Z1); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(Wt, D), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(0, TOP, (Z0 + Z1) / 2); g.add(m); }
     // callout leaders to the right
-    const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.4, y, 0.1, W3 / 2 + 1.0, y, 0.1); }
+    const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.75, y, 0.1, W3 / 2 + 1.25, y, 0.1); }
     RACK.leaders = segs(T, lp, COL.cyan, 0.35); g.add(RACK.leaders);
   }
   function tickRack(dt, now) {
     if (now - RACK.drawn > (RACK.unit && RACK.unit.nas && RACK.unit.nas.k > 0.02 ? 30 : 450)) drawFace(now);
-    const focus = String(V3.pinned || V3.hover || "").startsWith("u:") ? String(V3.pinned || V3.hover).slice(2) : null;
+    // which unit is under the mouse: a ray against the unit faces (steady, unlike the nearest-point picks)
+    RACK.hit = null;
+    if (V3.mouse && !V3.drag && RACK.unit) {
+      const r = V3.canvas.getBoundingClientRect(), ray = RACK.ray || (RACK.ray = new V3.T.Raycaster());
+      ray.setFromCamera(new V3.T.Vector2(((V3.mouse.x - r.left) / r.width) * 2 - 1, -((V3.mouse.y - r.top) / r.height) * 2 + 1), V3.camera);
+      const h = ray.intersectObjects(Object.values(RACK.unit).map((U) => U.m), false)[0];
+      if (h) { const wp = RACK.g.worldToLocal(h.point.clone()); RACK.hit = { id: h.object.userData.unit, p: [wp.x, wp.y, wp.z] }; }
+    }
+    const focus = V3.pinned && String(V3.pinned).startsWith("u:") ? String(V3.pinned).slice(2) : RACK.hit ? RACK.hit.id : null;
     RACK.any = !!focus;
     let wob = false;
     for (const [id, U] of Object.entries(RACK.unit || {})) {
@@ -739,7 +782,7 @@
       U.ol.material.opacity = U.k * (0.6 + 0.3 * Math.sin(now / 160));
       if (U.k > 0.02) wob = true;   // (includes the eero/switch traffic dots)
     }
-    if (wob || RACK.wobbled || now - (RACK.ldrawn || 0) > 1000) { drawLeads(now); RACK.ldrawn = now; RACK.wobbled = wob; }
+    tickLeads(now);
     if (RACK.leaders) RACK.leaders.material.opacity = focus ? 0.12 : 0.35;
     const ip = st(NET.net.ip), down = n(st(NET.net.down)), upl = n(st(NET.net.up)), nst = st(NET.net.status) || st(NET.net.wan), online = !nst || /connected|on|online/.test(nst.s);
     const eh = eeroHub(), hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
@@ -760,10 +803,12 @@
     for (const u of RU) {
       if (!u.name) continue;
       const y = unitY(u), c = C[u.id] || ["", ""];
-      tag("r:" + u.id, W3 / 2 + 1.05, y, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
+      tag("r:" + u.id, W3 / 2 + 1.3, y, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
       const tg = V3.tags.get("r:" + u.id); if (tg) { tg.dataset.focus = focus === u.id ? "true" : focus ? "dim" : "false"; }
       const act = u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } } : null;
-      for (const q of [0, -1, 1, -2, 2, -3, 3, -4, 4]) pick("u:" + u.id, (q / 4) * (W3 / 2 - 0.3), y, 0.1 + 0.22 * ((RACK.unit[u.id] || { k: 0 }).k), () => rackCard(u), act);   // hover anywhere along the unit
+      // one pick for the unit under the mouse (exactly where the mouse is) and one for a pinned unit
+      if (RACK.hit && RACK.hit.id === u.id) pick("u:" + u.id, RACK.hit.p[0], RACK.hit.p[1], RACK.hit.p[2], () => rackCard(u), act);
+      else if (V3.pinned === "u:" + u.id) pick("u:" + u.id, 0, y, 0.1 + 0.22 * unitK(u.id), () => rackCard(u), act);
     }
   }
   function rackCard(u) {
