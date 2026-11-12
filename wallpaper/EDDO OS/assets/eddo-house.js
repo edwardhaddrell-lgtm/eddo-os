@@ -149,15 +149,15 @@
     const liveIds = discoverLive(allStates, ents, areaName, devArea);
     const ids = [...new Set([...rooms.flatMap((r) => [...r.ents, ...r.powerIds]), ...devices.flatMap((d) => [...d.ids, ...d.powerIds]), ...Object.values(EN).filter((v) => typeof v === "string"), ...Object.values(carIds), ...((CAR.V && CAR.V.all) || []), ...liveIds, ...(KIT.ids || [])])];
     states.clear();
-    ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0 }); });
+    ids.forEach((id) => { const s = stMap.get(id); if (s) states.set(id, { s: s.state, a: s.attributes, t: Date.parse(s.last_updated) || 0, c: Date.parse(s.last_changed) || 0 }); });
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
     if (ids.length) HA().subscribe({ type: "subscribe_entities", entity_ids: ids }, onEntities).catch(() => {});
   });
   function onEntities(ev) {
-    for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000 });
+    for (const [id, v] of Object.entries(ev.a || {})) states.set(id, { s: v.s, a: v.a || {}, t: (v.lu || v.lc || 0) * 1000, c: (v.lc || 0) * 1000 });
     for (const [id, v] of Object.entries(ev.c || {})) {
       const cur = states.get(id) || { s: "", a: {} };
-      if (v["+"]) { if ("s" in v["+"]) cur.s = v["+"].s; if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
+      if (v["+"]) { if ("s" in v["+"]) { if (v["+"].s !== cur.s) cur.c = (v["+"].lc || 0) * 1000 || Date.now(); cur.s = v["+"].s; } if (v["+"].a) Object.assign(cur.a, v["+"].a); cur.t = (v["+"].lu || v["+"].lc || 0) * 1000 || Date.now(); }
       states.set(id, cur);
     }
     rooms.forEach(evalRoom); rooms.forEach(borrowTemp); dirty = true;
@@ -2618,7 +2618,11 @@
     // home = their phone is on the home Wi-Fi; away shows the Home Assistant zone they're in, if any
     const wf = pp.wifi && states.get(pp.wifi), home = wf ? wf.s === "home" : st.s === "home";
     const zone = !/^(home|not_home|unknown|unavailable)$/.test(st.s) ? String(st.s).replace(/_/g, " ").toUpperCase() : "";
-    const where = home ? (wf ? "HOME · ON WI-FI" : "HOME") : zone || (wf ? "AWAY · OFF WI-FI" : st.s === "not_home" ? "AWAY" : "—");
+    // away: when they were last home (when the phone left the Wi-Fi)
+    const left = (wf || st).c, d = left ? new Date(left) : null, now = new Date();
+    const hm = d ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+    const day = !d ? "" : d.toDateString() === now.toDateString() ? hm : d.toDateString() === new Date(now - 864e5).toDateString() ? "YESTERDAY " + hm : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).toUpperCase() + " " + hm;
+    const where = home ? "HOME" : zone ? `${zone}${day ? " · LEFT " + day : ""}` : day ? "LAST HOME " + day : "AWAY";
     return { name, home, where, pic: a.entity_picture || "" };
   }
   // the profile photo, loaded so it can be drawn into a texture (through the PC's bridge, or straight from Home Assistant if it allows it)
