@@ -1032,29 +1032,41 @@
     for (const k of [-w / 2 + 0.03, w / 2 - 0.03]) { const [x, y, z] = off(k); for (let rr = 0.4; rr <= 0.84; rr += 0.11) ring(fil, x, y, z, r * rr, 30, ax); }
     return { fl, fil };
   }
-  const SHELF = { cols: 5, rows: 4, cell: 2.3, x0: -13.2, y0: 0.2 };
+  const SHELF = { cols: 12, rows: 4, cell: 2.3, w: 11.5, depth: 2.3, x0: -13.2, y0: 0.2 };   // spools stand side-on, 12 to a board
+  // a solid spool seen edge-on (axis along x): the wound filament between two grey flanges, shaded per vertex
+  function solidSpool(T, col) {
+    const pos = [], colr = [], N = 28, c = new T.Color(col), FL = new T.Color(0x4a4f56);
+    const lit = (nx, ny, nz) => { const d = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]); return 0.38 + 0.62 * d + 0.3 * Math.pow(d, 14); };
+    const v = (x, y, z, k, cc) => { pos.push(x, y, z); colr.push(Math.min(1, cc.r * k), Math.min(1, cc.g * k), Math.min(1, cc.b * k)); };
+    const barrel = (xa, xb, r, cc) => { for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI * 2, a1 = ((i + 1) / N) * Math.PI * 2, y0 = Math.cos(a0), z0 = Math.sin(a0), y1 = Math.cos(a1), z1 = Math.sin(a1), k0 = lit(0, y0, z0), k1 = lit(0, y1, z1);
+      v(xa, y0 * r, z0 * r, k0, cc); v(xb, y0 * r, z0 * r, k0, cc); v(xa, y1 * r, z1 * r, k1, cc); v(xa, y1 * r, z1 * r, k1, cc); v(xb, y0 * r, z0 * r, k0, cc); v(xb, y1 * r, z1 * r, k1, cc); } };
+    const disc = (x, r, nx, cc) => { const k = lit(nx, 0, 0) * 0.9; for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI * 2, a1 = ((i + 1) / N) * Math.PI * 2; v(x, 0, 0, k, cc); v(x, Math.cos(a0) * r, Math.sin(a0) * r, k, cc); v(x, Math.cos(a1) * r, Math.sin(a1) * r, k, cc); } };
+    barrel(-0.27, 0.27, 0.8, c);
+    for (const sx of [-1, 1]) { barrel(sx * 0.27, sx * 0.33, 0.98, FL); disc(sx * 0.33, 0.98, sx, FL); disc(sx * 0.27, 0.98, -sx, FL); }
+    const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new T.Float32BufferAttribute(colr, 3));
+    return new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, side: T.DoubleSide }));
+  }
   function buildShelfSpools() {
     const g = WS.shelf, T = V3.T; if (!g || !T) return;
-    // newest purchases first (the date at the end of the description, e.g. "Amazon, Oct 2026"); the shelf holds 20
-    const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-    const when = (i) => { const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(\d{4})/i.exec(i.description || ""); return m ? +m[2] * 12 + MON[m[1].toLowerCase()] : 0; };
-    const all = WS.stockItems.filter((i) => i.status === "needs_action").map((i, k) => ({ i, k })).sort((a, b) => when(b.i) - when(a.i) || a.k - b.k).map((x) => x.i);
+    // arranged like a rainbow: by hue, with the blacks, greys and whites at the end
+    const tone = (i) => { const h = hexOf(i.description); if (h == null) return 9; const r = (h >> 16) / 255, gg = ((h >> 8) & 255) / 255, b = (h & 255) / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn;
+      if (d < 0.12) return 2 + (1 - mx);   // neutrals, light to dark
+      const hue = (mx === r ? ((gg - b) / d + 6) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4) / 6; return hue; };
+    const all = WS.stockItems.filter((i) => i.status === "needs_action").map((i, k) => ({ i, k, t: tone(i) })).sort((a, b) => a.t - b.t || a.k - b.k).map((x) => x.i);
     WS.stockTotal = all.length;
     const per = SHELF.cols * SHELF.rows; WS.pages = Math.max(1, Math.ceil(all.length / per)); WS.page = Math.min(WS.page || 0, WS.pages - 1);
     const items = all.slice(WS.page * per, WS.page * per + per);
     const key = WS.page + ":" + items.map((i) => i.uid + (i.description || "")).join("|"); if (key === WS.shelfKey) return; WS.shelfKey = key;
     g.children.slice().forEach((c) => { g.remove(c); c.geometry && c.geometry.dispose(); });
     WS.spools = [];
-    for (const [k, el] of V3.tags) if (k.startsWith("sh") && k !== "shelf") el.dataset.hidden = "true";
+    const pitch = SHELF.w / SHELF.cols;
     items.forEach((it, n) => {
-      const c = n % SHELF.cols, r = Math.floor(n / SHELF.cols), cx = SHELF.x0 + (c + 0.5) * SHELF.cell, cy = SHELF.y0 + (SHELF.rows - r - 0.5) * SHELF.cell;
-      const { fl, fil } = spoolPts("z", cx, cy, 0, 0.98);
-      const col = hexOf(it.description) ?? 0x8fb9c2;
-      const a = segs(T, fl, 0xb8c4c8, 0.35), b = segs(T, fil, col, 0.9);
-      g.add(a, b); WS.spools.push({ it, a, b, x: cx, y: cy });
+      const c = n % SHELF.cols, r = Math.floor(n / SHELF.cols), cx = SHELF.x0 + (c + 0.5) * pitch, cy = SHELF.y0 + (SHELF.rows - r - 1) * SHELF.cell + 0.06 + 0.98;
+      const m = solidSpool(T, hexOf(it.description) ?? 0x8fb9c2); m.position.set(cx, cy, 0); m.userData.o = 1;
+      g.add(m); WS.spools.push({ it, m, x: cx, y: cy });
     });
   }
-  const SHELF_W = () => SHELF.cols * SHELF.cell;
+  const SHELF_W = () => SHELF.w;
   function shelfPage(dir, from) {
     const pages = WS.pages || 1, next = Math.max(0, Math.min(pages - 1, (WS.page || 0) + dir));
     if (next === WS.page || !WS.shelf) { if (WS.shelf) WS.shelf.userData.goal = 0; return; }
@@ -1071,7 +1083,7 @@
   const haptic = () => { try { navigator.vibrate && navigator.vibrate(8); } catch (_) {} };
   // drag the shelf sideways to flip pages (starts only on the shelf itself)
   function shelfRect() {
-    const a = toCanvas(SHELF.x0, SHELF.y0, 0.6), b = toCanvas(SHELF.x0 + SHELF_W(), SHELF.y0 + SHELF.rows * SHELF.cell, 0.6); if (!a || !b) return null;
+    const a = toCanvas(SHELF.x0, SHELF.y0, SHELF.depth / 2), b = toCanvas(SHELF.x0 + SHELF_W(), SHELF.y0 + SHELF.rows * SHELF.cell, SHELF.depth / 2); if (!a || !b) return null;
     const r = V3.canvas.getBoundingClientRect(), k = (r.width || 1) / V3.canvas.clientWidth;
     return { l: r.left + Math.min(a.x, b.x) * k, r: r.left + Math.max(a.x, b.x) * k, t: r.top + Math.min(a.y, b.y) * k, b: r.top + Math.max(a.y, b.y) * k, pxPerUnit: (Math.abs(b.x - a.x) * k) / SHELF_W() };
   }
@@ -1193,14 +1205,18 @@
         const sh = put(new T.Mesh(new T.PlaneGeometry(s + 2.4, d + 2.4), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })), 0, 0.012, 0); sh.rotation.x = -Math.PI / 2; }
       const track = put(new T.Mesh(new T.RingGeometry(3.05, 3.17, 128), new T.MeshBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0, depthWrite: false })), 0, 0.02, 0); track.rotation.x = -Math.PI / 2;
       const prog = put(new T.Mesh(new T.RingGeometry(3.0, 3.22, 128, 1, -Math.PI / 2, 0.001), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 0.025, 0); prog.rotation.x = -Math.PI / 2;
-      // the filament shelf: 5 × 4 cubbies
-      const sh = [], { cols, rows, cell, x0, y0 } = SHELF, x1 = x0 + cols * cell, y1 = y0 + rows * cell, zf = 0.55, zb = -0.55;
-      for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y0, zf, x, y1, zf, x, y0, zb, x, y1, zb); }
-      for (let r = 0; r <= rows; r++) { const y = y0 + r * cell; sh.push(x0, y, zf, x1, y, zf, x0, y, zb, x1, y, zb); for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y, zf, x, y, zb); } }
-      sh.push(x0, 0, zf, x0, y0, zf, x1, 0, zf, x1, y0, zf);   // feet
-      const shelfFrame = segs(T, sh, COL.edge, 0.28); g.add(shelfFrame);
+      // the filament shelf: black steel sides, four wooden boards and a top, a dark back
+      const { rows, cell, x0, y0, w, depth } = SHELF, x1 = x0 + w, y1 = y0 + rows * cell, shelfBoards = [];
+      const sb = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); shelfBoards.push(m); return m; };
+      for (let r = 0; r <= rows; r++) sb(shadedBox(T, w + 0.04, 0.12, depth, 0x7a5c3e, [0.7, 0.5, 1.0, 0.28, 0.82, 0.4]), x0 + w / 2, y0 + r * cell, 0);
+      for (const x of [x0 - 0.09, x1 + 0.09]) sb(shadedBox(T, 0.14, y1 + 0.06, depth + 0.04, 0x24272c), x, (y1 + 0.06) / 2, 0);
+      sb(shadedBox(T, w, y1 - y0, 0.04, 0x15171a, [1, 1, 1, 1, 1, 1]), x0 + w / 2, (y0 + y1) / 2, -depth / 2 + 0.02);
+      { const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q = c2.getContext("2d"), gr = q.createRadialGradient(128, 128, 40, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.7)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = gr; q.fillRect(0, 0, 256, 256);
+        const shd = new T.Mesh(new T.PlaneGeometry(w + 3, depth + 2.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })); shd.rotation.x = -Math.PI / 2; shd.position.set(x0 + w / 2, 0.012, 0); g.add(shd); }
+      // the filament path from the feeding AMS slot to the toolhead, drawn through the body like an x-ray
+      const feed = segs(T, new Array(24 * 6).fill(0), COL.cyan, 0); feed.material.depthTest = false; feed.frustumCulled = false; P.add(feed);
       WS.shelf = new T.Group(); g.add(WS.shelf); WS.shelfKey = "";
-      WS.obj = { P, body, inner, glass, scr, scrCanvas, bed, head, nozzleGlow, obj, NL, lamp, spill, amsSp, track, prog, shelfFrame, PX, s, h, d, F, GW, CH, CY, pct: -1, fade: 1, lampK: 0, hot: 1 };
+      WS.obj = { P, body, inner, glass, scr, scrCanvas, bed, head, nozzleGlow, obj, NL, lamp, spill, amsSp, track, prog, shelfBoards, feed, fadeOn: 1, PX, s, h, d, F, GW, CH, CY, pct: -1, fade: 1, lampK: 0, hot: 1 };
       buildShelfSpools();
     },
     tick(g, dt, now) {
@@ -1281,17 +1297,25 @@
       }
       let overShelf = false; if (V3.mouse) { const r = shelfRect(); overShelf = !!(r && V3.mouse.x > r.l && V3.mouse.x < r.r && V3.mouse.y > r.t && V3.mouse.y < r.b); }
       o.fade += ((busy && !overShelf ? 0.3 : 1) - o.fade) * ease(3);
-      o.shelfFrame.material.opacity = 0.28 * o.fade;
-      if (WS.shelf) WS.shelf.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * o.fade; });
+      if (Math.abs(o.fade - o.fadeOn) > 0.004) { o.fadeOn = o.fade; o.shelfBoards.forEach((m) => toneBox(m, o.fade)); }
+      if (WS.shelf) WS.shelf.children.forEach((c) => c.material.color.setScalar(o.fade));
+      // filament feed line
+      { const ai = trays.findIndex((t) => t && t.a.active), on = mood === "printing" && ai >= 0 && o.amsSp[ai];
+        o.feed.material.opacity += ((on ? 0.75 + Math.sin(now / 300) * 0.2 : 0) - o.feed.material.opacity) * ease(4);
+        if (on) { const cx = o.amsSp[ai].x - o.PX, B = [[cx, o.h + 1.0, -1.0], [cx, o.h + 0.9, -2.7], [0, o.h - 0.2, -2.3], [o.head.position.x, 4.25, o.head.position.z]], arr = o.feed.geometry.attributes.position.array;
+          const bz = (t) => B[0].map((_, q) => (1 - t) ** 3 * B[0][q] + 3 * (1 - t) ** 2 * t * B[1][q] + 3 * (1 - t) * t * t * B[2][q] + t ** 3 * B[3][q]);
+          for (let i = 0; i < 24; i++) { const a = bz(i / 24), b = bz((i + 1) / 24); arr.set([...a, ...b], i * 6); }
+          o.feed.geometry.attributes.position.needsUpdate = true; o.feed.material.color.setHex(act && act.a.color ? parseInt(String(act.a.color).slice(1, 7), 16) : COL.cyan); } }
       // spools: no labels, hover one for its details
       (WS.spools || []).forEach((sp) => {
         const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
         const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
-        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 0.4, () => `<b>${esc(shortName(it.summary).toUpperCase())}</b>${kind ? `<span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>` : ""}<dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
+        const hot = V3.hover === "sp:" + it.uid || V3.pinned === "sp:" + it.uid; sp.m.position.z += ((hot ? 0.8 : 0) - sp.m.position.z) * ease(10);
+        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 1.0, () => `<b>${esc(shortName(it.summary).toUpperCase())}</b>${kind ? `<span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>` : ""}<dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
           { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
       });
       const pages = WS.pages || 1;
-      tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
+      tag("shelf", SHELF.x0 + SHELF.w / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
         `<b>FILAMENT · ${WS.stockTotal || 0} SPOOLS</b><span class="eddo-shelf-nav">${pages > 1 ? `<button data-shelf="-1"${WS.page ? "" : " disabled"}>‹</button>PAGE ${WS.page + 1} / ${pages}<button data-shelf="1"${WS.page < pages - 1 ? "" : " disabled"}>›</button>` : "ALL ON THE SHELF"}${WS.stock ? "" : " · NO LIST"}</span>`, true, "eddo-page-tag-nav");
     },
     panel() {
