@@ -956,3 +956,22 @@ html.eddo-phone .eddo-docks{grid-template-columns:repeat(2,minmax(0,1fr))}
 .eddo-page-tag-left[data-focus=dim]{opacity:.28}
 .eddo-page-tag-left[data-focus=true] b{color:#7fd8ff}
 .eddo-page-tag-left[data-focus=true]{text-shadow:0 0 10px rgba(127,216,255,.5),0 1px 4px rgba(0,0,0,.9)}
+/* page panels: capped above the tab bar, scroll with a soft fade if they must */
+.eddo-pg{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.eddo-pg::-webkit-scrollbar{display:none}
+.eddo-pg[data-scroll=true]{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);padding-bottom:28px}
+/* compact disk bars: one row */
+.eddo-minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:10px}
+.eddo-mini{display:grid;grid-template-columns:1fr auto;gap:3px 4px;padding:7px 9px;border:1px solid var(--theme-line,#bdb8ad)}
+.eddo-mini span{font-size:8.5px;letter-spacing:1.3px;color:var(--theme-muted,#77756d);white-space:nowrap}
+.eddo-mini b{font-weight:400;font-size:12px}
+.eddo-mini i{grid-column:1/-1;height:3px;background:rgba(143,185,194,.15);position:relative}
+.eddo-mini i s{position:absolute;inset:0 auto 0 0;background:#8fb9c2;text-decoration:none}
+.eddo-mini[data-warn=true] b{color:#e0954a}.eddo-mini[data-warn=true] i s{background:#e0954a}
+/* dockers: single-line chips */
+.eddo-dock{grid-template-columns:8px 1fr auto!important;padding:6px 9px!important}
+.eddo-dock i{grid-row:auto!important}
+.eddo-dock em{font-size:7.5px;letter-spacing:1px;padding:1px 4px;border:1px solid rgba(224,149,74,.6);color:#e0954a}
+/* rack callouts wrap instead of running into the panel */
+.eddo-page-tag-left{max-width:200px;white-space:normal}
+.eddo-page-tag-left span{white-space:normal}

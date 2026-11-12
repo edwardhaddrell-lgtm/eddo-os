@@ -261,7 +261,15 @@
     if (box.contains(document.activeElement) && document.activeElement.matches("input,textarea")) { dirty = true; return; }   // don't wipe what's being typed
     const html = p.panel();
     if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; p.after && p.after(box); }
+    fitPanel(box);
   }, 500);
+  // keep a page's panel clear of the tab bar under it: cap its height and let it scroll
+  function fitPanel(box) {
+    const nav = document.querySelector("#stage .wb-nav"); if (!nav || !box.isConnected) return;
+    const sc = box.getBoundingClientRect().height / (box.offsetHeight || 1) || 1, room = (nav.getBoundingClientRect().top - box.getBoundingClientRect().top) / sc - 18;
+    if (room > 120) { box.style.maxHeight = room + "px"; box.dataset.scroll = String(box.scrollHeight > room + 2); }
+  }
+  window.addEventListener("resize", () => document.querySelectorAll("#stage .eddo-pg").forEach(fitPanel));
   setInterval(() => { dirty = true; }, 5000);
 
   // ============================================================ 1. GARAGE — the XC60
@@ -827,16 +835,17 @@
   function rackPanel() {
     const N = NET.nas, v = (k) => n(st(N[k])), upS = st(N.up), upDays = upS && live(upS) ? Math.floor((Date.now() - Date.parse(upS.s)) / 864e5) : null;
     const nst = st(NET.net.status) || st(NET.net.wan), up = !nst || /connected|on|online/.test(nst.s), ip = st(NET.net.ip);
-    const dock = DOCKERS.map(([k, name]) => { const s0 = st("switch.eddo_nas_container_" + k); if (!s0) return ""; const upd = st(`binary_sensor.eddo_nas_container_${k}_update`); const on = s0.s === "on";
-      return `<div class="eddo-dock" data-on="${on}"><i></i><b>${esc(name)}</b><em>${on ? "RUNNING" : "STOPPED"}${upd && upd.s === "on" ? " · UPDATE" : ""}</em></div>`; }).join("");
+    const mini = (label, val, warn) => `<div class="eddo-mini"${warn ? ' data-warn="true"' : ""}><span>${esc(label)}</span><b>${val != null ? fmt(val) + "%" : "—"}</b><i><s style="width:${Math.max(0, Math.min(100, val || 0))}%"></s></i></div>`;
+    const dock = DOCKERS.map(([k, name]) => { const s0 = st("switch.eddo_nas_container_" + k); if (!s0) return ""; const upd = st(`binary_sensor.eddo_nas_container_${k}_update`), on = s0.s === "on";
+      return `<div class="eddo-dock" data-on="${on}" title="${on ? "Running" : "Stopped"}${upd && upd.s === "on" ? " · update available" : ""}"><i></i><b>${esc(name)}</b>${upd && upd.s === "on" ? "<em>UPD</em>" : ""}</div>`; }).join("");
     const ver = st(RK.ha), contOn = RK.cont.filter((id) => (st(id) || {}).s === "on").length, updN = n(st(N.upd));
+    const autosOn = RK.autos.filter((id) => (st(id) || {}).s === "on").length, hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
     return `<div class="eddo-pg-grid">${card("INTERNET", up ? "Online" : "Down", ip && live(ip) ? esc(ip.s) : "", up ? "" : ' data-warn="true"')}${card("SPEED TEST", n(st(NET.net.down)) != null ? `${fmt(n(st(NET.net.down)))} / ${fmt(n(st(NET.net.up)))}` : "—", "Mbit/s")}${card("ON THE NETWORK", NET.devs.filter((d) => netPlace(d).on).length, `${wiredOn().length} wired`)}</div>` +
-      `<p class="eddo-pg-h">EDDO-NAS · UNRAID ${st(N.state) && live(st(N.state)) ? `<span>ARRAY ${esc(st(N.state).s.toUpperCase())}</span>` : ""}</p>` +
-      `<div class="eddo-pg-grid">${card("CPU", v("cpu") != null ? fmt(v("cpu")) + "%" : "—", v("temp") != null ? fmt(v("temp")) + "°C" : "", v("temp") >= 85 ? ' data-warn="true"' : "")}${card("RAM", v("ram") != null ? fmt(v("ram")) + "%" : "—")}${card("UP", upDays != null ? upDays + " d" : "—")}</div>` +
-      `${bar("ARRAY", v("array"), v("array") != null ? fmt(v("array")) + "%" : "—", v("array") >= 90)}${N.disks.map((id, i) => bar("DISK " + (i + 1), n(st(id)), n(st(id)) != null ? fmt(n(st(id))) + "%" : "—", n(st(id)) >= 90)).join("")}${bar("CACHE", v("cache"), v("cache") != null ? fmt(v("cache")) + "%" : "—")}` +
-      `<p class="eddo-pg-h">DOCKERS <span>${contOn} OF ${RK.cont.length} RUNNING${updN ? ` · ${fmt(updN)} UPDATES` : ""}</span></p><div class="eddo-docks">${dock}</div>` +
-      `<p class="eddo-pg-h">HOME ASSISTANT</p><div class="eddo-pg-grid">${card("CORE", ver ? esc(ver.a.installed_version || "—") : "—", ver && ver.s === "on" ? "update ready" : "up to date", ver && ver.s === "on" ? ' data-warn="true"' : "")}${card("AUTOMATIONS", RK.autos.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.autos.length} on`)}${card("HUE", RK.hue.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.hue.length} lights on`)}</div>` +
-      "";
+      `<p class="eddo-pg-h">EDDO-NAS · UNRAID <span>${st(N.state) && live(st(N.state)) ? "ARRAY " + esc(st(N.state).s.toUpperCase()) + " · " : ""}UP ${upDays != null ? upDays + " D" : "—"}</span></p>` +
+      `<div class="eddo-pg-grid">${card("CPU", v("cpu") != null ? fmt(v("cpu")) + "%" : "—", v("temp") != null ? fmt(v("temp")) + "°C" : "", v("temp") >= 85 ? ' data-warn="true"' : "")}${card("RAM", v("ram") != null ? fmt(v("ram")) + "%" : "—")}${card("DOCKERS", `${contOn} / ${RK.cont.length}`, updN ? `${fmt(updN)} updates` : "running")}</div>` +
+      `<div class="eddo-minis">${mini("ARRAY", v("array"), v("array") >= 90)}${N.disks.map((id, i) => mini("DISK " + (i + 1), n(st(id)), n(st(id)) >= 90)).join("")}${mini("CACHE", v("cache"))}</div>` +
+      `<p class="eddo-pg-h">KEY DOCKERS</p><div class="eddo-docks">${dock}</div>` +
+      `<p class="eddo-pg-h">HOME ASSISTANT <span>CORE ${ver ? esc(ver.a.installed_version || "—") : "—"}${ver && ver.s === "on" ? ` → ${esc(ver.a.latest_version || "")}` : ""} · ${autosOn}/${RK.autos.length} AUTOMATIONS · ${hueOn}/${RK.hue.length} HUE ON</span></p>`;
   }
   function netView(v) {
     RACK.view = v; dirty = true; V3.pinned = null;
