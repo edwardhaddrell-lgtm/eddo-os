@@ -784,11 +784,11 @@
     for (const sx of [-1, 1]) { bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z0 - 0.33, Z0); bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z1, Z1 + 0.33); }
     bx(-X - 0.33, X + 0.33, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, TOP - 0.3, TOP, Z1, Z0);
     for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(P0(sx) + 0.03, P0(sx) + 0.3, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
-    g.add(segs(T, L, 0xe6eaee, 0.22)); L.length = 0;   // crisp edges over the solid aluminium
+    L.length = 0;   // (no outline over the solid aluminium: lines lying on a face flicker as it turns)
     const alu = (w, h, d, x, y, z) => { const b = shadedBox(T, w, h, d, 0xb9bfc6, [0.8, 0.6, 1.05, 0.35, 0.92, 0.5]); b.position.set(x, y, z); g.add(b); return b; };
     for (const sx of [-1, 1]) { alu(0.33, TOP, 0.33, P0(sx) + 0.165, TOP / 2, Z0 - 0.165); alu(0.33, TOP, 0.33, P0(sx) + 0.165, TOP / 2, Z1 + 0.165); }
-    alu(2 * X + 0.66, 0.62, 0.33, 0, TOP - 0.31, Z0 - 0.165); alu(2 * X + 0.66, 0.3, 0.33, 0, 0.15, Z0 - 0.165); alu(2 * X + 0.66, 0.3, D0, 0, TOP - 0.15, (Z0 + Z1) / 2);
-    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) alu(0.27, 0.3, 0.28, P0(sx) + 0.165, TOP + 0.15, z);
+    alu(2 * X - 0.004, 0.62, 0.32, 0, TOP - 0.31, Z0 - 0.165); alu(2 * X - 0.004, 0.3, 0.32, 0, 0.15, Z0 - 0.165); alu(2 * X - 0.004, 0.3, D0 - 0.68, 0, TOP - 0.15, (Z0 + Z1) / 2);
+    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) alu(0.27, 0.3, 0.28, P0(sx) + 0.165, TOP + 0.156, z);
     // a soft contact shadow where it stands
     { const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q = c2.getContext("2d"), gr = q.createRadialGradient(128, 128, 20, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.75)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = gr; q.fillRect(0, 0, 256, 256);
       const sh = new T.Mesh(new T.PlaneGeometry(2 * X + 2.2, D0 + 2.2), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.set(0, 0.012, (Z0 + Z1) / 2); g.add(sh); }
@@ -796,19 +796,10 @@
     const sideTex = new T.CanvasTexture(vents(512, 768, 3, 9)), backTex = new T.CanvasTexture(vents(768, 768, 4, 9));
     const skin = (geo, tex, op) => new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x111316, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: true }));
     const D = Z0 - Z1, Wt = 2 * X + 0.66;
-    for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D, TOP), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx * (X + 0.33), TOP / 2, (Z0 + Z1) / 2); g.add(m); }
-    { const m = skin(new T.PlaneGeometry(Wt, TOP), backTex, 0.92); m.position.set(0, TOP / 2, Z1); g.add(m); }
-    { const m = skin(new T.PlaneGeometry(Wt, D), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(0, TOP, (Z0 + Z1) / 2); g.add(m); }
-    // a status light on each unit (green fine · amber needs attention · red something's wrong)
+    for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D - 0.7, TOP - 0.62), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx * (X + 0.2), (TOP - 0.62) / 2 + 0.3, (Z0 + Z1) / 2); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(2 * X - 0.04, TOP - 0.62), backTex, 0.92); m.position.set(0, (TOP - 0.62) / 2 + 0.3, Z1 + 0.16); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(2 * X - 0.04, D - 0.7), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(0, TOP - 0.32, (Z0 + Z1) / 2); g.add(m); }
     const glowTex = (() => { const c = Object.assign(document.createElement("canvas"), { width: 128, height: 128 }), q = c.getContext("2d"), gr = q.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,255,255,.5)"); gr.addColorStop(1, "rgba(255,255,255,0)"); q.fillStyle = gr; q.fillRect(0, 0, 128, 128); return new T.CanvasTexture(c); })();
-    RACK.leds = {};
-    for (const u of RU) {
-      if (!u.name) continue;
-      const dot = new T.Mesh(new T.SphereGeometry(0.045, 12, 10), new T.MeshBasicMaterial({ color: 0x5fe0a8 }));
-      const halo = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0x5fe0a8, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false })); halo.scale.set(0.42, 0.42, 1);
-      dot.position.set(W3 / 2 - 0.55, unitY(u), 0.07); halo.position.copy(dot.position); g.add(dot, halo);
-      RACK.leds[u.id] = { dot, halo };
-    }
     // light from the rack: a soft pool on the floor, and the vents throwing stripes forward
     const pool = new T.Mesh(new T.PlaneGeometry(9, 7), new T.MeshBasicMaterial({ map: glowTex, color: 0x5a8cff, transparent: true, opacity: 0.35, blending: T.AdditiveBlending, depthWrite: false }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.02, 0.6); g.add(pool); RACK.pool = pool;
@@ -844,23 +835,7 @@
       if (U.k > 0.02) wob = true;   // (includes the eero/switch traffic dots)
     }
     tickLeads(now);
-    // status lights
-    const v2 = (k) => n(st(NET.nas[k])), nst2 = st(NET.net.status) || st(NET.net.wan), eh2 = eeroHub(), hs2 = eh2 && st(eh2.status), ver2 = st(RK.ha), osu2 = st(RK.haOs);
-    const ring2 = ringDevs(), rOn2 = ring2.filter((d) => netPlace(d).on).length, diskHot = NET.nas.disks.some((id) => n(st(id)) >= 90);
-    const level = {
-      logo: nst2 && !/connected|on|online/.test(nst2.s) ? 2 : 0, switch: 0, patch: 0,
-      hue: RK.hue.length && RK.hue.every((id) => !live(st(id))) ? 2 : 0,
-      eero: hs2 && !/green|connected|online/.test(hs2.s) ? 2 : 0,
-      ha: (ver2 && ver2.s === "on") || (osu2 && osu2.s === "on") ? 1 : 0,
-      ring: ring2.length ? (rOn2 === 0 ? 2 : rOn2 < ring2.length ? 1 : 0) : 0,
-      nas: v2("temp") >= 85 || v2("array") >= 90 || diskHot || (st(NET.nas.state) && !/started/i.test(st(NET.nas.state).s)) ? 2 : n(st(NET.nas.upd)) ? 1 : 0,
-    };
-    for (const [id, L] of Object.entries(RACK.leds || {})) {
-      const lv = level[id] || 0, col = [0x5fe0a8, 0xffb347, 0xff4a3a][lv], pulse = lv === 2 ? 0.5 + 0.5 * Math.sin(now / 160) : lv === 1 ? 0.75 + 0.25 * Math.sin(now / 600) : 0.85;
-      const z = 0.07 + 0.22 * unitK(id), dim = RACK.any && unitK(id) < 0.1 ? 0.35 : 1;
-      L.dot.material.color.setHex(col).multiplyScalar(dim); L.dot.position.z = z;
-      L.halo.material.color.setHex(col); L.halo.material.opacity = 0.75 * pulse * dim; L.halo.position.z = z + 0.01;
-    }
+    const v2 = (k) => n(st(NET.nas[k]));
     // the floor light follows the NAS (and the speed test)
     const cpu2 = v2("cpu") || 10, nasK = unitK("nas");
     if (RACK.pool) RACK.pool.material.opacity = (0.22 + Math.min(0.25, cpu2 / 200) + 0.06 * Math.sin(now / 900) + (RACK.testing ? 0.25 * (0.5 + 0.5 * Math.sin(now / 140)) : 0)) * (RACK.any && !nasK ? 0.6 : 1);
@@ -936,13 +911,13 @@
     if (V3.labels) { V3.labels.innerHTML = ""; V3.tags.clear(); }
     const pg = PAGES.find((p) => p.id === "network"); if (!pg) return;
     pg.sway = v === "rack";
-    Object.assign(V3.view, v === "rack" ? { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9, auto: true } : { dist: 23, ty: 0.6, phi: 0.98, tx: 0, auto: true });
-    pg.view = v === "rack" ? { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 } : { dist: 23, ty: 0.6, phi: 0.98, theta: 0.7 };
+    Object.assign(V3.view, v === "rack" ? { dist: 22, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9, auto: true } : { dist: 23, ty: 0.6, phi: 0.98, tx: 0, auto: true });
+    pg.view = v === "rack" ? { dist: 22, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 } : { dist: 23, ty: 0.6, phi: 0.98, theta: 0.7 };
   }
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-netview]"); if (b) netView(b.dataset.netview); });
 
   page({
-    id: "network", label: "Network", pos: 4, view: { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 }, sway: true, minDist: 6, maxDist: 40,
+    id: "network", label: "Network", pos: 4, view: { dist: 22, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 }, sway: true, minDist: 6, maxDist: 40,
     discover(R) { if (!R) return; netDiscover(R); rackDiscover(R); const key = NET.mode + NET.hubs.map((h) => h.name).join() + NET.devs.length; if (key !== NET.key) { NET.key = key; V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); } } },
     // two views: the EDNET rack (default) and the eero mesh map (open it from the switch or the eero)
     build(g, T) {
