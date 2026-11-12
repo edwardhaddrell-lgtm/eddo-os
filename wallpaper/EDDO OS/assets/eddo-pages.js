@@ -161,6 +161,7 @@
     const html = `${V3.pinned === key ? '<button class="eddo-page-card-x" data-pcard-close aria-label="Close">×</button>' : ""}${pk.info()}` +
       (conf ? `<div class="eddo-page-card-confirm"><p>${esc(pk.actions.remove.ask)}</p><button data-pcard-yes>REMOVE</button><button data-pcard-no>CANCEL</button></div>`
         : pk.actions && pk.actions.remove && V3.pinned === key ? `<button class="eddo-page-card-rm" data-pcard-rm>× ${esc(pk.actions.remove.label || "REMOVE")}</button>` : "") +
+      (pk.actions && pk.actions.open ? `<button class="eddo-page-card-open" data-pcard-open>${esc(pk.actions.open.label)}</button>` : "") +
       (V3.pinned === key ? "" : `<em class="eddo-page-card-hint">CLICK TO KEEP OPEN</em>`);
     if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
   }
@@ -170,6 +171,7 @@
     if (e.target.closest("[data-pcard-close]") || e.target.closest("[data-pcard-no]") && !V3.confirm) { V3.pinned = null; V3.confirm = null; }
     else if (e.target.closest("[data-pcard-no]")) V3.confirm = null;
     else if (e.target.closest("[data-pcard-rm]")) V3.confirm = V3.pinned;
+    else if (e.target.closest("[data-pcard-open]") && pk && pk.actions && pk.actions.open) { V3.pinned = null; pk.actions.open.run(); }
     else if (e.target.closest("[data-pcard-yes]") && pk && pk.actions && pk.actions.remove) { pk.actions.remove.run(); V3.pinned = null; V3.confirm = null; }
     drawCard();
   });
@@ -556,10 +558,208 @@
       row(NET.mode === "eero" ? "EERO" : "ROOM", p.hub) + row("LINK", p.wired ? "Wired" : [c && c.a.operating_band, c && c.a.channel ? "ch " + c.a.channel : ""].filter(Boolean).join(" · ")) +
       row("SIGNAL", !p.wired && v != null ? `${v} dBm` : "") + row("TRAFFIC", dl || ul ? `↓ ${fmt(dl, 1)} · ↑ ${fmt(ul, 1)} Mbit/s` : "idle") + `</dl>`;
   }
+  // ---------------------------------------------------------------- the EDNET rack (Edward's 10" mini rack, from the photo)
+  // Top to bottom: EDNET logo · Netgear GS308 · Cat6 patch panel · Hue bridge · eero (behind the vent) · Home Assistant Yellow · Ring · EDDO-NAS (behind the vent)
+  const RACK = { view: "rack", g: null, mesh: null, tex: null, canvas: null, drawn: 0, blink: [] };
+  const RU = [   // unit height in front-panel pixels (the panel face is drawn 1024 px wide)
+    { id: "logo", name: "EDNET", h: 190 }, { id: "switch", name: "NETGEAR GS308", h: 175 }, { id: "patch", name: "PATCH PANEL", h: 170 },
+    { id: "hue", name: "HUE BRIDGE", h: 160 }, { id: "eero", name: "LIVING ROOM EERO", h: 160 }, { id: "gap", h: 44 },
+    { id: "ha", name: "HOME ASSISTANT YELLOW", h: 150 }, { id: "ring", name: "RING", h: 140 }, { id: "nas", name: "EDDO-NAS", h: 155 },
+  ];
+  const FACE_W = 1024, FACE_H = RU.reduce((t, u) => t + u.h, 0), W3 = 5.08, H3 = (W3 * FACE_H) / FACE_W, Y0 = 0.35, DEPTH = 3.4;
+  RU.reduce((y, u) => { u.y = y; return y + u.h; }, 0);
+  const unitY = (u) => Y0 + H3 * (1 - (u.y + u.h / 2) / FACE_H);   // 3D height of a unit's centre
+  const DOCKERS = [["plex", "Plex"], ["immich", "Immich"], ["adguard_home", "AdGuard Home"], ["vaultwarden", "Vaultwarden"], ["nginxproxymanager", "Nginx Proxy Manager"], ["nanit", "Nanit bridge"], ["eddo_os_web", "EDDO OS (web)"], ["music_assistant", "Music Assistant"], ["paperless_ngx", "Paperless"]];
+  const RK = { hue: [], cont: [], ha: null, haOs: null, autos: [], ringHosts: [] };
+  function rackDiscover(R) {
+    RK.hue = R.ents.filter((e) => e.platform === "hue" && e.entity_id.startsWith("light.") && !e.disabled_by).map((e) => e.entity_id);
+    RK.cont = R.allStates.filter((x) => /^switch\.eddo_nas_container_/.test(x.entity_id)).map((x) => x.entity_id);
+    RK.ha = (R.allStates.find((x) => x.entity_id === "update.home_assistant_core_update") || {}).entity_id || null;
+    RK.haOs = (R.allStates.find((x) => x.entity_id === "update.home_assistant_operating_system_update") || {}).entity_id || null;
+    RK.autos = R.allStates.filter((x) => x.entity_id.startsWith("automation.")).map((x) => x.entity_id);
+    watch([...RK.hue, ...RK.cont, ...DOCKERS.map(([k]) => `binary_sensor.eddo_nas_container_${k}_update`), RK.ha, RK.haOs, ...RK.autos].filter(Boolean));
+  }
+  const ringDevs = () => NET.devs.filter((d) => /^ring/i.test(d.name) || /ring/i.test(((st(d.tracker) || { a: {} }).a.host_name) || ""));
+  const wiredOn = () => NET.devs.filter((d) => { const p = netPlace(d); return p.on && p.wired; });
+  const eeroHub = () => NET.hubs.find((h) => /living/i.test(h.name)) || NET.hubs[0];
+  // ---- the front face, drawn like the photo: black printed panels, purple Cat6 keystones, yellow patch leads
+  function screw(g, x, y) { g.fillStyle = "#0b0c0e"; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.strokeStyle = "#2c2f34"; g.lineWidth = 2; g.stroke(); g.strokeStyle = "#3a3e44"; g.beginPath(); g.moveTo(x - 6, y); g.lineTo(x + 6, y); g.moveTo(x, y - 6); g.lineTo(x, y + 6); g.stroke(); }
+  function keystone(g, x, y, used) {
+    g.fillStyle = "#5b45b8"; g.fillRect(x - 24, y - 24, 48, 48); g.fillStyle = "#3d2d86"; g.fillRect(x - 24, y + 18, 48, 6);
+    g.fillStyle = used ? "#a9b8ff" : "#14161a"; g.fillRect(x - 14, y - 12, 28, 22);
+  }
+  function rackPanelFace(g, u) {
+    const y0 = u.y + 4, h = u.h - 8;
+    g.fillStyle = "#131417"; g.fillRect(14, y0, FACE_W - 28, h);
+    const grd = g.createLinearGradient(0, y0, 0, y0 + h); grd.addColorStop(0, "rgba(255,255,255,.05)"); grd.addColorStop(1, "rgba(0,0,0,.25)"); g.fillStyle = grd; g.fillRect(14, y0, FACE_W - 28, h);
+    g.strokeStyle = "#2a2d32"; g.lineWidth = 2; g.strokeRect(14, y0, FACE_W - 28, h);
+    screw(g, 52, y0 + 26); screw(g, 52, y0 + h - 26); screw(g, FACE_W - 52, y0 + 26); screw(g, FACE_W - 52, y0 + h - 26);
+  }
+  function drawFace(now) {
+    const c = RACK.canvas, g = c.getContext("2d"); g.clearRect(0, 0, FACE_W, FACE_H);
+    const U = Object.fromEntries(RU.map((u) => [u.id, u]));
+    for (const u of RU) if (u.id !== "gap") rackPanelFace(g, u);
+    // EDNET
+    { const u = U.logo, mk = window.eddoHouse && window.eddoHouse.mark && window.eddoHouse.mark(), m = mk && /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(mk), d = mk && /d="([^"]+)"/.exec(mk);
+      if (m && d && window.Path2D) { const vw = +m[1], vh = +m[2], w = 520, k = w / vw; g.save(); g.translate((FACE_W - w) / 2, u.y + u.h / 2 - (vh * k) / 2); g.scale(k, k); g.fillStyle = "#f2f2ee"; g.shadowColor = "rgba(127,216,255,.45)"; g.shadowBlur = 18; g.fill(new Path2D(d[1])); g.restore(); }
+      else { g.font = "italic 900 120px MiSans, system-ui"; g.fillStyle = "#f2f2ee"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("EDNET", FACE_W / 2, u.y + u.h / 2); g.textAlign = "left"; } }
+    // GS308: grey switch with 8 ports and their lights; a keystone each side
+    const sw = U.switch, sy = sw.y + sw.h / 2, ports = [];
+    keystone(g, 128, sy - 14, true); keystone(g, 920, sy - 14, false);
+    g.fillStyle = "#1d1f23"; g.fillRect(220, sw.y + 34, 600, 104); g.strokeStyle = "#3a3d42"; g.strokeRect(220, sw.y + 34, 600, 104);
+    g.font = "600 20px MiSans, system-ui"; g.fillStyle = "#cfd2d6"; g.fillText("NETGEAR", 236, sw.y + 60); g.fillText("GS308", 742, sw.y + 60);
+    const wired = Math.max(1, Math.min(8, wiredOn().length || 7));
+    for (let i = 0; i < 8; i++) {
+      const x = 300 + i * 62, y = sw.y + 92; ports.push([x, y]);
+      g.fillStyle = "#0c0d0f"; g.fillRect(x - 22, y - 18, 44, 36); g.strokeStyle = "#4a4d52"; g.strokeRect(x - 22, y - 18, 44, 36);
+      const lit = i < 7 && (RACK.blink[i] = (RACK.blink[i] || 0) + Math.random()) % 3 > (i < wired ? 0.5 : 2.9);
+      g.fillStyle = i < 7 ? (lit ? "#5bff7a" : "#1f6b2c") : "#222"; g.fillRect(x + 8, y - 30, 8, 6);
+    }
+    // patch panel: ten Cat6 keystones, the first seven patched
+    const pp = U.patch, py = pp.y + pp.h / 2, pk = [];
+    for (let i = 0; i < 10; i++) { const x = 130 + i * 85; pk.push([x, py]); keystone(g, x, py, i < 7); g.font = "500 11px MiSans, system-ui"; g.fillStyle = "#8f86c9"; g.fillText("CAT.6", x - 16, py - 30); }
+    // Hue bridge panel: round cable hole, two keystones, USB-C, a button, and the white bridge itself
+    const hu = U.hue, hy = hu.y + hu.h / 2, hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
+    g.fillStyle = "#050607"; g.beginPath(); g.arc(120, hy, 40, 0, 7); g.fill();
+    keystone(g, 230, hy, false); keystone(g, 320, hy, false);
+    g.fillStyle = "#0b0c0e"; g.fillRect(395, hy - 26, 30, 52); g.fillStyle = "#333"; g.fillRect(404, hy - 10, 12, 20);
+    g.fillStyle = "#050607"; g.beginPath(); g.arc(475, hy, 14, 0, 7); g.fill();
+    g.fillStyle = "#e9ebee"; g.beginPath(); g.roundRect ? g.roundRect(560, hu.y + 26, 300, hu.h - 52, 18) : g.rect(560, hu.y + 26, 300, hu.h - 52); g.fill();
+    g.strokeStyle = "#c9ccd1"; g.lineWidth = 2; g.stroke();
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(680 + i * 22, hu.y + 50, 6, 0, 7); g.strokeStyle = hueOn ? "#7fb2ff" : "#b8bcc2"; g.stroke(); }
+    g.fillStyle = "#d4d7db"; g.fillRect(760, hy - 10, 46, 40); keystone(g, 940, hy + 4, true);
+    // eero vent
+    const ve = U.eero; for (let i = 0; i < 26; i++) { g.fillStyle = "#040506"; g.fillRect(150 + i * 28, ve.y + 34, 14, ve.h - 68); }
+    const eh = eeroHub(), eOk = !eh || !st(eh.status) || /green|connected|online/.test(st(eh.status).s);
+    g.fillStyle = eOk ? "rgba(255,255,255,.18)" : "rgba(255,90,74,.4)"; g.fillRect(450, ve.y + 70, 120, 20);   // the eero's light through the slots
+    // Home Assistant Yellow: the board's I/O through a window
+    const ha = U.ha, hy2 = ha.y + ha.h / 2;
+    g.fillStyle = "#1a1c20"; g.fillRect(360, ha.y + 20, 450, ha.h - 40); g.fillStyle = "#c7c9cc"; g.fillRect(372, ha.y + 28, 426, ha.h - 56);
+    g.fillStyle = "#2a2d31"; g.fillRect(395, hy2 - 30, 22, 14); g.fillRect(430, hy2 - 30, 22, 14);
+    g.fillStyle = "#4f8cff"; g.beginPath(); g.arc(405, hy2 + 14, 8, 0, 7); g.fill(); g.fillStyle = "#ff5a5a"; g.beginPath(); g.arc(440, hy2 + 14, 8, 0, 7); g.fill();
+    g.fillStyle = "#e3e5e8"; g.fillRect(500, hy2 - 30, 48, 26); g.fillRect(500, hy2 + 2, 48, 26);
+    g.fillStyle = "#2a2d31"; g.fillRect(575, hy2 + 8, 22, 12);
+    g.fillStyle = "#9fa3a8"; g.fillRect(630, hy2 - 20, 64, 52); g.fillStyle = "#0c0d0f"; g.fillRect(640, hy2 - 8, 44, 34);
+    g.fillStyle = Math.sin(now / 180) > 0 ? "#5bff7a" : "#1f6b2c"; g.fillRect(636, hy2 - 18, 8, 6); g.fillStyle = "#5bff7a"; g.fillRect(680, hy2 - 18, 8, 6);
+    g.fillStyle = "#0c0d0f"; g.fillRect(720, hy2 - 10, 40, 40); keystone(g, 150, ha.y + 40, true);
+    // Ring (blank panel with a keystone)
+    const rg = U.ring; keystone(g, 150, rg.y + 60, true);
+    const ringN = ringDevs().filter((d) => netPlace(d).on).length;
+    g.font = "600 18px MiSans, system-ui"; g.fillStyle = ringN ? "#7fd8ff" : "#555"; g.fillText("● RING", 840, rg.y + rg.h / 2 + 6);
+    // NAS vent, lit blue by the fans (brighter when the CPU works harder)
+    const nv = U.nas, cpu = n(st(NET.nas.cpu)) || 10, glow = 0.25 + Math.min(0.6, cpu / 100) + 0.08 * Math.sin(now / 700);
+    const bg = g.createRadialGradient(FACE_W / 2, nv.y + nv.h / 2, 10, FACE_W / 2, nv.y + nv.h / 2, 340); bg.addColorStop(0, `rgba(70,110,255,${glow})`); bg.addColorStop(1, "rgba(70,110,255,0)");
+    g.fillStyle = bg; g.fillRect(100, nv.y + 20, FACE_W - 200, nv.h - 40);
+    for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(4,5,6,.82)"; g.fillRect(150 + i * 28, nv.y + 30, 14, nv.h - 60); }
+    // leads: yellow from the switch to the patch panel, one to the Hue bridge, purple from the Yellow down to the Ring panel
+    const lead = (a, b, col, sag) => { g.strokeStyle = col; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.moveTo(a[0], a[1]); g.bezierCurveTo(a[0], a[1] + sag, b[0], b[1] - sag, b[0], b[1]); g.stroke(); };
+    lead([128, sy - 6], [ports[0][0], ports[0][1] + 18], "#e8b52a", 60);
+    for (let i = 1; i < 7; i++) lead([ports[i][0], ports[i][1] + 18], [pk[i - 1][0], pk[i - 1][1] + 10], "#e8b52a", 50);
+    lead([940, hy + 10], [785, hy + 10], "#e8b52a", -60);
+    lead([150, ha.y + 50], [660, hy2 + 26], "#8a63d6", 140);
+    RACK.drawn = now; if (RACK.tex) RACK.tex.needsUpdate = true;
+  }
+  function buildRack(g, T) {
+    g.add(floorGrid(T, 7));
+    RACK.canvas = RACK.canvas || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
+    RACK.tex = new T.CanvasTexture(RACK.canvas); RACK.tex.anisotropy = 4;
+    drawFace(performance.now());
+    const face = new T.Mesh(new T.PlaneGeometry(W3, H3), new T.MeshBasicMaterial({ map: RACK.tex, transparent: true, depthWrite: true }));
+    face.position.set(0, Y0 + H3 / 2, 0.02); g.add(face);
+    // the frame: two aluminium uprights each side, top and bottom rails, corner brackets on top
+    const L = [], X = W3 / 2 + 0.36, TOP = Y0 + H3 + 0.62, Z0 = 0.05, Z1 = -DEPTH;
+    const bx = (x0, x1, y0, y1, z0, z1) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; L.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
+    for (const sx of [-1, 1]) { bx(sx * X - 0.33, sx * X + 0.0, 0, TOP, Z0 - 0.33, Z0); bx(sx * X - 0.33, sx * X, 0, TOP, Z1, Z1 + 0.33); }
+    bx(-X - 0.33, X, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X, TOP - 0.3, TOP, Z1, Z0);
+    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(sx * X - 0.3, sx * X - 0.03, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
+    g.add(segs(T, L, 0xd8dde2, 0.55));
+    L.length = 0;
+    // each unit's box behind its panel
+    const U2 = [];
+    for (const u of RU) { if (u.id === "gap") continue; const y1 = Y0 + H3 * (1 - u.y / FACE_H), y0 = Y0 + H3 * (1 - (u.y + u.h) / FACE_H); bx(-W3 / 2 + 0.1, W3 / 2 - 0.1, y0 + 0.05, y1 - 0.05, -0.05, u.id === "nas" ? Z1 + 0.4 : -1.6); }
+    // (bx appended into L above; units drawn fainter)
+    g.add(segs(T, L.splice(0), COL.edge, 0.12));
+    // callout leaders to the right
+    const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.05, y, 0.1, W3 / 2 + 1.0, y, 0.1); }
+    g.add(segs(T, lp, COL.cyan, 0.35));
+  }
+  function tickRack(dt, now) {
+    if (now - RACK.drawn > 450) drawFace(now);
+    const ip = st(NET.net.ip), down = n(st(NET.net.down)), upl = n(st(NET.net.up)), nst = st(NET.net.status) || st(NET.net.wan), online = !nst || /connected|on|online/.test(nst.s);
+    const eh = eeroHub(), hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
+    const ver = st(RK.ha), osu = st(RK.haOs), autosOn = RK.autos.filter((id) => (st(id) || {}).s === "on").length;
+    const contOn = RK.cont.filter((id) => (st(id) || {}).s === "on").length;
+    const ring = ringDevs(), ringOn = ring.filter((d) => netPlace(d).on).length;
+    const v = (k) => n(st(NET.nas[k])), upS = st(NET.nas.up), upDays = upS && live(upS) ? Math.floor((Date.now() - Date.parse(upS.s)) / 864e5) : null;
+    const C = {
+      logo: [online ? "ONLINE" : "INTERNET DOWN", down != null ? `↓ ${fmt(down)} · ↑ ${fmt(upl)} MBIT/S` : "", !online],
+      switch: ["8 × 1 GIGABIT", `${wiredOn().length} WIRED DEVICES ONLINE`],
+      patch: ["10 × CAT6", "7 PATCHED"],
+      hue: [`${hueOn} OF ${RK.hue.length} LIGHTS ON`, "PHILIPS HUE"],
+      eero: [eh ? `${NET.devs.filter((d) => { const p = netPlace(d); return p.on && p.hub === eh.name; }).length} ON THIS EERO` : "EERO 6+", "CLICK FOR THE MESH MAP"],
+      ha: [ver ? `CORE ${String(ver.a.installed_version || "").toUpperCase()}` : "HOME ASSISTANT", `${autosOn} AUTOMATIONS ON${(ver && ver.s === "on") || (osu && osu.s === "on") ? " · UPDATE READY" : ""}`],
+      ring: [`${ringOn} OF ${ring.length || "?"} RING DEVICES ONLINE`, "RING-MQTT", ring.length && ringOn < ring.length],
+      nas: [`CPU ${fmt(v("cpu"))}% · ${fmt(v("temp"))}°C`, `ARRAY ${fmt(v("array"))}% · ${contOn} DOCKERS UP${upDays != null ? " · " + upDays + " D" : ""}`, v("temp") >= 85 || v("array") >= 90],
+    };
+    for (const u of RU) {
+      if (!u.name) continue;
+      const y = unitY(u), c = C[u.id] || ["", ""];
+      tag("r:" + u.id, W3 / 2 + 1.05, y + 0.32, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
+      pick("u:" + u.id, 0, y, 0.1, () => rackCard(u), u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } } : null);
+    }
+  }
+  function rackCard(u) {
+    const row = (k, val) => (val == null || val === "" ? "" : `<dt>${k}</dt><dd>${esc(val)}</dd>`);
+    const v = (k) => n(st(NET.nas[k]));
+    if (u.id === "logo") { const ip = st(NET.net.ip); return `<b>EDNET · INTERNET</b><dl>${row("STATUS", (st(NET.net.status) || {}).s || "—")}${row("PUBLIC IP", ip && ip.s)}${row("DOWN", n(st(NET.net.down)) != null ? fmt(n(st(NET.net.down))) + " Mbit/s" : "")}${row("UP", n(st(NET.net.up)) != null ? fmt(n(st(NET.net.up))) + " Mbit/s" : "")}${row("CLIENTS", NET.devs.filter((d) => netPlace(d).on).length)}</dl>`; }
+    if (u.id === "switch") return `<b>NETGEAR GS308</b><dl>${row("PORTS", "8 × 1 Gbit")}${row("WIRED", wiredOn().map((d) => d.name).slice(0, 8).join(", ") || "—")}</dl>`;
+    if (u.id === "patch") return `<b>PATCH PANEL</b><dl>${row("PORTS", "10 × Cat6 keystone")}${row("PATCHED", "7 to the switch")}</dl>`;
+    if (u.id === "hue") return `<b>PHILIPS HUE BRIDGE</b><dl>${row("LIGHTS", `${RK.hue.filter((id) => (st(id) || {}).s === "on").length} on of ${RK.hue.length}`)}${row("ON NOW", RK.hue.filter((id) => (st(id) || {}).s === "on").map((id) => (st(id).a.friendly_name || id)).slice(0, 5).join(", ") || "none")}</dl>`;
+    if (u.id === "eero") { const eh = eeroHub(), hs = eh && st(eh.status); return `<b>EERO · ${esc(String(eh ? eh.name : "").toUpperCase())}</b><dl>${row("MODEL", eh && eh.model)}${row("STATUS", hs && hs.s)}${row("DEVICES", eh ? NET.devs.filter((d) => { const p = netPlace(d); return p.on && p.hub === eh.name; }).length : "")}${row("MESH", NET.hubs.map((h) => h.name).join(" · "))}</dl>`; }
+    if (u.id === "ha") { const ver = st(RK.ha), osu = st(RK.haOs); return `<b>HOME ASSISTANT YELLOW</b><dl>${row("CORE", ver && ver.a.installed_version)}${row("CORE UPDATE", ver && ver.s === "on" ? ver.a.latest_version : "up to date")}${row("OS UPDATE", osu && osu.s === "on" ? osu.a.latest_version : "up to date")}${row("AUTOMATIONS", `${RK.autos.filter((id) => (st(id) || {}).s === "on").length} on of ${RK.autos.length}`)}</dl>`; }
+    if (u.id === "ring") { const r = ringDevs(); return `<b>RING</b><dl>${r.map((d) => row(d.name.replace(/^Ring/i, "").replace(/[-_]/g, " ").trim().toUpperCase() || "RING", netPlace(d).on ? "online" : "offline")).join("") || row("DEVICES", "none on the Wi-Fi")}</dl>`; }
+    if (u.id === "nas") { const upS = st(NET.nas.up); return `<b>EDDO-NAS · UNRAID</b><dl>${row("CPU", `${fmt(v("cpu"))}% · ${fmt(v("temp"))}°C`)}${row("RAM", fmt(v("ram")) + "%")}${row("ARRAY", `${fmt(v("array"))}% · ${(st(NET.nas.state) || {}).s || ""}`)}${row("CACHE", fmt(v("cache")) + "%")}${row("DOCKERS", `${RK.cont.filter((id) => (st(id) || {}).s === "on").length} running of ${RK.cont.length}`)}${row("UP SINCE", upS && live(upS) ? new Date(upS.s).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "")}</dl>`; }
+    return "";
+  }
+  function rackPanel() {
+    const N = NET.nas, v = (k) => n(st(N[k])), upS = st(N.up), upDays = upS && live(upS) ? Math.floor((Date.now() - Date.parse(upS.s)) / 864e5) : null;
+    const nst = st(NET.net.status) || st(NET.net.wan), up = !nst || /connected|on|online/.test(nst.s), ip = st(NET.net.ip);
+    const dock = DOCKERS.map(([k, name]) => { const s0 = st("switch.eddo_nas_container_" + k); if (!s0) return ""; const upd = st(`binary_sensor.eddo_nas_container_${k}_update`); const on = s0.s === "on";
+      return `<div class="eddo-dock" data-on="${on}"><i></i><b>${esc(name)}</b><em>${on ? "RUNNING" : "STOPPED"}${upd && upd.s === "on" ? " · UPDATE" : ""}</em></div>`; }).join("");
+    const ver = st(RK.ha), contOn = RK.cont.filter((id) => (st(id) || {}).s === "on").length, updN = n(st(N.upd));
+    return `<div class="eddo-pg-grid">${card("INTERNET", up ? "Online" : "Down", ip && live(ip) ? esc(ip.s) : "", up ? "" : ' data-warn="true"')}${card("SPEED TEST", n(st(NET.net.down)) != null ? `${fmt(n(st(NET.net.down)))} / ${fmt(n(st(NET.net.up)))}` : "—", "Mbit/s")}${card("ON THE NETWORK", NET.devs.filter((d) => netPlace(d).on).length, `${wiredOn().length} wired`)}</div>` +
+      `<p class="eddo-pg-h">EDDO-NAS · UNRAID ${st(N.state) && live(st(N.state)) ? `<span>ARRAY ${esc(st(N.state).s.toUpperCase())}</span>` : ""}</p>` +
+      `<div class="eddo-pg-grid">${card("CPU", v("cpu") != null ? fmt(v("cpu")) + "%" : "—", v("temp") != null ? fmt(v("temp")) + "°C" : "", v("temp") >= 85 ? ' data-warn="true"' : "")}${card("RAM", v("ram") != null ? fmt(v("ram")) + "%" : "—")}${card("UP", upDays != null ? upDays + " d" : "—")}</div>` +
+      `${bar("ARRAY", v("array"), v("array") != null ? fmt(v("array")) + "%" : "—", v("array") >= 90)}${N.disks.map((id, i) => bar("DISK " + (i + 1), n(st(id)), n(st(id)) != null ? fmt(n(st(id))) + "%" : "—", n(st(id)) >= 90)).join("")}${bar("CACHE", v("cache"), v("cache") != null ? fmt(v("cache")) + "%" : "—")}` +
+      `<p class="eddo-pg-h">DOCKERS <span>${contOn} OF ${RK.cont.length} RUNNING${updN ? ` · ${fmt(updN)} UPDATES` : ""}</span></p><div class="eddo-docks">${dock}</div>` +
+      `<p class="eddo-pg-h">HOME ASSISTANT</p><div class="eddo-pg-grid">${card("CORE", ver ? esc(ver.a.installed_version || "—") : "—", ver && ver.s === "on" ? "update ready" : "up to date", ver && ver.s === "on" ? ' data-warn="true"' : "")}${card("AUTOMATIONS", RK.autos.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.autos.length} on`)}${card("HUE", RK.hue.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.hue.length} lights on`)}</div>` +
+      `<div class="eddo-pg-btns eddo-pg-viewbtn"><button class="eddo-pg-btn" data-netview="mesh">OPEN THE MESH MAP ›</button></div>`;
+  }
+  function netView(v) {
+    RACK.view = v; dirty = true; V3.pinned = null;
+    if (V3.labels) { V3.labels.innerHTML = ""; V3.tags.clear(); }
+    const pg = PAGES.find((p) => p.id === "network"); if (!pg) return;
+    pg.sway = v === "rack";
+    Object.assign(V3.view, v === "rack" ? { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9, auto: true } : { dist: 23, ty: 0.6, phi: 0.98, tx: 0, auto: true });
+    pg.view = v === "rack" ? { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 } : { dist: 23, ty: 0.6, phi: 0.98, theta: 0.7 };
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-netview]"); if (b) netView(b.dataset.netview); });
+
   page({
-    id: "network", label: "Network", pos: 4, view: { dist: 23, ty: 0.6, phi: 0.98 }, minDist: 8, maxDist: 40,
-    discover(R) { if (!R) return; netDiscover(R); const key = NET.mode + NET.hubs.map((h) => h.name).join() + NET.devs.length; if (key !== NET.key) { NET.key = key; V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); } } },
+    id: "network", label: "Network", pos: 4, view: { dist: 17, ty: 3.4, phi: 1.36, theta: -0.32, tx: 0.9 }, sway: true, minDist: 6, maxDist: 40,
+    discover(R) { if (!R) return; netDiscover(R); rackDiscover(R); const key = NET.mode + NET.hubs.map((h) => h.name).join() + NET.devs.length; if (key !== NET.key) { NET.key = key; V3.built.delete("network"); if (V3.page && V3.page.id === "network") { const p = V3.page; V3.page = null; show3D(p); } } },
+    // two views: the EDNET rack (default) and the eero mesh map (open it from the switch or the eero)
     build(g, T) {
+      RACK.mesh = new T.Group(); RACK.mesh.visible = RACK.view === "mesh"; g.add(RACK.mesh); this.buildMesh(RACK.mesh, T);
+      RACK.g = new T.Group(); RACK.g.visible = RACK.view === "rack"; g.add(RACK.g); buildRack(RACK.g, T);
+    },
+    tick(g, dt, now, T) {
+      if (RACK.mesh) RACK.mesh.visible = RACK.view === "mesh";
+      if (RACK.g) RACK.g.visible = RACK.view === "rack";
+      if (RACK.view === "mesh") this.tickMesh(g, dt, now, T); else tickRack(dt, now);
+    },
+    panel() { return RACK.view === "mesh" ? `<div class="eddo-pg-btns eddo-pg-viewbtn"><button class="eddo-pg-btn" data-netview="rack">◀ BACK TO THE RACK</button></div>` + this.panelMesh() : rackPanel(); },
+    buildMesh(g, T) {
       g.add(floorGrid(T, 9));
       const core = new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.75, 10, 6)), lineMat(T, COL.cyan, 0.8)); core.position.y = 2.2; g.add(core);
       const nodes = { core, hubs: [], devs: [] };
@@ -578,7 +778,7 @@
       nodes.spokes = segs(T, new Array(MAXD * 6).fill(0), COL.edge, 0.14); g.add(nodes.spokes);
       NET.nodes = nodes;
     },
-    tick(g, dt, now) {
+    tickMesh(g, dt, now) {
       const N = NET.nodes; if (!N) return;
       const nst = st(NET.net.status) || st(NET.net.wan), up = !nst || /connected|on|online/.test(nst.s);
       N.core.rotation.y += dt * 0.4; N.core.material.color.setHex(up ? COL.cyan : COL.bad); N.core.material.opacity = up ? 0.8 : 0.5 + 0.5 * Math.sin(now / 200);
@@ -620,7 +820,7 @@
       N.spokes.geometry.attributes.position.needsUpdate = true;
       NET.offline = off;
     },
-    panel() {
+    panelMesh() {
       const rows = NET.devs.map((d) => ({ d, p: netPlace(d), v: n(st(d.sig)), bw: rate(d.dl) + rate(d.ul) }));
       const on = rows.filter((r) => r.p.on), wifi = on.filter((r) => !r.p.wired);
       const good = wifi.filter((r) => r.v != null && r.v >= -60).length, fair = wifi.filter((r) => r.v != null && r.v < -60 && r.v >= -72).length, weak = wifi.filter((r) => r.v != null && r.v < -72).length;

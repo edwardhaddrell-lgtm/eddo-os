@@ -2947,7 +2947,7 @@
     }, 250);
   }
   // shared with the other EDDO pages (Garage reuses the car readings and actions)
-  window.eddoHouse = { carData: () => carData(), carAction: (a) => carAction(a), car: CAR, states, three: async () => { if (!T) { try { T = await import("./three-eddo-2.min.js"); } catch (_) { return null; } } return T; } };
+  window.eddoHouse = { mark: () => EDNET_MARK, carData: () => carData(), carAction: (a) => carAction(a), car: CAR, states, three: async () => { if (!T) { try { T = await import("./three-eddo-2.min.js"); } catch (_) { return null; } } return T; } };
   window.eddoTabs.register({
     id: "house", label: "House", pos: 1,
     render(c) {

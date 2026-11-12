@@ -925,3 +925,16 @@ html.eddo-phone .eddo-gb{--w:84px}
 .eddo-person b{font-weight:500;font-size:8.5px;letter-spacing:1.3px;color:var(--theme-ink,#ece9e2)}
 .eddo-person span{font-size:7.5px;letter-spacing:1.2px}
 .eddo-person[data-home=true] span{color:#8fe0be}
+/* network: the EDNET rack */
+.eddo-page-tag-left{translate:0 -50%;align-items:flex-start;text-align:left}
+.eddo-page-tag-left span{font-size:8.5px;line-height:1.35}
+.eddo-page-card-open{display:block;margin-top:9px;padding:5px 9px;border:1px solid rgba(143,224,190,.55);font-size:9px;letter-spacing:1.4px;color:#8fe0be;cursor:pointer}
+.eddo-docks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.eddo-dock{display:grid;grid-template-columns:8px 1fr;gap:1px 7px;align-items:center;padding:6px 8px;border:1px solid var(--theme-line,#bdb8ad)}
+.eddo-dock i{grid-row:span 2;width:7px;height:7px;border-radius:50%;background:#77756d}
+.eddo-dock[data-on=true] i{background:#5fe0a8;box-shadow:0 0 6px #5fe0a8}
+.eddo-dock b{font-weight:400;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eddo-dock em{font-style:normal;font-size:8px;letter-spacing:1.1px;color:var(--theme-muted,#77756d)}
+.eddo-dock[data-on=false]{opacity:.6}
+.eddo-pg-viewbtn{grid-template-columns:1fr}
+html.eddo-phone .eddo-docks{grid-template-columns:repeat(2,minmax(0,1fr))}
