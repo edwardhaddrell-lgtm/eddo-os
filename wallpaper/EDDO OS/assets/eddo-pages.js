@@ -530,7 +530,7 @@
     if (eeroDevs.length) {
       NET.mode = "eero";
       const netDev = eeroDevs.find((d) => /network/i.test(d.model || ""));
-      NET.net = netDev ? { status: pick(netDev.id, /_status$/), down: pick(netDev.id, /_download_speed$/), up: pick(netDev.id, /_upload_speed$/), ip: pick(netDev.id, /_public_ip$/), clients: pick(netDev.id, /_connected_clients$/), guests: pick(netDev.id, /_connected_guest_clients$/), name: netDev.name_by_user || netDev.name } : {};
+      NET.net = netDev ? { status: pick(netDev.id, /_status$/), test: pick(netDev.id, /run_speed_test$/), down: pick(netDev.id, /_download_speed$/), up: pick(netDev.id, /_upload_speed$/), ip: pick(netDev.id, /_public_ip$/), clients: pick(netDev.id, /_connected_clients$/), guests: pick(netDev.id, /_connected_guest_clients$/), name: netDev.name_by_user || netDev.name } : {};
       NET.hubs = eeroDevs.filter((d) => /^eero/i.test(d.model || "") && !/client|profile|network/i.test(d.model || "")).map((d) => ({ name: d.name_by_user || d.name, model: d.model, status: pick(d.id, /_status$/), clients: pick(d.id, /_connected_clients$/) }));
       NET.devs = eeroDevs.filter((d) => /client/i.test(d.model || "")).map((d) => {
         const tr = pick(d.id, /^device_tracker\./);
@@ -609,7 +609,7 @@
     for (const u of RU) if (u.id !== "gap") rackPanelFace(g, u);
     // EDNET
     { const u = U.logo, mk = window.eddoHouse && window.eddoHouse.mark && window.eddoHouse.mark(), m = mk && /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(mk), d = mk && /d="([^"]+)"/.exec(mk);
-      if (m && d && window.Path2D) { const vw = +m[1], vh = +m[2], w = 520, k = w / vw; g.save(); g.translate((FACE_W - w) / 2, u.y + u.h / 2 - (vh * k) / 2); g.scale(k, k); g.fillStyle = "#f2f2ee"; g.shadowColor = "rgba(127,216,255,.45)"; g.shadowBlur = 18; g.fill(new Path2D(d[1])); g.restore(); }
+      if (m && d && window.Path2D) { const vw = +m[1], vh = +m[2], w = 520, k = w / vw; g.save(); g.translate((FACE_W - w) / 2, u.y + u.h / 2 - (vh * k) / 2); g.scale(k, k); const run = RACK.testing ? 0.5 + 0.5 * Math.sin(now / 140) : 0; g.fillStyle = "#f2f2ee"; g.shadowColor = `rgba(127,216,255,${0.45 + 0.5 * run})`; g.shadowBlur = 18 + 40 * run; g.fill(new Path2D(d[1])); g.restore(); }
       else { g.font = "italic 900 120px MiSans, system-ui"; g.fillStyle = "#f2f2ee"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("EDNET", FACE_W / 2, u.y + u.h / 2); g.textAlign = "left"; } }
     // GS308: grey switch with 8 ports and their lights; a keystone each side
     const sw = U.switch, sy = sw.y + sw.h / 2, ports = [];
@@ -765,6 +765,24 @@
     for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D, TOP), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx * (X + 0.33), TOP / 2, (Z0 + Z1) / 2); g.add(m); }
     { const m = skin(new T.PlaneGeometry(Wt, TOP), backTex, 0.92); m.position.set(0, TOP / 2, Z1); g.add(m); }
     { const m = skin(new T.PlaneGeometry(Wt, D), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(0, TOP, (Z0 + Z1) / 2); g.add(m); }
+    // a status light on each unit (green fine · amber needs attention · red something's wrong)
+    const glowTex = (() => { const c = Object.assign(document.createElement("canvas"), { width: 128, height: 128 }), q = c.getContext("2d"), gr = q.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,255,255,.5)"); gr.addColorStop(1, "rgba(255,255,255,0)"); q.fillStyle = gr; q.fillRect(0, 0, 128, 128); return new T.CanvasTexture(c); })();
+    RACK.leds = {};
+    for (const u of RU) {
+      if (!u.name) continue;
+      const dot = new T.Mesh(new T.SphereGeometry(0.045, 12, 10), new T.MeshBasicMaterial({ color: 0x5fe0a8 }));
+      const halo = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0x5fe0a8, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false })); halo.scale.set(0.42, 0.42, 1);
+      dot.position.set(W3 / 2 - 0.55, unitY(u), 0.07); halo.position.copy(dot.position); g.add(dot, halo);
+      RACK.leds[u.id] = { dot, halo };
+    }
+    // light from the rack: a soft pool on the floor, and the vents throwing stripes forward
+    const pool = new T.Mesh(new T.PlaneGeometry(9, 7), new T.MeshBasicMaterial({ map: glowTex, color: 0x5a8cff, transparent: true, opacity: 0.35, blending: T.AdditiveBlending, depthWrite: false }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.02, 0.6); g.add(pool); RACK.pool = pool;
+    const stripes = (() => { const c = Object.assign(document.createElement("canvas"), { width: 512, height: 256 }), q = c.getContext("2d");
+      for (let i = 0; i < 26; i++) { const x = 70 + i * 14.5, gr = q.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, "rgba(255,255,255,.9)"); gr.addColorStop(1, "rgba(255,255,255,0)"); q.fillStyle = gr; q.beginPath(); q.moveTo(x, 0); q.lineTo(x + 7, 0); q.lineTo(x + 7 + (x - 256) * 0.5, 256); q.lineTo(x + (x - 256) * 0.5, 256); q.fill(); }
+      return new T.CanvasTexture(c); })();
+    const beam = new T.Mesh(new T.PlaneGeometry(W3 * 1.5, 2.6), new T.MeshBasicMaterial({ map: stripes, color: 0x6d8fff, transparent: true, opacity: 0.22, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
+    beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.03, 1.35); g.add(beam); RACK.beam = beam;
     // callout leaders to the right
     const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.75, y, 0.1, W3 / 2 + 1.25, y, 0.1); }
     RACK.leaders = segs(T, lp, COL.cyan, 0.35); g.add(RACK.leaders);
@@ -791,6 +809,31 @@
       if (U.k > 0.02) wob = true;   // (includes the eero/switch traffic dots)
     }
     tickLeads(now);
+    // status lights
+    const v2 = (k) => n(st(NET.nas[k])), nst2 = st(NET.net.status) || st(NET.net.wan), eh2 = eeroHub(), hs2 = eh2 && st(eh2.status), ver2 = st(RK.ha), osu2 = st(RK.haOs);
+    const ring2 = ringDevs(), rOn2 = ring2.filter((d) => netPlace(d).on).length, diskHot = NET.nas.disks.some((id) => n(st(id)) >= 90);
+    const level = {
+      logo: nst2 && !/connected|on|online/.test(nst2.s) ? 2 : 0, switch: 0, patch: 0,
+      hue: RK.hue.length && RK.hue.every((id) => !live(st(id))) ? 2 : 0,
+      eero: hs2 && !/green|connected|online/.test(hs2.s) ? 2 : 0,
+      ha: (ver2 && ver2.s === "on") || (osu2 && osu2.s === "on") ? 1 : 0,
+      ring: ring2.length ? (rOn2 === 0 ? 2 : rOn2 < ring2.length ? 1 : 0) : 0,
+      nas: v2("temp") >= 85 || v2("array") >= 90 || diskHot || (st(NET.nas.state) && !/started/i.test(st(NET.nas.state).s)) ? 2 : n(st(NET.nas.upd)) ? 1 : 0,
+    };
+    for (const [id, L] of Object.entries(RACK.leds || {})) {
+      const lv = level[id] || 0, col = [0x5fe0a8, 0xffb347, 0xff4a3a][lv], pulse = lv === 2 ? 0.5 + 0.5 * Math.sin(now / 160) : lv === 1 ? 0.75 + 0.25 * Math.sin(now / 600) : 0.85;
+      const z = 0.07 + 0.22 * unitK(id), dim = RACK.any && unitK(id) < 0.1 ? 0.35 : 1;
+      L.dot.material.color.setHex(col).multiplyScalar(dim); L.dot.position.z = z;
+      L.halo.material.color.setHex(col); L.halo.material.opacity = 0.75 * pulse * dim; L.halo.position.z = z + 0.01;
+    }
+    // the floor light follows the NAS (and the speed test)
+    const cpu2 = v2("cpu") || 10, nasK = unitK("nas");
+    if (RACK.pool) RACK.pool.material.opacity = (0.22 + Math.min(0.25, cpu2 / 200) + 0.06 * Math.sin(now / 900) + (RACK.testing ? 0.25 * (0.5 + 0.5 * Math.sin(now / 140)) : 0)) * (RACK.any && !nasK ? 0.6 : 1);
+    if (RACK.beam) RACK.beam.material.opacity = 0.16 + Math.min(0.2, cpu2 / 250) + nasK * 0.2;
+    // speed test: running state, and the numbers count up when the result lands
+    const dn = n(st(NET.net.down)), upn = n(st(NET.net.up));
+    if (RACK.testing && (now - RACK.testing > 120000 || (dn != null && RACK.testFrom && (dn !== RACK.testFrom[0] || upn !== RACK.testFrom[1])))) { RACK.testing = 0; RACK.countFrom = RACK.testFrom; RACK.countT = now; }
+    RACK.shown = [dn, upn].map((x, q) => { if (x == null) return null; if (!RACK.countT || now - RACK.countT > 1600) return x; const a = (RACK.countFrom && RACK.countFrom[q]) || 0, k2 = Math.min(1, (now - RACK.countT) / 1600); return a + (x - a) * (1 - Math.pow(1 - k2, 3)); });
     if (RACK.leaders) RACK.leaders.material.opacity = focus ? 0.12 : 0.35;
     const ip = st(NET.net.ip), down = n(st(NET.net.down)), upl = n(st(NET.net.up)), nst = st(NET.net.status) || st(NET.net.wan), online = !nst || /connected|on|online/.test(nst.s);
     const eh = eeroHub(), hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
@@ -799,7 +842,7 @@
     const ring = ringDevs(), ringOn = ring.filter((d) => netPlace(d).on).length;
     const v = (k) => n(st(NET.nas[k])), upS = st(NET.nas.up), upDays = upS && live(upS) ? Math.floor((Date.now() - Date.parse(upS.s)) / 864e5) : null;
     const C = {
-      logo: [online ? "ONLINE" : "INTERNET DOWN", down != null ? `↓ ${fmt(down)} · ↑ ${fmt(upl)} MBIT/S` : "", !online],
+      logo: [RACK.testing ? "RUNNING A SPEED TEST…" : online ? "ONLINE" : "INTERNET DOWN", (RACK.shown || [])[0] != null ? `↓ ${fmt(RACK.shown[0])} · ↑ ${fmt(RACK.shown[1])} MBIT/S` : "", !online],
       switch: ["8 × 1 GIGABIT", `${wiredOn().length} WIRED DEVICES ONLINE`],
       patch: ["10 × CAT6", "7 PATCHED"],
       hue: [`${hueOn} OF ${RK.hue.length} LIGHTS ON`, "PHILIPS HUE"],
@@ -813,11 +856,17 @@
       const y = unitY(u), c = C[u.id] || ["", ""];
       tag("r:" + u.id, W3 / 2 + 1.3, y, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
       const tg = V3.tags.get("r:" + u.id); if (tg) { tg.dataset.focus = focus === u.id ? "true" : focus ? "dim" : "false"; }
-      const act = u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } } : null;
+      const act = u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } }
+        : u.id === "logo" && NET.net.test ? { open: { label: RACK.testing ? "SPEED TEST RUNNING…" : "RUN A SPEED TEST ›", run: () => speedTest() } } : null;
       // one pick for the unit under the mouse (exactly where the mouse is) and one for a pinned unit
       if (RACK.hit && RACK.hit.id === u.id) pick("u:" + u.id, RACK.hit.p[0], RACK.hit.p[1], RACK.hit.p[2], () => rackCard(u), act);
       else if (V3.pinned === "u:" + u.id) pick("u:" + u.id, 0, y, 0.1 + 0.22 * unitK(u.id), () => rackCard(u), act);
     }
+  }
+  function speedTest() {
+    if (RACK.testing || !NET.net.test) return;
+    RACK.testing = performance.now(); RACK.testFrom = [n(st(NET.net.down)), n(st(NET.net.up))];
+    call("button", "press", { target: { entity_id: NET.net.test } });
   }
   function rackCard(u) {
     const row = (k, val) => (val == null || val === "" ? "" : `<dt>${k}</dt><dd>${esc(val)}</dd>`);
