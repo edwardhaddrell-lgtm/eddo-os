@@ -591,20 +591,39 @@
   const wiredOn = () => NET.devs.filter((d) => { const p = netPlace(d); return p.on && p.wired; });
   const eeroHub = () => NET.hubs.find((h) => /living/i.test(h.name)) || NET.hubs[0];
   // ---- the front face, drawn like the photo: black printed panels, purple Cat6 keystones, yellow patch leads
-  function screw(g, x, y) { g.fillStyle = "#0b0c0e"; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.strokeStyle = "#2c2f34"; g.lineWidth = 2; g.stroke(); g.strokeStyle = "#3a3e44"; g.beginPath(); g.moveTo(x - 6, y); g.lineTo(x + 6, y); g.moveTo(x, y - 6); g.lineTo(x, y + 6); g.stroke(); }
-  function keystone(g, x, y, used) {
-    g.fillStyle = "#5b45b8"; g.fillRect(x - 24, y - 24, 48, 48); g.fillStyle = "#3d2d86"; g.fillRect(x - 24, y + 18, 48, 6);
-    g.fillStyle = used ? "#a9b8ff" : "#14161a"; g.fillRect(x - 14, y - 12, 28, 22);
+  const FACE_SCALE = 1.5;   // the face canvas is drawn at 1.5× for crisper detail (all drawing still uses 1024-wide coordinates)
+  function screw(g, x, y) {   // a domed black head with a Phillips cross, sitting in a slight recess
+    g.fillStyle = "rgba(0,0,0,.55)"; g.beginPath(); g.arc(x + 1.5, y + 2.5, 14, 0, 7); g.fill();
+    const gr = g.createRadialGradient(x - 4, y - 5, 1, x, y, 13); gr.addColorStop(0, "#4a4f57"); gr.addColorStop(0.45, "#1b1d21"); gr.addColorStop(1, "#08090a");
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.12)"; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 12.5, Math.PI * 1.05, Math.PI * 1.75); g.stroke();
+    g.lineCap = "round"; g.strokeStyle = "#050506"; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 6, y); g.lineTo(x + 6, y); g.moveTo(x, y - 6); g.lineTo(x, y + 6); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.1)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 6, y - 1.5); g.lineTo(x + 6, y - 1.5); g.stroke();
   }
-  function rackPanelFace(g, u) {
-    const y0 = u.y + 4, h = u.h - 8;
-    g.fillStyle = "#131417"; g.fillRect(14, y0, FACE_W - 28, h);
-    const grd = g.createLinearGradient(0, y0, 0, y0 + h); grd.addColorStop(0, "rgba(255,255,255,.05)"); grd.addColorStop(1, "rgba(0,0,0,.25)"); g.fillStyle = grd; g.fillRect(14, y0, FACE_W - 28, h);
-    g.strokeStyle = "#2a2d32"; g.lineWidth = 2; g.strokeRect(14, y0, FACE_W - 28, h);
+  function keystone(g, x, y, used) {   // a purple Cat6 keystone: body, latch, label and a recessed jack
+    g.fillStyle = "rgba(0,0,0,.5)"; g.fillRect(x - 25, y - 23, 52, 52);
+    const gr = g.createLinearGradient(0, y - 24, 0, y + 24); gr.addColorStop(0, "#7a63d8"); gr.addColorStop(0.5, "#5b45b8"); gr.addColorStop(1, "#46349a");
+    g.fillStyle = gr; g.fillRect(x - 24, y - 24, 48, 48);
+    g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.strokeRect(x - 23.5, y - 23.5, 47, 47);
+    g.fillStyle = "#3a2a80"; g.fillRect(x - 24, y + 17, 48, 7); g.fillStyle = "rgba(255,255,255,.12)"; g.fillRect(x - 10, y - 22, 20, 3);
+    const jg = g.createLinearGradient(0, y - 12, 0, y + 10); jg.addColorStop(0, "#000"); jg.addColorStop(1, used ? "#3d3f4a" : "#1a1c20");
+    g.fillStyle = jg; g.fillRect(x - 14, y - 12, 28, 22);
+    if (used) { g.fillStyle = "rgba(190,205,255,.85)"; g.fillRect(x - 12, y - 10, 24, 18); g.fillStyle = "rgba(255,255,255,.6)"; g.fillRect(x - 12, y - 10, 24, 3); }
+    else { g.fillStyle = "#c9a54a"; for (let k = 0; k < 8; k++) g.fillRect(x - 10 + k * 2.8, y - 11, 1.4, 4); }   // the contacts inside an empty jack
+  }
+  let layerPattern = null;
+  function rackPanelFace(g, u) {   // a 3D-printed black panel: fine layer lines, a chamfered edge, recessed screws
+    const y0 = u.y + 4, h = u.h - 8, x0 = 14, w = FACE_W - 28;
+    g.fillStyle = "#121316"; g.fillRect(x0, y0, w, h);
+    if (!layerPattern) { const pc = Object.assign(document.createElement("canvas"), { width: 8, height: 4 }), q = pc.getContext("2d"); q.fillStyle = "rgba(255,255,255,.035)"; q.fillRect(0, 0, 8, 1); q.fillStyle = "rgba(0,0,0,.12)"; q.fillRect(0, 2, 8, 1); layerPattern = g.createPattern(pc, "repeat"); }
+    g.fillStyle = layerPattern; g.fillRect(x0, y0, w, h);
+    const grd = g.createLinearGradient(0, y0, 0, y0 + h); grd.addColorStop(0, "rgba(255,255,255,.07)"); grd.addColorStop(0.5, "rgba(255,255,255,0)"); grd.addColorStop(1, "rgba(0,0,0,.35)"); g.fillStyle = grd; g.fillRect(x0, y0, w, h);
+    g.strokeStyle = "rgba(255,255,255,.14)"; g.lineWidth = 2; g.beginPath(); g.moveTo(x0 + 3, y0 + h - 2); g.lineTo(x0 + 3, y0 + 3); g.lineTo(x0 + w - 3, y0 + 3); g.stroke();   // lit chamfer
+    g.strokeStyle = "rgba(0,0,0,.7)"; g.beginPath(); g.moveTo(x0 + w - 2, y0 + 3); g.lineTo(x0 + w - 2, y0 + h - 2); g.lineTo(x0 + 3, y0 + h - 2); g.stroke();      // shaded chamfer
     screw(g, 52, y0 + 26); screw(g, 52, y0 + h - 26); screw(g, FACE_W - 52, y0 + 26); screw(g, FACE_W - 52, y0 + h - 26);
   }
   function drawFace(now) {
-    const c = RACK.canvas, g = c.getContext("2d"); g.clearRect(0, 0, FACE_W, FACE_H);
+    const c = RACK.canvas, g = c.getContext("2d"); g.setTransform(FACE_SCALE, 0, 0, FACE_SCALE, 0, 0); g.clearRect(0, 0, FACE_W, FACE_H);
     const U = Object.fromEntries(RU.map((u) => [u.id, u]));
     for (const u of RU) if (u.id !== "gap") rackPanelFace(g, u);
     // EDNET
@@ -614,14 +633,14 @@
     // GS308: grey switch with 8 ports and their lights; a keystone each side
     const sw = U.switch, sy = sw.y + sw.h / 2, ports = [];
     keystone(g, 128, sy - 14, true); keystone(g, 920, sy - 14, false);
-    g.fillStyle = "#1d1f23"; g.fillRect(220, sw.y + 34, 600, 104); g.strokeStyle = "#3a3d42"; g.strokeRect(220, sw.y + 34, 600, 104);
+    { const mg = g.createLinearGradient(0, sw.y + 34, 0, sw.y + 138); mg.addColorStop(0, "#2a2d33"); mg.addColorStop(0.5, "#1b1d21"); mg.addColorStop(1, "#141518"); g.fillStyle = "rgba(0,0,0,.5)"; g.fillRect(223, sw.y + 38, 600, 104); g.fillStyle = mg; g.fillRect(220, sw.y + 34, 600, 104); g.strokeStyle = "rgba(255,255,255,.16)"; g.strokeRect(220.5, sw.y + 34.5, 599, 103); }
     g.font = "600 20px MiSans, system-ui"; g.fillStyle = "#cfd2d6"; g.fillText("NETGEAR", 236, sw.y + 60); g.fillText("GS308", 742, sw.y + 60);
     const wired = Math.max(1, Math.min(8, wiredOn().length || 7));
     for (let i = 0; i < 8; i++) {
       const x = 300 + i * 62, y = sw.y + 92; ports.push([x, y]);
-      g.fillStyle = "#0c0d0f"; g.fillRect(x - 22, y - 18, 44, 36); g.strokeStyle = "#4a4d52"; g.strokeRect(x - 22, y - 18, 44, 36);
+      { const pg2 = g.createLinearGradient(0, y - 18, 0, y + 18); pg2.addColorStop(0, "#000"); pg2.addColorStop(1, "#202226"); g.fillStyle = pg2; g.fillRect(x - 22, y - 18, 44, 36); g.strokeStyle = "#5a5e64"; g.strokeRect(x - 22, y - 18, 44, 36); g.fillStyle = "#c9a54a"; for (let q = 0; q < 8; q++) g.fillRect(x - 12 + q * 3.2, y - 16, 1.5, 4); }
       const lit = i < 7 && (RACK.blink[i] = (RACK.blink[i] || 0) + Math.random()) % 3 > (i < wired ? 0.5 : 2.9);
-      g.fillStyle = i < 7 ? (lit ? "#5bff7a" : "#1f6b2c") : "#222"; g.fillRect(x + 8, y - 30, 8, 6);
+      g.fillStyle = i < 7 ? (lit ? "#5bff7a" : "#1f6b2c") : "#222"; if (lit) { g.shadowColor = "#5bff7a"; g.shadowBlur = 10; } g.fillRect(x + 8, y - 30, 8, 6); g.shadowBlur = 0;
     }
     // patch panel: ten Cat6 keystones, the first seven patched
     const pp = U.patch, py = pp.y + pp.h / 2, pk = [];
@@ -637,7 +656,8 @@
     for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(680 + i * 22, hu.y + 50, 6, 0, 7); g.strokeStyle = hueOn ? "#7fb2ff" : "#b8bcc2"; g.stroke(); }
     g.fillStyle = "#d4d7db"; g.fillRect(760, hy - 10, 46, 40); keystone(g, 940, hy + 4, true);
     // eero vent
-    const ve = U.eero; for (let i = 0; i < 26; i++) { g.fillStyle = "#040506"; g.fillRect(150 + i * 28, ve.y + 34, 14, ve.h - 68); }
+    const slot = (x, y, w, h, a) => { const sg = g.createLinearGradient(x, 0, x + w, 0); sg.addColorStop(0, `rgba(0,0,0,${a})`); sg.addColorStop(0.5, `rgba(4,5,7,${a * 0.85})`); sg.addColorStop(1, `rgba(0,0,0,${a})`); g.fillStyle = sg; g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 6) : g.rect(x, y, w, h); g.fill(); g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(x + w, y + 3, 1.5, h - 6); };
+    const ve = U.eero; for (let i = 0; i < 26; i++) slot(150 + i * 28, ve.y + 34, 14, ve.h - 68, 1);
     const eh = eeroHub(), eOk = !eh || !st(eh.status) || /green|connected|online/.test(st(eh.status).s);
     g.fillStyle = eOk ? "rgba(255,255,255,.18)" : "rgba(255,90,74,.4)"; g.fillRect(450, ve.y + 70, 120, 20);   // the eero's light through the slots
     // Home Assistant Yellow: the board's I/O through a window
@@ -661,7 +681,7 @@
     const nv = U.nas, glow = 0.25 + Math.min(0.6, cpu / 100) + 0.08 * Math.sin(now / 700) + nk * (0.15 + 0.55 * beat);
     const bg = g.createRadialGradient(FACE_W / 2, nv.y + nv.h / 2, 10, FACE_W / 2, nv.y + nv.h / 2, 340); bg.addColorStop(0, `rgba(70,110,255,${glow})`); bg.addColorStop(1, "rgba(70,110,255,0)");
     g.fillStyle = bg; g.fillRect(100, nv.y + 20, FACE_W - 200, nv.h - 40);
-    for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(4,5,6,.82)"; g.fillRect(150 + i * 28, nv.y + 30, 14, nv.h - 60); }
+    for (let i = 0; i < 26; i++) slot(150 + i * 28, nv.y + 30, 14, nv.h - 60, 0.82);
     if (!RACK.leads) RACK.leads = [   // (fixed positions: work them out once)
       { a: [128, sy - 6], b: [ports[0][0], ports[0][1]], col: 0xe8b52a, sag: 60, ua: "switch", ub: "switch" },
       ...[1, 2, 3, 4, 5, 6].map((i) => ({ a: [ports[i][0], ports[i][1]], b: [pk[i - 1][0], pk[i - 1][1]], col: 0xe8b52a, sag: 50, ua: "switch", ub: "patch" })),
@@ -735,9 +755,15 @@
     for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) { g.fillStyle = "#050607"; g.fillRect(40 + q * ((w - 80) / cols), 50 + r * ((h - 100) / rows), (w - 80) / cols - 14, (h - 100) / rows - 26); }
     return c;
   }
+  // a box shaded like it's lit from above-left (no lights in this build, so each face gets its own tone)
+  function shadedBox(T, w, h, d, base, tones = [0.72, 0.55, 1.0, 0.3, 0.86, 0.45]) {
+    const c = new T.Color(base), mats = tones.map((k) => new T.MeshBasicMaterial({ color: c.clone().multiplyScalar(k) }));
+    const m = new T.Mesh(new T.BoxGeometry(w, h, d), mats); m.userData.tones = tones; m.userData.base = c; return m;
+  }
+  const toneBox = (m, f) => m.material.forEach((mt, i) => mt.color.copy(m.userData.base).multiplyScalar(m.userData.tones[i] * f));
   function buildRack(g, T) {
     g.add(floorGrid(T, 7));
-    RACK.canvas = RACK.canvas || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
+    RACK.canvas = RACK.canvas || Object.assign(document.createElement("canvas"), { width: FACE_W * FACE_SCALE, height: Math.round(FACE_H * FACE_SCALE) });
     RACK.tex = new T.CanvasTexture(RACK.canvas); RACK.tex.anisotropy = 4;
     drawFace(performance.now()); RACK.unit = {};
     // each unit is its own slice of the front face, so it can slide out and the others can dim
@@ -746,18 +772,26 @@
       const h = (H3 * u.h) / FACE_H, geo = new T.PlaneGeometry(W3, h), uv = geo.attributes.uv, v0 = 1 - (u.y + u.h) / FACE_H, v1 = 1 - u.y / FACE_H;
       for (let q = 0; q < uv.count; q++) uv.setY(q, uv.getY(q) > 0.5 ? v1 : v0);
       const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: RACK.tex })); m.position.set(0, unitY(u), 0.02); m.userData.unit = u.id; g.add(m);
+      const body = shadedBox(T, W3 - 0.04, h - 0.03, u.id === "nas" ? 2.6 : 1.4, 0x1a1c20); body.position.set(0, unitY(u), 0.02 - body.geometry.parameters.depth / 2 - 0.002); g.add(body);
       const ol = segs(T, [-W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, h / 2, 0, W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, -h / 2, 0], COL.cyan, 0); ol.position.copy(m.position); ol.position.z += 0.01; g.add(ol);
-      RACK.unit[u.id] = { m, ol, k: 0, d: 0 };
+      RACK.unit[u.id] = { m, ol, body, k: 0, d: 0 };
     }
     buildLeads(g, T);
     // the frame: two aluminium uprights each side, top and bottom rails, corner brackets on top
-    const L = [], X = W3 / 2 + 0.36, TOP = Y0 + H3 + 0.62, Z0 = 0.05, Z1 = -DEPTH;
+    const L = [], X = W3 / 2 + 0.36, TOP = Y0 + H3 + 0.62, Z0 = 0.05, Z1 = -DEPTH, D0 = Z0 - Z1;
     const bx = (x0, x1, y0, y1, z0, z1) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; L.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
     const P0 = (sx) => (sx > 0 ? X : -X - 0.33);   // the uprights sit symmetrically either side of the panels
     for (const sx of [-1, 1]) { bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z0 - 0.33, Z0); bx(P0(sx), P0(sx) + 0.33, 0, TOP, Z1, Z1 + 0.33); }
     bx(-X - 0.33, X + 0.33, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X + 0.33, TOP - 0.3, TOP, Z1, Z0);
     for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(P0(sx) + 0.03, P0(sx) + 0.3, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
-    g.add(segs(T, L, 0xd8dde2, 0.55)); L.length = 0;
+    g.add(segs(T, L, 0xe6eaee, 0.22)); L.length = 0;   // crisp edges over the solid aluminium
+    const alu = (w, h, d, x, y, z) => { const b = shadedBox(T, w, h, d, 0xb9bfc6, [0.8, 0.6, 1.05, 0.35, 0.92, 0.5]); b.position.set(x, y, z); g.add(b); return b; };
+    for (const sx of [-1, 1]) { alu(0.33, TOP, 0.33, P0(sx) + 0.165, TOP / 2, Z0 - 0.165); alu(0.33, TOP, 0.33, P0(sx) + 0.165, TOP / 2, Z1 + 0.165); }
+    alu(2 * X + 0.66, 0.62, 0.33, 0, TOP - 0.31, Z0 - 0.165); alu(2 * X + 0.66, 0.3, 0.33, 0, 0.15, Z0 - 0.165); alu(2 * X + 0.66, 0.3, D0, 0, TOP - 0.15, (Z0 + Z1) / 2);
+    for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) alu(0.27, 0.3, 0.28, P0(sx) + 0.165, TOP + 0.15, z);
+    // a soft contact shadow where it stands
+    { const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q = c2.getContext("2d"), gr = q.createRadialGradient(128, 128, 20, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.75)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = gr; q.fillRect(0, 0, 256, 256);
+      const sh = new T.Mesh(new T.PlaneGeometry(2 * X + 2.2, D0 + 2.2), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.set(0, 0.012, (Z0 + Z1) / 2); g.add(sh); }
     // sides, back and top: dark perforated panels so it reads as a solid box
     const sideTex = new T.CanvasTexture(vents(512, 768, 3, 9)), backTex = new T.CanvasTexture(vents(768, 768, 4, 9));
     const skin = (geo, tex, op) => new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x111316, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: true }));
@@ -788,7 +822,7 @@
     RACK.leaders = segs(T, lp, COL.cyan, 0.35); g.add(RACK.leaders);
   }
   function tickRack(dt, now) {
-    if (now - RACK.drawn > (RACK.unit && RACK.unit.nas && RACK.unit.nas.k > 0.02 ? 30 : 450)) drawFace(now);
+    if (now - RACK.drawn > (RACK.unit && RACK.unit.nas && RACK.unit.nas.k > 0.02 ? 90 : 450)) drawFace(now);
     // which unit is under the mouse: a ray against the unit faces (steady, unlike the nearest-point picks)
     RACK.hit = null;
     if (V3.mouse && !V3.drag && RACK.unit) {
@@ -805,6 +839,7 @@
       U.d += ((focus && id !== focus ? 1 : 0) - U.d) * Math.min(1, dt * 7);
       U.m.position.z = 0.02 + 0.22 * U.k; U.ol.position.z = U.m.position.z + 0.01;
       const c = 1 - 0.62 * U.d; U.m.material.color.setRGB(c, c, c);
+      if (U.body) { U.body.position.z = U.m.position.z - U.body.geometry.parameters.depth / 2 - 0.002; toneBox(U.body, c * (1 + 0.6 * U.k)); }
       U.ol.material.opacity = U.k * (0.6 + 0.3 * Math.sin(now / 160));
       if (U.k > 0.02) wob = true;   // (includes the eero/switch traffic dots)
     }
