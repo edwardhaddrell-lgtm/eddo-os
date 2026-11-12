@@ -180,7 +180,8 @@
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, V3.last ? (now - V3.last) / 1000 : 0.016); V3.last = now;
     const v = V3.view, pg = V3.page;
-    if (v.auto && !V3.pinned) { if (pg && pg.sway) { v.swayT = (v.swayT || 0) + dt; v.theta = pg.view.theta + Math.sin(v.swayT / 7) * 0.32; } else v.theta += dt * 0.12; }
+    if (v.auto && !V3.pinned && pg && pg.still) { const e = Math.min(1, dt * 1.2); v.theta += (pg.view.theta - v.theta) * e; v.phi += (pg.view.phi - v.phi) * e; }   // a fixed front view: drift back to it
+    else if (v.auto && !V3.pinned) { if (pg && pg.sway) { v.swayT = (v.swayT || 0) + dt; v.theta = pg.view.theta + Math.sin(v.swayT / 7) * 0.32; } else v.theta += dt * 0.12; }
     const T = V3.T, cam = V3.camera;
     cam.position.set(v.tx + v.dist * Math.sin(v.phi) * Math.sin(v.theta), v.ty + v.dist * Math.cos(v.phi), v.tz + v.dist * Math.sin(v.phi) * Math.cos(v.theta));
     cam.lookAt(v.tx, v.ty, v.tz);
@@ -1076,18 +1077,70 @@
   }
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-shelf]"); if (b) shelfPage(+b.dataset.shelf); });
   window.addEventListener("keydown", (e) => { if (window.eddoTabs.active() !== "workshop" || /input|textarea/i.test((document.activeElement || {}).tagName || "")) return; if (e.key === "ArrowRight") shelfPage(1); else if (e.key === "ArrowLeft") shelfPage(-1); });
+  // ---- the chamber camera, laid onto the door glass: a DOM <img> (HA images can't go into WebGL without CORS), warped with matrix3d ----
+  function adj3(m) { return [m[4] * m[8] - m[5] * m[7], m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4], m[5] * m[6] - m[3] * m[8], m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5], m[3] * m[7] - m[4] * m[6], m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3]]; }
+  function mul3(a, b) { const c = []; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { let s = 0; for (let k = 0; k < 3; k++) s += a[3 * i + k] * b[3 * k + j]; c[3 * i + j] = s; } return c; }
+  function basis4(p) { const m = [p[0], p[2], p[4], p[1], p[3], p[5], 1, 1, 1], a = adj3(m), v = [a[0] * p[6] + a[1] * p[7] + a[2], a[3] * p[6] + a[4] * p[7] + a[5], a[6] * p[6] + a[7] * p[7] + a[8]]; return mul3(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]); }
+  function warp(w, h, q) {   // q: top-left, top-right, bottom-left, bottom-right (canvas px)
+    const t = mul3(basis4(q.flatMap((p) => [p.x, p.y])), adj3(basis4([0, 0, w, 0, 0, h, w, h])));
+    for (let i = 0; i < 9; i++) t[i] /= t[8];
+    return `matrix3d(${[t[0], t[3], 0, t[6], t[1], t[4], 0, t[7], 0, 0, 1, 0, t[2], t[5], 0, t[8]].map((v) => v.toFixed(8)).join(",")})`;
+  }
+  const picOf = (id) => { const x = st(id); return x && live(x) && x.a.entity_picture ? HA().baseUrl() + x.a.entity_picture : ""; };
+  function wsCam(q) {
+    let el = WS.camEl; const pic = q && WS.p && picOf(WS.p.cam);
+    if (!pic) { if (el) { el.dataset.out = "true"; clearTimeout(WS.camKill); WS.camKill = setTimeout(() => { if (WS.camEl === el) { el.remove(); WS.camEl = null; } }, 450); } return; }
+    clearTimeout(WS.camKill);
+    if (!el || !el.isConnected) { el = WS.camEl = document.createElement("div"); el.className = "eddo-ws-cam"; el.innerHTML = '<img alt=""><i></i><b>LIVE · CHAMBER</b>'; V3.labels.prepend(el); WS.camAt = 0; }
+    el.dataset.out = "false";
+    const W = 330, H = 370; el.style.width = W + "px"; el.style.height = H + "px"; el.style.transform = warp(W, H, q);
+    if (Date.now() - (WS.camAt || 0) > 2000 && !WS.camBusy) {   // the P1S camera is a ~1 fps still feed, so poll stills
+      WS.camAt = Date.now(); WS.camBusy = true;
+      const im = new Image(), img = el.firstChild;
+      im.onload = () => { WS.camBusy = false; img.src = im.src; el.dataset.ok = "true"; };
+      im.onerror = () => { WS.camBusy = false; };
+      im.src = pic + (pic.includes("?") ? "&" : "?") + "t=" + Date.now();
+    }
+  }
+  const hm = (h) => (h == null ? "—" : h >= 1 ? `${Math.floor(h)} H ${Math.round((h % 1) * 60)} M` : `${Math.round(h * 60)} MIN`);
+  const clock = (t) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  function wsMood() {
+    const P = WS.p; if (!P) return { mood: "none" };
+    const status = String((st(P.status) || {}).s || "").toLowerCase(), stage = String((st(P.stage) || {}).s || "").toLowerCase();
+    const off = P.online && (st(P.online) || {}).s === "off";
+    const printing = /running|printing|prepare/.test(status) || (/print|heat|level|calib/.test(stage) && !/idle|finish|fail/.test(status));
+    const mood = off ? "offline" : printing ? "printing" : /pause/.test(status) ? "paused" : /fail/.test(status) ? "failed" : /finish/.test(status) ? (Date.now() - (WS.doneAt || 0) < 10 * 60e3 ? "done" : "finished") : "idle";
+    return { mood, status, stage, prog: n(st(P.progress)) ?? 0 };
+  }
+  function glowTex(T) {
+    if (WS.glow) return WS.glow;
+    const c = Object.assign(document.createElement("canvas"), { width: 128, height: 128 }), q = c.getContext("2d"), gr = q.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.3, "rgba(255,255,255,.45)"); gr.addColorStop(1, "rgba(255,255,255,0)"); q.fillStyle = gr; q.fillRect(0, 0, 128, 128);
+    return (WS.glow = new T.CanvasTexture(c));
+  }
+  function drawScreen(txt, sub, mood) {
+    const o = WS.obj; if (!o || !o.scr) return;
+    const key = txt + "|" + sub + "|" + mood; if (o.scrKey === key) return; o.scrKey = key;
+    const c = o.scrCanvas, q = c.getContext("2d");
+    q.fillStyle = "#06090b"; q.fillRect(0, 0, c.width, c.height);
+    q.fillStyle = mood === "printing" ? "#8fe0be" : mood === "failed" ? "#ff7a6b" : "#9fc4d6";
+    q.font = "600 44px MiSans, system-ui, sans-serif"; q.textBaseline = "middle"; q.fillText(txt, 18, 38);
+    q.fillStyle = "#6c7a80"; q.font = "500 22px MiSans, system-ui, sans-serif"; q.fillText(sub, 18, 76);
+    o.scr.material.map.needsUpdate = true;
+  }
   page({
-    id: "workshop", label: "Workshop", pos: 5, view: { dist: 33, ty: 4.3, phi: 1.22, tx: -3.6, theta: 0.18 }, sway: true, minDist: 8, maxDist: 48, onSwipe: (d) => shelfPage(d),
+    id: "workshop", label: "Workshop", pos: 5, view: { dist: 31, ty: 4.1, phi: 1.3, tx: -3.2, theta: 0.1 }, still: true, minDist: 8, maxDist: 48, onSwipe: (d) => shelfPage(d),
     dragStart(x, y) { const r = shelfRect(); if (!r || (WS.pages || 1) < 2 || x < r.l || x > r.r || y < r.t || y > r.b) return false; WS.dragPx = r.pxPerUnit || 30; WS.dragging = true; return true; },
     dragMove(dx) { if (!WS.shelf) return; let x = dx / WS.dragPx; const pages = WS.pages || 1; if ((WS.page === 0 && x > 0) || (WS.page >= pages - 1 && x < 0)) x *= 0.3; WS.shelf.position.x = x; },   // resists at the ends
-    dragEnd(dx) { WS.dragging = false; const x = dx / WS.dragPx, pages = WS.pages || 1, dir = dx < 0 ? 1 : -1, ok = dir > 0 ? WS.page < pages - 1 : WS.page > 0;
+    dragEnd(dx) { WS.dragging = false; const pages = WS.pages || 1, dir = dx < 0 ? 1 : -1, ok = dir > 0 ? WS.page < pages - 1 : WS.page > 0;
       if (Math.abs(dx) > 60 && ok) shelfPage(dir, WS.shelf.position.x); else if (WS.shelf) WS.shelf.userData.goal = 0; },
     discover(R) {
       if (!R) return;
       const bam = R.ents.filter((e) => e.platform === "bambu_lab" && !e.disabled_by);
       const f = (re) => { const x = bam.find((e) => re.test(e.entity_id)); return x ? x.entity_id : null; };
-      WS.p = bam.length ? { progress: f(/print_progress$/), status: f(/print_status$/), stage: f(/current_stage$/), task: f(/task_name$/), layer: f(/current_layer$/), layers: f(/total_layer_count$/), remain: f(/remaining_time$/), end: f(/end_time$/),
-        nozzle: f(/nozzle_temperature$/), bed: f(/bed_temperature$/), nozzleT: f(/nozzle_target_temperature$/), bedT: f(/sensor\..*bed_target_temperature$/), hum: f(/ams_1_humidity$/), amsT: f(/ams_1_temperature$/), active: f(/active_tray$/), weight: f(/print_weight$/), online: f(/_online$/) } : null;
+      WS.p = bam.length ? { progress: f(/print_progress$/), status: f(/print_status$/), stage: f(/current_stage$/), task: f(/task_name$/), layer: f(/current_layer$/), layers: f(/total_layer_count$/), remain: f(/remaining_time$/), end: f(/end_time$/), start: f(/start_time$/),
+        nozzle: f(/nozzle_temperature$/), bed: f(/bed_temperature$/), nozzleT: f(/nozzle_target_temperature$/), bedT: f(/sensor\..*bed_target_temperature$/), hum: f(/ams_1_humidity$/), amsT: f(/ams_1_temperature$/), active: f(/active_tray$/), weight: f(/print_weight$/), online: f(/_online$/),
+        cam: f(/^camera\..*_camera$/), cover: f(/^image\..*cover_image$/), light: f(/^light\..*chamber_light$/) } : null;
       WS.trays = bam.filter((e) => /_ams_\d+_tray_\d+$/.test(e.entity_id) && e.entity_id.startsWith("sensor.")).map((e) => e.entity_id).sort();
       const todo = (re) => (R.allStates.find((s) => s.entity_id.startsWith("todo.") && re.test(s.entity_id + " " + String(s.attributes.friendly_name || "").toLowerCase())) || {}).entity_id || null;
       WS.queue = todo(/print.?queue|print/); WS.stock = todo(/filament/);
@@ -1096,113 +1149,171 @@
     },
     build(g, T) {
       g.add(floorGrid(T, 14).translateX(-3.6));
-      const PX = 3.8, s = 3.9, h = 4.6, d = 3.9;   // P1S: 389 × 458 × 389 mm, 1 unit = 100 mm
+      const PX = 3.8, s = 3.9, h = 4.6, d = 3.9, F = d / 2;   // P1S: 389 × 458 × 389 mm, 1 unit = 100 mm
       const P = new T.Group(); P.position.x = PX; g.add(P);
-      const L = [];   // body outline
-      const box = (x0, x1, y0, y1, z0, z1, out) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; out.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
-      box(-s / 2, s / 2, 0, h, -d / 2, d / 2, L);
-      const det = [], F = d / 2 + 0.01;
-      det.push(-s / 2, 0.42, F, s / 2, 0.42, F);   // base band
-      for (const [a, b] of [[[-1.72, 0.6], [1.72, 0.6]], [[1.72, 0.6], [1.72, 4.42]], [[1.72, 4.42], [-1.72, 4.42]], [[-1.72, 4.42], [-1.72, 0.6]]]) det.push(a[0], a[1], F, b[0], b[1], F);   // glass door
-      det.push(1.5, 1.9, F + 0.04, 1.5, 3.1, F + 0.04);   // door handle
-      det.push(-s / 2 + 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, -d / 2 + 0.25, s / 2 - 0.25, h, d / 2 - 0.25, s / 2 - 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, d / 2 - 0.25, -s / 2 + 0.25, h, -d / 2 + 0.25);   // top glass
-      det.push(-1.3, 0.22, F, -0.7, 0.22, F);   // screen strip
-      P.add(segs(T, L, COL.edge, 0.6), segs(T, det, COL.edge, 0.3));
-      // AMS on top: 372 × 218 × 280 mm, sloped smoked lid, four spools side by side
-      const A = [], aw = 3.72, ad = 2.8, ay = h + 0.02, ah = 2.0;
-      box(-aw / 2, aw / 2, ay, ay + 0.9, -ad / 2, ad / 2, A);
-      const lid = [[-aw / 2, ay + 0.9, ad / 2], [aw / 2, ay + 0.9, ad / 2], [aw / 2, ay + ah, ad / 2 - 0.55], [-aw / 2, ay + ah, ad / 2 - 0.55]];
-      const back = [[-aw / 2, ay + ah, -ad / 2], [aw / 2, ay + ah, -ad / 2]];
-      const P2 = (a, b) => A.push(...a, ...b);
-      lid.forEach((p, k) => P2(p, lid[(k + 1) % 4])); P2(lid[3], back[0]); P2(lid[2], back[1]); P2(back[0], back[1]);
-      P2([-aw / 2, ay + 0.9, -ad / 2], back[0]); P2([aw / 2, ay + 0.9, -ad / 2], back[1]);
-      P.add(segs(T, A, COL.edge, 0.55));
+      const BODY = 0x23262b, put = (m, x, y, z) => { m.position.set(x, y, z); P.add(m); return m; }, body = [];
+      const CH = h - 0.9, CY = 0.6 + CH / 2;   // the chamber, between the base and the top
+      body.push(put(shadedBox(T, s, 0.6, d, BODY), 0, 0.3, 0), put(shadedBox(T, s, 0.3, d, BODY), 0, h - 0.15, 0));
+      for (const sx of [-1, 1]) body.push(put(shadedBox(T, 0.14, CH, d, BODY), sx * (s / 2 - 0.07), CY, 0), put(shadedBox(T, 0.2, CH, 0.1, 0x1a1c20), sx * (s / 2 - 0.24), CY, F - 0.05));
+      body.push(put(shadedBox(T, s - 0.28, CH, 0.1, 0x16181b), 0, CY, -F + 0.05));
+      const inner = put(new T.Mesh(new T.PlaneGeometry(s - 0.3, CH), new T.MeshBasicMaterial({ color: 0x14171a })), 0, CY, -F + 0.11);
+      put(shadedBox(T, 0.08, 1.3, 0.1, 0x41464d), s / 2 - 0.45, 2.6, F + 0.05);   // door handle
+      // the glass door, with a faint diagonal sheen
+      const sheen = (() => { const c = Object.assign(document.createElement("canvas"), { width: 128, height: 256 }), q = c.getContext("2d"), gr = q.createLinearGradient(0, 0, 128, 256);
+        gr.addColorStop(0, "rgba(255,255,255,.05)"); gr.addColorStop(0.32, "rgba(255,255,255,.05)"); gr.addColorStop(0.36, "rgba(255,255,255,.35)"); gr.addColorStop(0.44, "rgba(255,255,255,.05)"); gr.addColorStop(1, "rgba(255,255,255,.02)");
+        q.fillStyle = gr; q.fillRect(0, 0, 128, 256); return new T.CanvasTexture(c); })();
+      const GW = s - 0.68, glass = put(new T.Mesh(new T.PlaneGeometry(GW, CH), new T.MeshBasicMaterial({ map: sheen, color: 0xa8cede, transparent: true, opacity: 0.55, depthWrite: false })), 0, CY, F);
+      // the little screen on the base
+      const scrCanvas = Object.assign(document.createElement("canvas"), { width: 256, height: 96 });
+      const scr = put(new T.Mesh(new T.PlaneGeometry(0.96, 0.36), new T.MeshBasicMaterial({ map: new T.CanvasTexture(scrCanvas) })), -s / 2 + 0.72, 0.3, F + 0.005);
+      // inside: the bed (lowers as the part grows), the gantry and toolhead at the top, the part itself
+      const bed = put(shadedBox(T, 2.56, 0.08, 2.56, 0x7a6638), 0, 3.6, 0);
+      put(shadedBox(T, s - 0.3, 0.1, 0.12, 0x2b2e33), 0, 4.0, 0);
+      const head = put(shadedBox(T, 0.55, 0.6, 0.5, 0x30343a), 0, 3.95, 0);
+      const nozzleGlow = put(new T.Sprite(new T.SpriteMaterial({ map: glowTex(T), color: 0xff9a4a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 3.6, 0); nozzleGlow.scale.set(0.6, 0.6, 1);
+      const NL = 60, op = [];
+      for (let k = 0; k < NL; k++) { const y = (k / NL) * 1.6, r = 0.62 * (1 - 0.2 * Math.sin((k / NL) * Math.PI) + 0.08 * Math.sin(k / 3)); ring(op, 0, y, 0, r, 36); }
+      const obj = segs(T, op, COL.cyan, 0.85); P.add(obj);
+      // the chamber light: a warm glow inside, and a spill on the floor in front of the door
+      const lamp = put(new T.Sprite(new T.SpriteMaterial({ map: glowTex(T), color: 0xffe9c8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 3.3, 0); lamp.scale.set(4.6, 4.4, 1);
+      const spill = put(new T.Mesh(new T.PlaneGeometry(6, 4), new T.MeshBasicMaterial({ map: glowTex(T), color: 0xffe2b8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 0.03, F + 1.6); spill.rotation.x = -Math.PI / 2;
+      // AMS on top: 372 × 218 × 280 mm, a solid base and a smoked lid with the four spools showing through
+      const ay = h + 0.02;
+      body.push(put(shadedBox(T, 3.72, 0.9, 2.8, BODY), 0, ay + 0.45, 0));
+      const lidGeo = new T.BoxGeometry(3.72, 1.22, 2.8);
+      put(new T.Mesh(lidGeo, new T.MeshBasicMaterial({ color: 0x2e3a42, transparent: true, opacity: 0.38, depthWrite: false })), 0, ay + 0.9 + 0.61, 0);
+      put(new T.LineSegments(new T.EdgesGeometry(lidGeo), lineMat(T, 0x8fb9c2, 0.28)), 0, ay + 0.9 + 0.61, 0);
       const amsSp = [];
       for (let k = 0; k < 4; k++) {
         const cx = -1.29 + k * 0.86, { fl, fil } = spoolPts("x", cx, ay + 1.0, -0.1, 0.92, 0.62);
         const a = segs(T, fl, 0xb8c4c8, 0.3), b = segs(T, fil, COL.edge, 0.85); P.add(a, b); amsSp.push({ a, b, x: PX + cx, y: ay + 2.25 });
       }
-      // inside: the bed (moves down as the part grows), the gantry and toolhead at the top, the part itself
-      const bed = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(2.56, 0.05, 2.56)), lineMat(T, COL.edge, 0.7)); P.add(bed);
-      const gp = []; for (let k = -4; k <= 4; k++) { const v = (k / 4) * 1.28; gp.push(v, 0, -1.28, v, 0, 1.28, -1.28, 0, v, 1.28, 0, v); }
-      const bedGrid = segs(T, gp, COL.edge, 0.15); P.add(bedGrid);
-      const gantry = segs(T, [-1.8, 3.95, 0, 1.8, 3.95, 0, -1.8, 3.95, -0.1, -1.8, 3.95, 0.1], COL.edge, 0.6); P.add(gantry);
-      const head = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(0.5, 0.55, 0.45)), lineMat(T, COL.cyan, 0.9)); head.position.y = 3.95; P.add(head);
-      const NL = 60, op = [];
-      for (let k = 0; k < NL; k++) { const y = (k / NL) * 1.6, r = 0.62 * (1 - 0.2 * Math.sin((k / NL) * Math.PI) + 0.08 * Math.sin(k / 3)); ring(op, 0, y, 0, r, 36); }
-      const obj = segs(T, op, COL.cyan, 0.85); P.add(obj);
+      // a soft contact shadow, and the progress ring on the floor
+      { const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q = c2.getContext("2d"), gr = q.createRadialGradient(128, 128, 30, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.8)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = gr; q.fillRect(0, 0, 256, 256);
+        const sh = put(new T.Mesh(new T.PlaneGeometry(s + 2.4, d + 2.4), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })), 0, 0.012, 0); sh.rotation.x = -Math.PI / 2; }
+      const track = put(new T.Mesh(new T.RingGeometry(3.05, 3.17, 128), new T.MeshBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0, depthWrite: false })), 0, 0.02, 0); track.rotation.x = -Math.PI / 2;
+      const prog = put(new T.Mesh(new T.RingGeometry(3.0, 3.22, 128, 1, -Math.PI / 2, 0.001), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 0.025, 0); prog.rotation.x = -Math.PI / 2;
       // the filament shelf: 5 × 4 cubbies
       const sh = [], { cols, rows, cell, x0, y0 } = SHELF, x1 = x0 + cols * cell, y1 = y0 + rows * cell, zf = 0.55, zb = -0.55;
       for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y0, zf, x, y1, zf, x, y0, zb, x, y1, zb); }
       for (let r = 0; r <= rows; r++) { const y = y0 + r * cell; sh.push(x0, y, zf, x1, y, zf, x0, y, zb, x1, y, zb); for (let c = 0; c <= cols; c++) { const x = x0 + c * cell; sh.push(x, y, zf, x, y, zb); } }
       sh.push(x0, 0, zf, x0, y0, zf, x1, 0, zf, x1, y0, zf);   // feet
-      g.add(segs(T, sh, COL.edge, 0.28));
+      const shelfFrame = segs(T, sh, COL.edge, 0.28); g.add(shelfFrame);
       WS.shelf = new T.Group(); g.add(WS.shelf); WS.shelfKey = "";
-      WS.obj = { P, bed, bedGrid, gantry, head, obj, NL, amsSp, PX };
+      WS.obj = { P, body, inner, glass, scr, scrCanvas, bed, head, nozzleGlow, obj, NL, lamp, spill, amsSp, track, prog, shelfFrame, PX, s, h, d, F, GW, CH, CY, pct: -1, fade: 1, lampK: 0, hot: 1 };
       buildShelfSpools();
     },
     tick(g, dt, now) {
       const o = WS.obj, P = WS.p; if (!o) return;
       if (WS.shelf && WS.shelf.children.length === 0 && WS.stockItems.length) { WS.shelfKey = ""; buildShelfSpools(); }
-      const prog = P ? n(st(P.progress)) ?? 0 : 0, status = P ? String((st(P.status) || {}).s || "") : "", stage = P ? String((st(P.stage) || {}).s || "") : "";
-      const printing = /running|printing|prepare/.test(status) || (/print|heat|level|calib/.test(stage) && !/idle|finish/.test(status));
-      const done = /finish/.test(status), k = Math.max(0, Math.min(1, prog / 100));
-      // the P1S lowers its bed as the part grows; the nozzle stays at the top
-      const bedY = 3.7 - 1.6 * k - 0.05;
-      o.bed.position.y = bedY; o.bedGrid.position.y = bedY + 0.03; o.obj.position.y = bedY + 0.03;
-      o.obj.geometry.setDrawRange(0, Math.round(o.NL * k) * 36 * 2);
-      const trays = WS.trays.map((id) => st(id));
-      const act = trays.find((t) => t && t.a.active);
-      const colHex = act && act.a.color ? parseInt(String(act.a.color).slice(1, 7), 16) : COL.cyan;
-      o.obj.material.color.setHex(colHex); o.obj.material.opacity = printing ? 0.9 : done ? 0.55 : 0.15;
-      o.head.position.x = printing ? Math.sin(now / 180) * 0.7 : 0; o.head.position.z = printing ? Math.cos(now / 240) * 0.6 : 0; o.head.material.opacity = printing ? 0.95 : 0.45;
+      const M = wsMood(), mood = M.mood, k = Math.max(0, Math.min(1, M.prog / 100)), busy = mood === "printing" || mood === "paused";
+      // a print that just finished: confetti off the status card
+      if (WS.lastMood && /printing|paused/.test(WS.lastMood) && /finished|done/.test(mood)) { WS.doneAt = Date.now(); setTimeout(() => { const el = V3.tags.get("holo"); el && burst(el); haptic(); }, 120); }
+      if (mood !== "none") WS.lastMood = mood;
+      const ease = (r) => Math.min(1, dt * r);
+      // the bed lowers as the part grows; the nozzle stays at the top
+      const bedY = 3.6 - 1.6 * (busy || /done|finished/.test(mood) ? k : 0);
+      o.bed.position.y = bedY; o.obj.position.y = bedY + 0.04;
+      o.obj.geometry.setDrawRange(0, Math.round(o.NL * (busy || /done|finished/.test(mood) ? k : 0)) * 36 * 2);
+      const trays = WS.trays.map((id) => st(id)), act = trays.find((t) => t && t.a.active);
+      o.obj.material.color.setHex(act && act.a.color ? parseInt(String(act.a.color).slice(1, 7), 16) : COL.cyan); o.obj.material.opacity = busy ? 0.9 : 0.6;
+      o.head.position.x = mood === "printing" ? Math.sin(now / 180) * 0.7 : 0; o.head.position.z = mood === "printing" ? Math.cos(now / 240) * 0.6 : 0;
+      o.nozzleGlow.position.set(o.head.position.x, 3.62, o.head.position.z); o.nozzleGlow.material.opacity = mood === "printing" ? 0.55 + Math.sin(now / 90) * 0.15 : 0;
+      // the chamber light follows Home Assistant
+      const lightOn = !!(P && P.light && (st(P.light) || {}).s === "on");
+      o.lampK += ((lightOn ? 1 : 0) - o.lampK) * ease(4);
+      o.lamp.material.opacity = 0.5 * o.lampK; o.spill.material.opacity = 0.16 * o.lampK;
+      o.inner.material.color.setRGB(0.08 + 0.25 * o.lampK, 0.09 + 0.22 * o.lampK, 0.1 + 0.18 * o.lampK);
+      // is the mouse over the printer's front?
+      const corner = (x, y) => toCanvas(o.PX + x, y, o.F + 0.01);
+      const q = [corner(-o.GW / 2, o.CY + o.CH / 2), corner(o.GW / 2, o.CY + o.CH / 2), corner(-o.GW / 2, o.CY - o.CH / 2), corner(o.GW / 2, o.CY - o.CH / 2)];
+      const facing = q.every(Boolean) && q[1].x > q[0].x + 20;
+      let over = false;
+      if (V3.mouse && facing) {
+        const r = V3.canvas.getBoundingClientRect(), kk = V3.canvas.clientWidth / (r.width || 1), mx = (V3.mouse.x - r.left) * kk, my = (V3.mouse.y - r.top) * kk;
+        const a = toCanvas(o.PX - o.s / 2, o.h + 2.2, o.F), b = toCanvas(o.PX + o.s / 2, 0, o.F);
+        over = !!(a && b && mx > a.x && mx < b.x && my > a.y && my < b.y);
+      }
+      WS.overP = over;
+      const hot = over || V3.pinned === "printer" ? 1.16 : 1; if (Math.abs(hot - o.hot) > 0.001) { o.hot += (hot - o.hot) * ease(8); if (Math.abs(hot - o.hot) < 0.005) o.hot = hot; o.body.forEach((m) => toneBox(m, o.hot)); }
+      // the live camera sits on the glass while printing, or when you point at the printer
+      const camOn = !!(P && P.cam && facing && (busy || over || V3.pinned === "printer"));
+      wsCam(camOn ? q : null);
+      o.glass.material.opacity = camOn ? 0.2 : 0.55;
+      // progress ring on the floor
+      const pct = busy ? Math.round(k * 200) / 2 : /done|finished/.test(mood) ? 100 : -1;
+      if (pct !== o.pct) { o.pct = pct; o.prog.geometry.dispose(); o.prog.geometry = new V3.T.RingGeometry(3.0, 3.22, 128, 1, -Math.PI / 2, Math.max(0.001, (Math.max(0, pct) / 100) * Math.PI * 2)); }
+      o.track.material.opacity += ((pct >= 0 ? 0.12 : 0) - o.track.material.opacity) * ease(3);
+      o.prog.material.color.setHex(mood === "paused" ? COL.warn : COL.ok);
+      o.prog.material.opacity += ((busy ? 0.75 + Math.sin(now / 600) * 0.12 : mood === "done" ? 0.6 : mood === "finished" ? 0.18 : 0) - o.prog.material.opacity) * ease(3);
+      // the screen on the base
+      drawScreen(busy ? `${Math.round(M.prog)}%` : mood === "offline" ? "OFFLINE" : mood === "failed" ? "FAILED" : /done|finished/.test(mood) ? "DONE" : "READY",
+        busy ? `${hm(P && n(st(P.remain)))} LEFT` : lightOn ? "LIGHT ON" : "P1S · AMS", mood);
+      // AMS: spool colours from the trays, one label for the lot
       o.amsSp.forEach((sp, i) => {
-        const t = trays[i];
-        const c = t && t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!(t && t.a.active), empty = !t || t.a.empty;
+        const t = trays[i], c = t && t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!(t && t.a.active), empty = !t || t.a.empty;
         sp.b.material.color.setHex(c); sp.b.material.opacity = empty ? 0 : on ? 0.95 : 0.75;
-        if (on && printing) { sp.a.rotation.x += dt * 1.2; sp.b.rotation.x += dt * 1.2; }
+        if (on && mood === "printing") { sp.a.rotation.x += dt * 1.2; sp.b.rotation.x += dt * 1.2; }
         pick("ams" + i, sp.x, sp.y - 1.1, 0, () => `<b>AMS SLOT ${i + 1}${on ? " · FEEDING" : ""}</b><dl><dt>FILAMENT</dt><dd>${esc(empty ? "Empty" : t.a.name || t.s)}</dd><dt>TYPE</dt><dd>${esc((t && t.a.type) || "—")}</dd><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(String((t && t.a.color) || "#555").slice(0, 7))}"></i>${esc(String((t && t.a.color) || "").slice(0, 7))}</dd>${t && t.a.remain >= 0 ? `<dt>LEFT</dt><dd>${t.a.remain}%</dd>` : ""}${t && t.a.nozzle_temp_min ? `<dt>NOZZLE</dt><dd>${esc(t.a.nozzle_temp_min)}–${esc(t.a.nozzle_temp_max)}°</dd>` : ""}</dl>`);
       });
-      // one label for the whole AMS (four separate ones sit on top of each other)
-      tag("ams", o.PX, 7.15, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
-      const ease = Math.min(1, dt * 9);
-      if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease; if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
-      if (WS.shelfOut) {
-        const o = WS.shelfOut; o.position.x += (o.userData.goal - o.position.x) * ease;
-        const left = Math.abs(o.userData.goal - o.position.x) / (SHELF_W() + 1.5);
-        o.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * Math.min(1, left * 1.6); });
-        if (left < 0.02) { o.parent && o.parent.remove(o); o.children.forEach((c) => c.geometry && c.geometry.dispose()); WS.shelfOut = null; }
+      tag("ams", o.PX, 7.25, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
+      // the printer itself: hover for its state, click to keep it open and switch the chamber light
+      if (P) pick("printer", o.PX, o.CY, o.F + 0.1, () => `<b>BAMBU LAB P1S</b><dl><dt>STATE</dt><dd>${esc(mood.toUpperCase())}</dd><dt>NOZZLE</dt><dd>${fmt(n(st(P.nozzle)))}°</dd><dt>BED</dt><dd>${fmt(n(st(P.bed)))}°</dd><dt>LIGHT</dt><dd>${lightOn ? "ON" : "OFF"}</dd></dl>`,
+        P.light ? { open: { label: lightOn ? "CHAMBER LIGHT OFF" : "CHAMBER LIGHT ON", run: () => call("light", lightOn ? "turn_off" : "turn_on", { target: { entity_id: P.light } }) } } : null);
+      // the status card beside the printer: big while printing, the last print when idle
+      if (P) {
+        const task = st(P.task), name = live(task) && task.s ? task.s : "", cover = picOf(P.cover), img = cover ? `<img src="${esc(cover)}" alt="">` : "";
+        const rem = n(st(P.remain)), end = st(P.end), w = n(st(P.weight)), stS = st(P.status);
+        let html;
+        if (mood === "printing" || mood === "paused") html = `<em>${mood === "paused" ? "PAUSED" : "PRINTING"} · ${Math.round(M.prog)}%</em><b class="big">${hm(rem)}</b><span>LEFT${live(end) && !isNaN(Date.parse(end.s)) ? " · DONE " + clock(Date.parse(end.s)) : ""}</span>${img}<b>${esc(name.toUpperCase())}</b><span>LAYER ${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}</span>`;
+        else if (mood === "done") html = `<b class="big">DONE</b><span>${esc(name.toUpperCase())}</span>${img}<span data-warn="true">CLEAR THE PLATE</span>`;
+        else if (mood === "offline") html = `<em>PRINTER OFFLINE</em>`;
+        else html = `<em>${mood === "failed" ? "LAST PRINT · FAILED" : "LAST PRINT"}</em>${img}<b>${esc((name || "—").toUpperCase())}</b><span>${w ? fmt(w) + " G · " : ""}${stS && stS.t ? "ENDED " + ago(stS.t).toUpperCase() : ""}</span>${mood === "finished" ? '<span data-warn="true">PLATE MAY STILL BE FULL</span>' : ""}`;
+        tag("holo", o.PX + o.s / 2 + 1.1, 3.4, o.F, `<div class="eddo-ws-holo" data-mood="${mood}">${html}</div>`, true, "eddo-page-tag-left eddo-page-tag-holo");
       }
-      const sliding = !!WS.shelfOut || (WS.shelf && Math.abs(WS.shelf.position.x) > 0.3);
-      (WS.spools || []).forEach((sp, i) => {
+      // the shelf: slides between pages, steps back while a print runs (unless you point at it)
+      if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease(9); if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
+      if (WS.shelfOut) {
+        const so = WS.shelfOut; so.position.x += (so.userData.goal - so.position.x) * ease(9);
+        const left = Math.abs(so.userData.goal - so.position.x) / (SHELF_W() + 1.5);
+        so.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * Math.min(1, left * 1.6); });
+        if (left < 0.02) { so.parent && so.parent.remove(so); so.children.forEach((c) => c.geometry && c.geometry.dispose()); WS.shelfOut = null; }
+      }
+      let overShelf = false; if (V3.mouse) { const r = shelfRect(); overShelf = !!(r && V3.mouse.x > r.l && V3.mouse.x < r.r && V3.mouse.y > r.t && V3.mouse.y < r.b); }
+      o.fade += ((busy && !overShelf ? 0.3 : 1) - o.fade) * ease(3);
+      o.shelfFrame.material.opacity = 0.28 * o.fade;
+      if (WS.shelf) WS.shelf.children.forEach((c) => { c.material.opacity = (c.userData.o ?? (c.userData.o = c.material.opacity)) * o.fade; });
+      // spools: no labels, hover one for its details
+      (WS.spools || []).forEach((sp) => {
         const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
         const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
-        if (sliding) { tag("sh" + i, 0, 0, 0, "", false); return; }
-        tag("sh" + i, sp.x + WS.shelf.position.x, sp.y - 1.3, 0.6, `<b>${esc(shortName(it.summary).toUpperCase())}</b><span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>`, true, "eddo-page-tag-sm eddo-page-tag-shelf");
-        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 0.4, () => `<b>${esc(it.summary.toUpperCase())}</b><dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[1] ? `<dt>TYPE</dt><dd>${esc(parts[1])}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
+        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 0.4, () => `<b>${esc(shortName(it.summary).toUpperCase())}</b>${kind ? `<span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>` : ""}<dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
           { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
       });
-      const task = P && st(P.task);
-      tag("job", o.PX, 8.3, 0, `<b>${printing ? Math.round(prog) + "%" : done ? "DONE" : "IDLE"}</b><span>${esc(String(live(task) ? task.s : "").toUpperCase())}</span>`, !!P);
       const pages = WS.pages || 1;
       tag("shelf", SHELF.x0 + (SHELF.cols * SHELF.cell) / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
         `<b>FILAMENT · ${WS.stockTotal || 0} SPOOLS</b><span class="eddo-shelf-nav">${pages > 1 ? `<button data-shelf="-1"${WS.page ? "" : " disabled"}>‹</button>PAGE ${WS.page + 1} / ${pages}<button data-shelf="1"${WS.page < pages - 1 ? "" : " disabled"}>›</button>` : "ALL ON THE SHELF"}${WS.stock ? "" : " · NO LIST"}</span>`, true, "eddo-page-tag-nav");
     },
     panel() {
       const P = WS.p; if (!P) return `<p class="wb-muted eddo-pg-note">No Bambu Lab printer in Home Assistant.</p>`;
-      const prog = n(st(P.progress)), status = String((st(P.status) || {}).s || "—"), stage = String((st(P.stage) || {}).s || "").replace(/_/g, " ");
-      const rem = n(st(P.remain)), end = st(P.end), task = st(P.task);
-      const printing = /running|printing|prepare/.test(status);
+      const M = wsMood(), mood = M.mood, busy = mood === "printing" || mood === "paused";
+      const task = st(P.task), name = live(task) && task.s ? task.s : "No job yet", cover = picOf(P.cover), rem = n(st(P.remain)), end = st(P.end), w = n(st(P.weight)), stS = st(P.status);
+      const LBL = { printing: "PRINTING", paused: "PAUSED", done: "JUST FINISHED", finished: "LAST PRINT", failed: "LAST PRINT · FAILED", idle: "LAST PRINT", offline: "PRINTER OFFLINE" };
+      const sub = busy ? `LAYER ${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}${w ? " · " + fmt(w) + " G" : ""}` : `${w ? fmt(w) + " G · " : ""}${stS && stS.t ? "ended " + ago(stS.t) : ""}`;
+      let h = `<div class="eddo-ws-job" data-mood="${mood}">${cover ? `<img src="${esc(cover)}" alt="">` : `<div class="eddo-ws-noimg">◇</div>`}<div><em>${LBL[mood] || "PRINTER"}</em><b>${esc(name)}</b><span>${esc(sub)}</span>${/done|finished/.test(mood) ? '<span data-warn="true">Clear the plate before the next one</span>' : ""}</div></div>`;
+      if (busy) h += `<div class="wb-large">${Math.round(M.prog)}<small>% · ${hm(rem)} LEFT</small></div><i class="eddo-pg-prog"><s style="width:${M.prog}%"></s></i><p class="eddo-ws-sub">${live(end) && !isNaN(Date.parse(end.s)) ? "DONE AROUND " + clock(Date.parse(end.s)) : esc(String(M.stage || "").replace(/_/g, " ").toUpperCase())}</p>`;
+      // filament in the AMS
+      const trays = WS.trays.map((id) => st(id));
+      if (trays.length) h += `<p class="eddo-pg-h">${busy ? "FILAMENT IN USE" : "IN THE AMS"}</p><div class="eddo-ws-ams">${trays.slice(0, 4).map((t, i) => { const empty = !t || t.a.empty, col = t && t.a.color ? String(t.a.color).slice(0, 7) : "transparent";
+        return `<div${t && t.a.active ? ' data-on="true"' : ""}><i style="background:${esc(empty ? "transparent" : col)}"></i><b>${esc(empty ? "EMPTY" : (t.a.type || "—").toUpperCase())}</b><span>${esc(empty ? "Slot " + (i + 1) : t.a.name || t.s)}</span>${t && t.a.remain >= 0 && !empty ? `<em>${t.a.remain}%</em>` : ""}</div>`; }).join("")}</div>`;
+      // the queue
       const items = WS.items.filter((i) => i.status === "needs_action"), doneN = WS.items.length - items.length;
-      const stockN = WS.stockItems.filter((i) => i.status === "needs_action").length;
-      return `<div class="wb-large">${prog != null ? Math.round(prog) : "—"}<small>${printing ? "% PRINTED" : status === "finish" ? "% · FINISHED" : "% · " + esc(status.toUpperCase())}</small></div>` +
-        `<p class="eddo-pg-task">${esc(live(task) ? task.s : "No job")}</p><i class="eddo-pg-prog"><s style="width:${prog || 0}%"></s></i>` +
-        `<div class="eddo-pg-grid">${card("LAYER", `${fmt(n(st(P.layer)))} / ${fmt(n(st(P.layers)))}`, esc(stage.toUpperCase()))}${card("TIME LEFT", rem != null && printing ? (rem >= 1 ? `${Math.floor(rem)} h ${Math.round((rem % 1) * 60)} m` : `${Math.round(rem * 60)} min`) : "—", printing && live(end) ? "done " + new Date(end.s).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "")}` +
-        `${card("NOZZLE", fmt(n(st(P.nozzle))) + "°", n(st(P.nozzleT)) ? "→ " + fmt(n(st(P.nozzleT))) + "°" : "")}${card("BED", fmt(n(st(P.bed))) + "°", n(st(P.bedT)) ? "→ " + fmt(n(st(P.bedT))) + "°" : "")}${card("AMS", n(st(P.hum)) != null ? fmt(n(st(P.hum))) + "% RH" : "—", n(st(P.amsT)) != null ? fmt(n(st(P.amsT)), 1) + "°C" : "", n(st(P.hum)) >= 45 ? ' data-warn="true"' : "")}${card("FILAMENT", stockN, (WS.pages || 1) > 1 ? `${WS.pages} shelf pages · swipe or ‹ ›` : "spools on the shelf")}</div>` +
-        `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
+      h += `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
         (WS.queue ? `<div class="eddo-pg-queue">${items.map((i) => `<button data-q="${esc(i.uid)}"><i></i><b>${esc(i.summary)}</b>${i.description ? `<small>${esc(i.description)}</small>` : ""}</button>`).join("") || `<p class="wb-muted eddo-pg-note">Queue's empty.</p>`}</div><form class="eddo-pg-add" data-qadd><input name="t" placeholder="Add a model to print…" autocomplete="off"><button>ADD</button></form>`
-          : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`) +
-        `<p class="wb-muted eddo-pg-note">The shelf is the "Filament stock" list in Home Assistant: tick a spool off there when it's used up, add new ones with a colour like #FF8800 in the description.</p>`;
+          : `<p class="wb-muted eddo-pg-note">Make a to-do list called "Print queue" in Home Assistant and it shows up here.</p>`);
+      const stockN = WS.stockItems.filter((i) => i.status === "needs_action").length, hum = n(st(P.hum));
+      h += `<p class="eddo-ws-foot">NOZZLE ${fmt(n(st(P.nozzle)))}° · BED ${fmt(n(st(P.bed)))}° · AMS <span${hum >= 45 ? ' data-warn="true"' : ""}>${hum != null ? fmt(hum) + "% RH" : "—"}</span>${n(st(P.amsT)) != null ? " · " + fmt(n(st(P.amsT)), 1) + "°C" : ""} · ${stockN} SPOOLS</p>`;
+      return h;
     },
   });
   document.addEventListener("click", (e) => {
