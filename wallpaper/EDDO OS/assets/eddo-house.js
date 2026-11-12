@@ -2089,8 +2089,18 @@
     if (/^\d+(\.\d+)?$/.test(s)) return /day|^$/i.test(a.unit_of_measurement || "") ? Math.round(+s) : null;
     const t = Date.parse(s); return Number.isFinite(t) ? Math.round((dayStart(t) - dayStart(Date.now())) / 864e5) : null;
   }
-  const binName = (id) => { const st = states.get(id); return String((st && st.a.friendly_name) || id.split(".")[1]).replace(/_/g, " ").replace(/\b(next|collection|bins?|day)\b/gi, "").replace(/\s+/g, " ").trim() || "Bins"; };
-  const binColour = (n) => /recycl|paper|glass|blue/i.test(n) ? 0x6fd6ff : /garden|green/i.test(n) ? 0x7fe08a : /food|caddy/i.test(n) ? 0xffc25a : 0xb8c4c8;
+  // a calendar's event title ("Paper & cardboard") reads better than its entity name ("Recycling - Paper")
+  const binName = (id) => { const st = states.get(id), a = (st && st.a) || {}; return String(a.message || a.friendly_name || id.split(".")[1]).replace(/_/g, " ").replace(/\b(next|collection|bins?|day)\b/gi, "").replace(/^r(?=recycl)/i, "").replace(/\s+/g, " ").trim() || "Bins"; };
+  const binColour = (n) => /cans|plastic|glass|bottle|garden|green/i.test(n) ? 0x7fe08a : /paper|cardboard|recycl|blue/i.test(n) ? 0x6fd6ff : /food|caddy/i.test(n) ? 0xffc25a : 0xa9b3b8;
+  // the countdown to collection morning (7am): a ticking clock inside two days, then days and the date
+  function binCountdown(id, days) {
+    const st = states.get(id), t = st && Date.parse(st.a.start_time), when = Number.isFinite(t) ? new Date(t) : null;
+    if (days == null) return "";
+    if (days === 0) return "TODAY";
+    if (when && days <= 2) { const due = new Date(when); due.setHours(7, 0, 0, 0); const ms = Math.max(0, due - Date.now()), h = Math.floor(ms / 36e5), m = Math.floor((ms % 36e5) / 6e4), sc = Math.floor((ms % 6e4) / 1000);
+      return `${days === 1 ? "TOMORROW · " : ""}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sc).padStart(2, "0")}`; }
+    return `IN ${days} DAYS${when ? " · " + when.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }).toUpperCase() : ""}`;
+  }
 
   function updateLive(dt, now) {
     if (!LIVE.root) return;
@@ -2148,10 +2158,15 @@
     for (const t of LIVE.trees) { const s = 0.6 + 0.4 * Math.sin(now / 650 + t.ph); t.g.rotation.z = -wx * amp * s; t.g.rotation.x = wz * amp * s; }
     // bins & parcels out front (all-house or ground floor view)
     const front = !heatMode && !energyMode && (!floorSel || floorSel === "ground") && !focused, hr = new Date().getHours();
-    LIVE.binsDue = LIVE.bins.map((id) => ({ id, days: binDays(id), name: binName(id) })).filter((b) => b.days === 0 && hr < 14 || b.days === 1 && hr >= 16);
+    // every bin stream is always out front, in a fixed order, each with its own countdown; the ones going out now glow
+    LIVE.binsAll = LIVE.bins.map((id) => ({ id, days: binDays(id), name: binName(id) })).filter((b) => b.days != null && b.days >= 0).sort((a, b) => a.id.localeCompare(b.id)).slice(0, LIVE.binMeshes.length);
+    LIVE.binsDue = LIVE.binsAll.filter((b) => b.days === 0 && hr < 14 || b.days === 1 && hr >= 16);
     LIVE.binMeshes.forEach((g, i) => {
-      const b = LIVE.binsDue[i]; g.visible = !!b && front;
-      if (b) g.children.forEach((c) => { c.material.color.setHex(binColour(b.name)); c.material.opacity = 0.75 * boot; });
+      const b = LIVE.binsAll[i]; g.visible = !!b && front;
+      if (!b) return;
+      const due = LIVE.binsDue.includes(b), soon = b.days <= 1, pulse = due ? 0.75 + 0.25 * Math.sin(now / 260) : 1;
+      g.children.forEach((c) => { c.material.color.setHex(binColour(b.name)); c.material.opacity = (due ? 0.95 : soon ? 0.75 : 0.45) * pulse * boot; });
+      g.position.y = due ? 0.04 + Math.abs(Math.sin(now / 420)) * 0.06 : 0;   // a little hop when it's going out
     });
     LIVE.parcelCount = LIVE.parcels.reduce((a, id) => a + Math.max(0, +((states.get(id) || {}).s) || 0), 0);
     if (LIVE.parcel) { LIVE.parcel.visible = LIVE.parcelCount > 0 && front; LIVE.parcel.position.y = 0.05 + Math.sin(now / 500) * 0.05; LIVE.parcel.rotation.y = now / 3000; }
@@ -2189,8 +2204,12 @@
       const html = (pic ? `<img src="${esc(pic)}" alt="">` : `<i class="eddo-live-note">♪</i>`) + `<b>${esc(String(title).toUpperCase())}</b>${sub ? `<span>${esc(String(sub))}</span>` : ""}`;
       const g = pl.g; liveTag("media" + i, g.position.x, g.position.y + (pic ? 1.0 : 0.6), g.position.z, html, show, pic ? "eddo-live-poster" : "");
     }
-    const bins = LIVE.binsDue || [];
-    liveTag("bins", 0.45 + (Math.max(1, bins.length) - 1) * 0.375, 1.6, -1.15, `<b>${bins.some((b) => b.days === 0) ? "BIN DAY" : "BINS OUT TONIGHT"}</b><span>${esc(bins.map((b) => b.name.toUpperCase()).join(" · "))}</span>`, bins.length > 0 && LIVE.binMeshes[0] && LIVE.binMeshes[0].visible);
+    // one tag per bin: what it is, and the countdown
+    (LIVE.binsAll || []).forEach((b, i) => {
+      const g = LIVE.binMeshes[i], due = (LIVE.binsDue || []).includes(b), col = "#" + binColour(b.name).toString(16).padStart(6, "0");
+      liveTag("bin" + i, g.position.x, 1.45 + (i % 2) * 0.32, g.position.z, `<b style="color:${col}">${esc(b.name.toUpperCase())}</b><span${due ? ' data-warn="true"' : ""}>${esc(due && b.days === 1 ? "OUT TONIGHT · " + binCountdown(b.id, b.days) : binCountdown(b.id, b.days))}</span>`, g.visible, "eddo-live-bin" + (due ? " eddo-live-bin-due" : ""));
+    });
+    for (let i = (LIVE.binsAll || []).length; i < LIVE.binMeshes.length; i++) liveTag("bin" + i, 0, 0, 0, "", false);
     { const g = KIT.bbq, at = KIT.bbqAt, t = g && num(g.temp), pr = g && num(g.probe), tg = g && num(g.target);
       liveTag("bbq", at ? at[0] : 0, at ? at[1] : 0, at ? at[2] : 0, `<b>SEARWOOD${t != null ? ` · ${Math.round(t)}°` : ""}${tg != null ? `<em> → ${Math.round(tg)}°</em>` : ""}</b>${pr != null ? `<span>PROBE ${Math.round(pr)}°</span>` : ""}`,
         !!(at && t != null && (t >= 45 || (tg || 0) > 0)) && !energyMode, "eddo-live-bbq"); }

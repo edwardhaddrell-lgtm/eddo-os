@@ -975,3 +975,7 @@ html.eddo-phone .eddo-docks{grid-template-columns:repeat(2,minmax(0,1fr))}
 /* rack callouts wrap instead of running into the panel */
 .eddo-page-tag-left{max-width:200px;white-space:normal}
 .eddo-page-tag-left span{white-space:normal}
+/* house: a countdown tag per bin */
+.eddo-live-bin b{font-size:8.5px}
+.eddo-live-bin span{font-variant-numeric:tabular-nums;letter-spacing:1.4px}
+.eddo-live-bin-due span{color:#ffb36b}
