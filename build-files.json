@@ -1,0 +1,3474 @@
+[
+  {
+    "path": "archives/en/RHINE-LAB-X-001.txt",
+    "bytes": 998
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-002.txt",
+    "bytes": 1008
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-003.txt",
+    "bytes": 927
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-004.txt",
+    "bytes": 963
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-005.txt",
+    "bytes": 1015
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-006.txt",
+    "bytes": 980
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-007.txt",
+    "bytes": 915
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-008.txt",
+    "bytes": 939
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-009.txt",
+    "bytes": 962
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-010.txt",
+    "bytes": 958
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-011.txt",
+    "bytes": 942
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-012.txt",
+    "bytes": 962
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-013.txt",
+    "bytes": 962
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-014.txt",
+    "bytes": 987
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-015.txt",
+    "bytes": 963
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-016.txt",
+    "bytes": 978
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-017.txt",
+    "bytes": 1012
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-018.txt",
+    "bytes": 934
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-019.txt",
+    "bytes": 866
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-020.txt",
+    "bytes": 947
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-021.txt",
+    "bytes": 961
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-022.txt",
+    "bytes": 932
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-023.txt",
+    "bytes": 911
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-024.txt",
+    "bytes": 901
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-025.txt",
+    "bytes": 930
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-026.txt",
+    "bytes": 911
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-027.txt",
+    "bytes": 989
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-028.txt",
+    "bytes": 869
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-029.txt",
+    "bytes": 920
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-030.txt",
+    "bytes": 963
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-031.txt",
+    "bytes": 954
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-032.txt",
+    "bytes": 940
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-033.txt",
+    "bytes": 987
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-034.txt",
+    "bytes": 961
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-035.txt",
+    "bytes": 963
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-036.txt",
+    "bytes": 935
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-037.txt",
+    "bytes": 892
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-038.txt",
+    "bytes": 972
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-039.txt",
+    "bytes": 956
+  },
+  {
+    "path": "archives/en/RHINE-LAB-X-040.txt",
+    "bytes": 972
+  },
+  {
+    "path": "archives/RHINE-LAB-X-001.txt",
+    "bytes": 860
+  },
+  {
+    "path": "archives/RHINE-LAB-X-002.txt",
+    "bytes": 868
+  },
+  {
+    "path": "archives/RHINE-LAB-X-003.txt",
+    "bytes": 799
+  },
+  {
+    "path": "archives/RHINE-LAB-X-004.txt",
+    "bytes": 813
+  },
+  {
+    "path": "archives/RHINE-LAB-X-005.txt",
+    "bytes": 842
+  },
+  {
+    "path": "archives/RHINE-LAB-X-006.txt",
+    "bytes": 831
+  },
+  {
+    "path": "archives/RHINE-LAB-X-007.txt",
+    "bytes": 779
+  },
+  {
+    "path": "archives/RHINE-LAB-X-008.txt",
+    "bytes": 823
+  },
+  {
+    "path": "archives/RHINE-LAB-X-009.txt",
+    "bytes": 835
+  },
+  {
+    "path": "archives/RHINE-LAB-X-010.txt",
+    "bytes": 818
+  },
+  {
+    "path": "archives/RHINE-LAB-X-011.txt",
+    "bytes": 799
+  },
+  {
+    "path": "archives/RHINE-LAB-X-012.txt",
+    "bytes": 838
+  },
+  {
+    "path": "archives/RHINE-LAB-X-013.txt",
+    "bytes": 840
+  },
+  {
+    "path": "archives/RHINE-LAB-X-014.txt",
+    "bytes": 831
+  },
+  {
+    "path": "archives/RHINE-LAB-X-015.txt",
+    "bytes": 807
+  },
+  {
+    "path": "archives/RHINE-LAB-X-016.txt",
+    "bytes": 844
+  },
+  {
+    "path": "archives/RHINE-LAB-X-017.txt",
+    "bytes": 837
+  },
+  {
+    "path": "archives/RHINE-LAB-X-018.txt",
+    "bytes": 833
+  },
+  {
+    "path": "archives/RHINE-LAB-X-019.txt",
+    "bytes": 767
+  },
+  {
+    "path": "archives/RHINE-LAB-X-020.txt",
+    "bytes": 806
+  },
+  {
+    "path": "archives/RHINE-LAB-X-021.txt",
+    "bytes": 832
+  },
+  {
+    "path": "archives/RHINE-LAB-X-022.txt",
+    "bytes": 818
+  },
+  {
+    "path": "archives/RHINE-LAB-X-023.txt",
+    "bytes": 826
+  },
+  {
+    "path": "archives/RHINE-LAB-X-024.txt",
+    "bytes": 815
+  },
+  {
+    "path": "archives/RHINE-LAB-X-025.txt",
+    "bytes": 804
+  },
+  {
+    "path": "archives/RHINE-LAB-X-026.txt",
+    "bytes": 798
+  },
+  {
+    "path": "archives/RHINE-LAB-X-027.txt",
+    "bytes": 782
+  },
+  {
+    "path": "archives/RHINE-LAB-X-028.txt",
+    "bytes": 781
+  },
+  {
+    "path": "archives/RHINE-LAB-X-029.txt",
+    "bytes": 806
+  },
+  {
+    "path": "archives/RHINE-LAB-X-030.txt",
+    "bytes": 847
+  },
+  {
+    "path": "archives/RHINE-LAB-X-031.txt",
+    "bytes": 805
+  },
+  {
+    "path": "archives/RHINE-LAB-X-032.txt",
+    "bytes": 788
+  },
+  {
+    "path": "archives/RHINE-LAB-X-033.txt",
+    "bytes": 832
+  },
+  {
+    "path": "archives/RHINE-LAB-X-034.txt",
+    "bytes": 837
+  },
+  {
+    "path": "archives/RHINE-LAB-X-035.txt",
+    "bytes": 818
+  },
+  {
+    "path": "archives/RHINE-LAB-X-036.txt",
+    "bytes": 834
+  },
+  {
+    "path": "archives/RHINE-LAB-X-037.txt",
+    "bytes": 809
+  },
+  {
+    "path": "archives/RHINE-LAB-X-038.txt",
+    "bytes": 821
+  },
+  {
+    "path": "archives/RHINE-LAB-X-039.txt",
+    "bytes": 815
+  },
+  {
+    "path": "archives/RHINE-LAB-X-040.txt",
+    "bytes": 824
+  },
+  {
+    "path": "assets/archive-assembly.d411170676f55a32.glb",
+    "bytes": 3343744
+  },
+  {
+    "path": "assets/archive-cassette.dda42b9b3b471d11.glb",
+    "bytes": 3565116
+  },
+  {
+    "path": "assets/archive-precision-low.92a998d8182fe809.glb",
+    "bytes": 832140
+  },
+  {
+    "path": "assets/archive-precision-medium.3402ae0a5e3419d2.glb",
+    "bytes": 3389152
+  },
+  {
+    "path": "assets/boot-lettering-notice.txt",
+    "bytes": 2783
+  },
+  {
+    "path": "assets/index-Bg7aiZZN.css",
+    "bytes": 667918
+  },
+  {
+    "path": "assets/index-DGZ5gDxu.js",
+    "bytes": 1132453
+  },
+  {
+    "path": "audio/atmosphere.ogg",
+    "bytes": 537407
+  },
+  {
+    "path": "audio/motif.ogg",
+    "bytes": 674580
+  },
+  {
+    "path": "audio/pulse.ogg",
+    "bytes": 371667
+  },
+  {
+    "path": "audio/README.md",
+    "bytes": 961
+  },
+  {
+    "path": "audio/score.json",
+    "bytes": 557
+  },
+  {
+    "path": "audio/typing-preview.wav",
+    "bytes": 192044
+  },
+  {
+    "path": "audio/typing-source.json",
+    "bytes": 740
+  },
+  {
+    "path": "favicon.svg",
+    "bytes": 296
+  },
+  {
+    "path": "fonts/MiSans-license.pdf",
+    "bytes": 79535
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/0.woff2",
+    "bytes": 41840
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/1.woff2",
+    "bytes": 1624
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/10.woff2",
+    "bytes": 2052
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/100.woff2",
+    "bytes": 29972
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/101.woff2",
+    "bytes": 30272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/102.woff2",
+    "bytes": 34132
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/103.woff2",
+    "bytes": 26320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/104.woff2",
+    "bytes": 28660
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/105.woff2",
+    "bytes": 36164
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/106.woff2",
+    "bytes": 32476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/107.woff2",
+    "bytes": 37908
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/108.woff2",
+    "bytes": 34596
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/109.woff2",
+    "bytes": 34824
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/11.woff2",
+    "bytes": 10612
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/110.woff2",
+    "bytes": 35972
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/111.woff2",
+    "bytes": 34216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/112.woff2",
+    "bytes": 30484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/113.woff2",
+    "bytes": 34404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/114.woff2",
+    "bytes": 36796
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/115.woff2",
+    "bytes": 43556
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/116.woff2",
+    "bytes": 45556
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/117.woff2",
+    "bytes": 36868
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/118.woff2",
+    "bytes": 36792
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/119.woff2",
+    "bytes": 30420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/12.woff2",
+    "bytes": 13612
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/120.woff2",
+    "bytes": 41272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/121.woff2",
+    "bytes": 43772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/122.woff2",
+    "bytes": 36976
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/123.woff2",
+    "bytes": 41724
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/124.woff2",
+    "bytes": 37396
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/125.woff2",
+    "bytes": 39244
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/126.woff2",
+    "bytes": 42820
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/127.woff2",
+    "bytes": 39900
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/128.woff2",
+    "bytes": 46592
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/129.woff2",
+    "bytes": 50464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/13.woff2",
+    "bytes": 15776
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/130.woff2",
+    "bytes": 54364
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/131.woff2",
+    "bytes": 58252
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/132.woff2",
+    "bytes": 32428
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/133.woff2",
+    "bytes": 32988
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/134.woff2",
+    "bytes": 38856
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/135.woff2",
+    "bytes": 35436
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/136.woff2",
+    "bytes": 28288
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/137.woff2",
+    "bytes": 36756
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/138.woff2",
+    "bytes": 33404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/139.woff2",
+    "bytes": 39160
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/14.woff2",
+    "bytes": 18548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/140.woff2",
+    "bytes": 41312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/141.woff2",
+    "bytes": 50704
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/142.woff2",
+    "bytes": 31416
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/143.woff2",
+    "bytes": 39484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/144.woff2",
+    "bytes": 38640
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/145.woff2",
+    "bytes": 39112
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/146.woff2",
+    "bytes": 47352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/147.woff2",
+    "bytes": 41844
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/148.woff2",
+    "bytes": 52600
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/149.woff2",
+    "bytes": 37768
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/15.woff2",
+    "bytes": 20448
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/150.woff2",
+    "bytes": 33772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/151.woff2",
+    "bytes": 40336
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/152.woff2",
+    "bytes": 49208
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/153.woff2",
+    "bytes": 51424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/154.woff2",
+    "bytes": 37256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/155.woff2",
+    "bytes": 46880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/156.woff2",
+    "bytes": 56140
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/157.woff2",
+    "bytes": 45684
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/158.woff2",
+    "bytes": 53196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/159.woff2",
+    "bytes": 42880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/16.woff2",
+    "bytes": 21284
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/160.woff2",
+    "bytes": 45468
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/161.woff2",
+    "bytes": 43556
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/162.woff2",
+    "bytes": 41652
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/163.woff2",
+    "bytes": 46464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/164.woff2",
+    "bytes": 50264
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/165.woff2",
+    "bytes": 57136
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/166.woff2",
+    "bytes": 61580
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/167.woff2",
+    "bytes": 54464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/168.woff2",
+    "bytes": 48692
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/169.woff2",
+    "bytes": 40256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/17.woff2",
+    "bytes": 22740
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/170.woff2",
+    "bytes": 45392
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/171.woff2",
+    "bytes": 56628
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/172.woff2",
+    "bytes": 52192
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/173.woff2",
+    "bytes": 53824
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/174.woff2",
+    "bytes": 48184
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/175.woff2",
+    "bytes": 55156
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/176.woff2",
+    "bytes": 49568
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/177.woff2",
+    "bytes": 45768
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/178.woff2",
+    "bytes": 48856
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/179.woff2",
+    "bytes": 50336
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/18.woff2",
+    "bytes": 25260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/180.woff2",
+    "bytes": 61672
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/181.woff2",
+    "bytes": 49080
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/182.woff2",
+    "bytes": 58132
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/183.woff2",
+    "bytes": 62976
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/184.woff2",
+    "bytes": 65380
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/185.woff2",
+    "bytes": 68644
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/186.woff2",
+    "bytes": 74432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/187.woff2",
+    "bytes": 56056
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/188.woff2",
+    "bytes": 45352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/19.woff2",
+    "bytes": 25452
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/2.woff2",
+    "bytes": 3312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/20.woff2",
+    "bytes": 26552
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/21.woff2",
+    "bytes": 26304
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/22.woff2",
+    "bytes": 28948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/23.woff2",
+    "bytes": 31800
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/24.woff2",
+    "bytes": 32544
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/25.woff2",
+    "bytes": 33736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/26.woff2",
+    "bytes": 34612
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/27.woff2",
+    "bytes": 35636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/28.woff2",
+    "bytes": 35992
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/29.woff2",
+    "bytes": 37592
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/3.woff2",
+    "bytes": 1044
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/30.woff2",
+    "bytes": 38084
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/31.woff2",
+    "bytes": 39436
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/32.woff2",
+    "bytes": 37696
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/33.woff2",
+    "bytes": 40256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/34.woff2",
+    "bytes": 40184
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/35.woff2",
+    "bytes": 42168
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/36.woff2",
+    "bytes": 42548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/37.woff2",
+    "bytes": 42484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/38.woff2",
+    "bytes": 43064
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/39.woff2",
+    "bytes": 42940
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/4.woff2",
+    "bytes": 892
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/40.woff2",
+    "bytes": 44980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/41.woff2",
+    "bytes": 44980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/42.woff2",
+    "bytes": 47464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/43.woff2",
+    "bytes": 46260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/44.woff2",
+    "bytes": 50420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/45.woff2",
+    "bytes": 49824
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/46.woff2",
+    "bytes": 48052
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/47.woff2",
+    "bytes": 48516
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/48.woff2",
+    "bytes": 8188
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/49.woff2",
+    "bytes": 10540
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/5.woff2",
+    "bytes": 964
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/50.woff2",
+    "bytes": 12596
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/51.woff2",
+    "bytes": 13832
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/52.woff2",
+    "bytes": 14432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/53.woff2",
+    "bytes": 15920
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/54.woff2",
+    "bytes": 16332
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/55.woff2",
+    "bytes": 16808
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/56.woff2",
+    "bytes": 18280
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/57.woff2",
+    "bytes": 19120
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/58.woff2",
+    "bytes": 20040
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/59.woff2",
+    "bytes": 20856
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/6.woff2",
+    "bytes": 1832
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/60.woff2",
+    "bytes": 22028
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/61.woff2",
+    "bytes": 22256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/62.woff2",
+    "bytes": 23288
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/63.woff2",
+    "bytes": 23688
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/64.woff2",
+    "bytes": 23188
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/65.woff2",
+    "bytes": 25000
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/66.woff2",
+    "bytes": 25204
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/67.woff2",
+    "bytes": 25644
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/68.woff2",
+    "bytes": 25312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/69.woff2",
+    "bytes": 26420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/7.woff2",
+    "bytes": 6496
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/70.woff2",
+    "bytes": 26668
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/71.woff2",
+    "bytes": 26888
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/72.woff2",
+    "bytes": 28304
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/73.woff2",
+    "bytes": 31048
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/74.woff2",
+    "bytes": 28576
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/75.woff2",
+    "bytes": 17592
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/76.woff2",
+    "bytes": 8380
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/77.woff2",
+    "bytes": 7252
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/78.woff2",
+    "bytes": 2128
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/79.woff2",
+    "bytes": 884
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/8.woff2",
+    "bytes": 968
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/80.woff2",
+    "bytes": 4504
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/81.woff2",
+    "bytes": 3352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/82.woff2",
+    "bytes": 2412
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/83.woff2",
+    "bytes": 2404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/84.woff2",
+    "bytes": 5316
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/85.woff2",
+    "bytes": 5784
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/86.woff2",
+    "bytes": 3080
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/87.woff2",
+    "bytes": 3960
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/88.woff2",
+    "bytes": 7576
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/89.woff2",
+    "bytes": 15844
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/9.woff2",
+    "bytes": 1116
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/90.woff2",
+    "bytes": 22316
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/91.woff2",
+    "bytes": 21680
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/92.woff2",
+    "bytes": 17768
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/93.woff2",
+    "bytes": 24408
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/94.woff2",
+    "bytes": 23980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/95.woff2",
+    "bytes": 27700
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/96.woff2",
+    "bytes": 27964
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/97.woff2",
+    "bytes": 21312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/98.woff2",
+    "bytes": 26044
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/99.woff2",
+    "bytes": 25988
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/bold/upstream.css.txt",
+    "bytes": 145624
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/0.woff2",
+    "bytes": 41404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/1.woff2",
+    "bytes": 1676
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/10.woff2",
+    "bytes": 2028
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/100.woff2",
+    "bytes": 32300
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/101.woff2",
+    "bytes": 31216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/102.woff2",
+    "bytes": 30304
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/103.woff2",
+    "bytes": 26848
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/104.woff2",
+    "bytes": 33548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/105.woff2",
+    "bytes": 35316
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/106.woff2",
+    "bytes": 31704
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/107.woff2",
+    "bytes": 38400
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/108.woff2",
+    "bytes": 34944
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/109.woff2",
+    "bytes": 34780
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/11.woff2",
+    "bytes": 10564
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/110.woff2",
+    "bytes": 34824
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/111.woff2",
+    "bytes": 32748
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/112.woff2",
+    "bytes": 34192
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/113.woff2",
+    "bytes": 36928
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/114.woff2",
+    "bytes": 37520
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/115.woff2",
+    "bytes": 44268
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/116.woff2",
+    "bytes": 43992
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/117.woff2",
+    "bytes": 35360
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/118.woff2",
+    "bytes": 33392
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/119.woff2",
+    "bytes": 39028
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/12.woff2",
+    "bytes": 13440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/120.woff2",
+    "bytes": 41784
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/121.woff2",
+    "bytes": 39340
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/122.woff2",
+    "bytes": 42300
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/123.woff2",
+    "bytes": 38112
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/124.woff2",
+    "bytes": 36396
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/125.woff2",
+    "bytes": 45832
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/126.woff2",
+    "bytes": 38552
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/127.woff2",
+    "bytes": 47172
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/128.woff2",
+    "bytes": 49216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/129.woff2",
+    "bytes": 55492
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/13.woff2",
+    "bytes": 15736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/130.woff2",
+    "bytes": 56720
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/131.woff2",
+    "bytes": 40424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/132.woff2",
+    "bytes": 30424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/133.woff2",
+    "bytes": 40192
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/134.woff2",
+    "bytes": 36484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/135.woff2",
+    "bytes": 27168
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/136.woff2",
+    "bytes": 34876
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/137.woff2",
+    "bytes": 34656
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/138.woff2",
+    "bytes": 39240
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/139.woff2",
+    "bytes": 40804
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/14.woff2",
+    "bytes": 18420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/140.woff2",
+    "bytes": 52136
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/141.woff2",
+    "bytes": 32052
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/142.woff2",
+    "bytes": 39196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/143.woff2",
+    "bytes": 38392
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/144.woff2",
+    "bytes": 38852
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/145.woff2",
+    "bytes": 47728
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/146.woff2",
+    "bytes": 41852
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/147.woff2",
+    "bytes": 52720
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/148.woff2",
+    "bytes": 37760
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/149.woff2",
+    "bytes": 34088
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/15.woff2",
+    "bytes": 20296
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/150.woff2",
+    "bytes": 40544
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/151.woff2",
+    "bytes": 50636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/152.woff2",
+    "bytes": 50240
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/153.woff2",
+    "bytes": 38416
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/154.woff2",
+    "bytes": 47984
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/155.woff2",
+    "bytes": 54668
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/156.woff2",
+    "bytes": 49064
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/157.woff2",
+    "bytes": 53196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/158.woff2",
+    "bytes": 41300
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/159.woff2",
+    "bytes": 46040
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/16.woff2",
+    "bytes": 21696
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/160.woff2",
+    "bytes": 42312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/161.woff2",
+    "bytes": 43964
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/162.woff2",
+    "bytes": 48328
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/163.woff2",
+    "bytes": 49548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/164.woff2",
+    "bytes": 57888
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/165.woff2",
+    "bytes": 66624
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/166.woff2",
+    "bytes": 47152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/167.woff2",
+    "bytes": 50844
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/168.woff2",
+    "bytes": 36400
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/169.woff2",
+    "bytes": 48772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/17.woff2",
+    "bytes": 22948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/170.woff2",
+    "bytes": 54616
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/171.woff2",
+    "bytes": 55516
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/172.woff2",
+    "bytes": 56632
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/173.woff2",
+    "bytes": 47172
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/174.woff2",
+    "bytes": 54144
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/175.woff2",
+    "bytes": 48656
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/176.woff2",
+    "bytes": 44780
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/177.woff2",
+    "bytes": 50024
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/178.woff2",
+    "bytes": 59496
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/179.woff2",
+    "bytes": 54204
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/18.woff2",
+    "bytes": 25072
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/180.woff2",
+    "bytes": 51432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/181.woff2",
+    "bytes": 61460
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/182.woff2",
+    "bytes": 66920
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/183.woff2",
+    "bytes": 69064
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/184.woff2",
+    "bytes": 73044
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/185.woff2",
+    "bytes": 69224
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/186.woff2",
+    "bytes": 46528
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/187.woff2",
+    "bytes": 17876
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/19.woff2",
+    "bytes": 24980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/2.woff2",
+    "bytes": 3372
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/20.woff2",
+    "bytes": 26296
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/21.woff2",
+    "bytes": 26320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/22.woff2",
+    "bytes": 29312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/23.woff2",
+    "bytes": 31736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/24.woff2",
+    "bytes": 31940
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/25.woff2",
+    "bytes": 33472
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/26.woff2",
+    "bytes": 35636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/27.woff2",
+    "bytes": 35332
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/28.woff2",
+    "bytes": 36188
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/29.woff2",
+    "bytes": 36848
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/3.woff2",
+    "bytes": 1048
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/30.woff2",
+    "bytes": 38400
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/31.woff2",
+    "bytes": 39420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/32.woff2",
+    "bytes": 38144
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/33.woff2",
+    "bytes": 40920
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/34.woff2",
+    "bytes": 41448
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/35.woff2",
+    "bytes": 41168
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/36.woff2",
+    "bytes": 42820
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/37.woff2",
+    "bytes": 42328
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/38.woff2",
+    "bytes": 42556
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/39.woff2",
+    "bytes": 44132
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/4.woff2",
+    "bytes": 904
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/40.woff2",
+    "bytes": 44128
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/41.woff2",
+    "bytes": 46432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/42.woff2",
+    "bytes": 46440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/43.woff2",
+    "bytes": 48184
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/44.woff2",
+    "bytes": 49344
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/45.woff2",
+    "bytes": 50296
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/46.woff2",
+    "bytes": 48484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/47.woff2",
+    "bytes": 30380
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/48.woff2",
+    "bytes": 8152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/49.woff2",
+    "bytes": 10504
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/5.woff2",
+    "bytes": 968
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/50.woff2",
+    "bytes": 12476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/51.woff2",
+    "bytes": 13748
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/52.woff2",
+    "bytes": 14532
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/53.woff2",
+    "bytes": 15836
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/54.woff2",
+    "bytes": 16196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/55.woff2",
+    "bytes": 16736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/56.woff2",
+    "bytes": 18292
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/57.woff2",
+    "bytes": 18732
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/58.woff2",
+    "bytes": 20068
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/59.woff2",
+    "bytes": 20448
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/6.woff2",
+    "bytes": 1832
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/60.woff2",
+    "bytes": 21492
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/61.woff2",
+    "bytes": 22048
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/62.woff2",
+    "bytes": 22808
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/63.woff2",
+    "bytes": 23384
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/64.woff2",
+    "bytes": 23312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/65.woff2",
+    "bytes": 24236
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/66.woff2",
+    "bytes": 24780
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/67.woff2",
+    "bytes": 25184
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/68.woff2",
+    "bytes": 25236
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/69.woff2",
+    "bytes": 26548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/7.woff2",
+    "bytes": 6536
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/70.woff2",
+    "bytes": 26436
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/71.woff2",
+    "bytes": 26404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/72.woff2",
+    "bytes": 28336
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/73.woff2",
+    "bytes": 31052
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/74.woff2",
+    "bytes": 28472
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/75.woff2",
+    "bytes": 17452
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/76.woff2",
+    "bytes": 8580
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/77.woff2",
+    "bytes": 7896
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/78.woff2",
+    "bytes": 2040
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/79.woff2",
+    "bytes": 892
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/8.woff2",
+    "bytes": 976
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/80.woff2",
+    "bytes": 4440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/81.woff2",
+    "bytes": 3272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/82.woff2",
+    "bytes": 2440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/83.woff2",
+    "bytes": 2496
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/84.woff2",
+    "bytes": 5520
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/85.woff2",
+    "bytes": 6036
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/86.woff2",
+    "bytes": 2744
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/87.woff2",
+    "bytes": 4780
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/88.woff2",
+    "bytes": 8140
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/89.woff2",
+    "bytes": 16320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/9.woff2",
+    "bytes": 1160
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/90.woff2",
+    "bytes": 22352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/91.woff2",
+    "bytes": 21276
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/92.woff2",
+    "bytes": 18544
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/93.woff2",
+    "bytes": 23920
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/94.woff2",
+    "bytes": 25100
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/95.woff2",
+    "bytes": 30092
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/96.woff2",
+    "bytes": 25364
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/97.woff2",
+    "bytes": 23324
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/98.woff2",
+    "bytes": 25376
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/99.woff2",
+    "bytes": 26184
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/demibold/upstream.css.txt",
+    "bytes": 148978
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/0.woff2",
+    "bytes": 41164
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/1.woff2",
+    "bytes": 1632
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/10.woff2",
+    "bytes": 1956
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/100.woff2",
+    "bytes": 32244
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/101.woff2",
+    "bytes": 31196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/102.woff2",
+    "bytes": 30312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/103.woff2",
+    "bytes": 27004
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/104.woff2",
+    "bytes": 33744
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/105.woff2",
+    "bytes": 35668
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/106.woff2",
+    "bytes": 31552
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/107.woff2",
+    "bytes": 38280
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/108.woff2",
+    "bytes": 35128
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/109.woff2",
+    "bytes": 34756
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/11.woff2",
+    "bytes": 10636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/110.woff2",
+    "bytes": 34376
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/111.woff2",
+    "bytes": 32852
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/112.woff2",
+    "bytes": 34272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/113.woff2",
+    "bytes": 37156
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/114.woff2",
+    "bytes": 36904
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/115.woff2",
+    "bytes": 43984
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/116.woff2",
+    "bytes": 43872
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/117.woff2",
+    "bytes": 35504
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/118.woff2",
+    "bytes": 33656
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/119.woff2",
+    "bytes": 38932
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/12.woff2",
+    "bytes": 13484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/120.woff2",
+    "bytes": 41468
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/121.woff2",
+    "bytes": 39824
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/122.woff2",
+    "bytes": 41928
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/123.woff2",
+    "bytes": 38196
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/124.woff2",
+    "bytes": 36484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/125.woff2",
+    "bytes": 44628
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/126.woff2",
+    "bytes": 38684
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/127.woff2",
+    "bytes": 46924
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/128.woff2",
+    "bytes": 48940
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/129.woff2",
+    "bytes": 55720
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/13.woff2",
+    "bytes": 15816
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/130.woff2",
+    "bytes": 56864
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/131.woff2",
+    "bytes": 40060
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/132.woff2",
+    "bytes": 30664
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/133.woff2",
+    "bytes": 39968
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/134.woff2",
+    "bytes": 36628
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/135.woff2",
+    "bytes": 27232
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/136.woff2",
+    "bytes": 34900
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/137.woff2",
+    "bytes": 34772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/138.woff2",
+    "bytes": 39100
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/139.woff2",
+    "bytes": 41188
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/14.woff2",
+    "bytes": 18508
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/140.woff2",
+    "bytes": 52508
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/141.woff2",
+    "bytes": 31972
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/142.woff2",
+    "bytes": 39044
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/143.woff2",
+    "bytes": 38528
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/144.woff2",
+    "bytes": 38936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/145.woff2",
+    "bytes": 47792
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/146.woff2",
+    "bytes": 41996
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/147.woff2",
+    "bytes": 52684
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/148.woff2",
+    "bytes": 37964
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/149.woff2",
+    "bytes": 34356
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/15.woff2",
+    "bytes": 20372
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/150.woff2",
+    "bytes": 40868
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/151.woff2",
+    "bytes": 50748
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/152.woff2",
+    "bytes": 50480
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/153.woff2",
+    "bytes": 38496
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/154.woff2",
+    "bytes": 47828
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/155.woff2",
+    "bytes": 54472
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/156.woff2",
+    "bytes": 49260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/157.woff2",
+    "bytes": 53012
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/158.woff2",
+    "bytes": 41240
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/159.woff2",
+    "bytes": 45864
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/16.woff2",
+    "bytes": 21840
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/160.woff2",
+    "bytes": 42452
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/161.woff2",
+    "bytes": 44292
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/162.woff2",
+    "bytes": 48484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/163.woff2",
+    "bytes": 49060
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/164.woff2",
+    "bytes": 57608
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/165.woff2",
+    "bytes": 66660
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/166.woff2",
+    "bytes": 47104
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/167.woff2",
+    "bytes": 51404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/168.woff2",
+    "bytes": 36580
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/169.woff2",
+    "bytes": 48620
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/17.woff2",
+    "bytes": 22712
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/170.woff2",
+    "bytes": 54216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/171.woff2",
+    "bytes": 55380
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/172.woff2",
+    "bytes": 57132
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/173.woff2",
+    "bytes": 47240
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/174.woff2",
+    "bytes": 54216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/175.woff2",
+    "bytes": 48772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/176.woff2",
+    "bytes": 44872
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/177.woff2",
+    "bytes": 48004
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/178.woff2",
+    "bytes": 55768
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/179.woff2",
+    "bytes": 52652
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/18.woff2",
+    "bytes": 25500
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/180.woff2",
+    "bytes": 51476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/181.woff2",
+    "bytes": 60300
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/182.woff2",
+    "bytes": 67260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/183.woff2",
+    "bytes": 69068
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/184.woff2",
+    "bytes": 72588
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/185.woff2",
+    "bytes": 68884
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/186.woff2",
+    "bytes": 46356
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/187.woff2",
+    "bytes": 18012
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/19.woff2",
+    "bytes": 24996
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/2.woff2",
+    "bytes": 3376
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/20.woff2",
+    "bytes": 26440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/21.woff2",
+    "bytes": 26004
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/22.woff2",
+    "bytes": 29900
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/23.woff2",
+    "bytes": 31704
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/24.woff2",
+    "bytes": 31980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/25.woff2",
+    "bytes": 33676
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/26.woff2",
+    "bytes": 35736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/27.woff2",
+    "bytes": 35452
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/28.woff2",
+    "bytes": 36248
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/29.woff2",
+    "bytes": 37236
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/3.woff2",
+    "bytes": 1000
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/30.woff2",
+    "bytes": 38576
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/31.woff2",
+    "bytes": 39176
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/32.woff2",
+    "bytes": 38152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/33.woff2",
+    "bytes": 40704
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/34.woff2",
+    "bytes": 41408
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/35.woff2",
+    "bytes": 41344
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/36.woff2",
+    "bytes": 42936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/37.woff2",
+    "bytes": 42416
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/38.woff2",
+    "bytes": 42580
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/39.woff2",
+    "bytes": 44380
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/4.woff2",
+    "bytes": 884
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/40.woff2",
+    "bytes": 44156
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/41.woff2",
+    "bytes": 46560
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/42.woff2",
+    "bytes": 46584
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/43.woff2",
+    "bytes": 48292
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/44.woff2",
+    "bytes": 49476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/45.woff2",
+    "bytes": 50580
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/46.woff2",
+    "bytes": 48664
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/47.woff2",
+    "bytes": 30504
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/48.woff2",
+    "bytes": 8152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/49.woff2",
+    "bytes": 10464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/5.woff2",
+    "bytes": 960
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/50.woff2",
+    "bytes": 12456
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/51.woff2",
+    "bytes": 13816
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/52.woff2",
+    "bytes": 14368
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/53.woff2",
+    "bytes": 15844
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/54.woff2",
+    "bytes": 16404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/55.woff2",
+    "bytes": 16572
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/56.woff2",
+    "bytes": 18232
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/57.woff2",
+    "bytes": 18784
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/58.woff2",
+    "bytes": 19948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/59.woff2",
+    "bytes": 20592
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/6.woff2",
+    "bytes": 1800
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/60.woff2",
+    "bytes": 21528
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/61.woff2",
+    "bytes": 21780
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/62.woff2",
+    "bytes": 23036
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/63.woff2",
+    "bytes": 23352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/64.woff2",
+    "bytes": 22948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/65.woff2",
+    "bytes": 24092
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/66.woff2",
+    "bytes": 24668
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/67.woff2",
+    "bytes": 25484
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/68.woff2",
+    "bytes": 25100
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/69.woff2",
+    "bytes": 26548
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/7.woff2",
+    "bytes": 6340
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/70.woff2",
+    "bytes": 26152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/71.woff2",
+    "bytes": 26320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/72.woff2",
+    "bytes": 27972
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/73.woff2",
+    "bytes": 31000
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/74.woff2",
+    "bytes": 28428
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/75.woff2",
+    "bytes": 17372
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/76.woff2",
+    "bytes": 7880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/77.woff2",
+    "bytes": 6944
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/78.woff2",
+    "bytes": 1988
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/79.woff2",
+    "bytes": 868
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/8.woff2",
+    "bytes": 936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/80.woff2",
+    "bytes": 4376
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/81.woff2",
+    "bytes": 3312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/82.woff2",
+    "bytes": 2400
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/83.woff2",
+    "bytes": 2304
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/84.woff2",
+    "bytes": 5524
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/85.woff2",
+    "bytes": 5476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/86.woff2",
+    "bytes": 2692
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/87.woff2",
+    "bytes": 4744
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/88.woff2",
+    "bytes": 8100
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/89.woff2",
+    "bytes": 16276
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/9.woff2",
+    "bytes": 1120
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/90.woff2",
+    "bytes": 22320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/91.woff2",
+    "bytes": 21252
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/92.woff2",
+    "bytes": 18480
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/93.woff2",
+    "bytes": 23980
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/94.woff2",
+    "bytes": 25228
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/95.woff2",
+    "bytes": 30624
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/96.woff2",
+    "bytes": 25400
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/97.woff2",
+    "bytes": 23260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/98.woff2",
+    "bytes": 25280
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/99.woff2",
+    "bytes": 26272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/light/upstream.css.txt",
+    "bytes": 147814
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/0.woff2",
+    "bytes": 36932
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/1.woff2",
+    "bytes": 1636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/10.woff2",
+    "bytes": 1880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/100.woff2",
+    "bytes": 32272
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/101.woff2",
+    "bytes": 31208
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/102.woff2",
+    "bytes": 30584
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/103.woff2",
+    "bytes": 26924
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/104.woff2",
+    "bytes": 33732
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/105.woff2",
+    "bytes": 35260
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/106.woff2",
+    "bytes": 31424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/107.woff2",
+    "bytes": 38220
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/108.woff2",
+    "bytes": 34936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/109.woff2",
+    "bytes": 34672
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/11.woff2",
+    "bytes": 10552
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/110.woff2",
+    "bytes": 34576
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/111.woff2",
+    "bytes": 32708
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/112.woff2",
+    "bytes": 34180
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/113.woff2",
+    "bytes": 36992
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/114.woff2",
+    "bytes": 36864
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/115.woff2",
+    "bytes": 44092
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/116.woff2",
+    "bytes": 43880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/117.woff2",
+    "bytes": 35492
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/118.woff2",
+    "bytes": 33444
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/119.woff2",
+    "bytes": 38736
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/12.woff2",
+    "bytes": 13464
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/120.woff2",
+    "bytes": 41656
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/121.woff2",
+    "bytes": 39348
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/122.woff2",
+    "bytes": 42200
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/123.woff2",
+    "bytes": 38172
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/124.woff2",
+    "bytes": 36356
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/125.woff2",
+    "bytes": 44276
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/126.woff2",
+    "bytes": 38600
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/127.woff2",
+    "bytes": 47064
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/128.woff2",
+    "bytes": 48828
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/129.woff2",
+    "bytes": 55648
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/13.woff2",
+    "bytes": 15724
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/130.woff2",
+    "bytes": 56596
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/131.woff2",
+    "bytes": 40256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/132.woff2",
+    "bytes": 30460
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/133.woff2",
+    "bytes": 39880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/134.woff2",
+    "bytes": 36476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/135.woff2",
+    "bytes": 27176
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/136.woff2",
+    "bytes": 34792
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/137.woff2",
+    "bytes": 34688
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/138.woff2",
+    "bytes": 39080
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/139.woff2",
+    "bytes": 40940
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/14.woff2",
+    "bytes": 18468
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/140.woff2",
+    "bytes": 52288
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/141.woff2",
+    "bytes": 31988
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/142.woff2",
+    "bytes": 39084
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/143.woff2",
+    "bytes": 38432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/144.woff2",
+    "bytes": 38864
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/145.woff2",
+    "bytes": 47720
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/146.woff2",
+    "bytes": 41948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/147.woff2",
+    "bytes": 52624
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/148.woff2",
+    "bytes": 37772
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/149.woff2",
+    "bytes": 34112
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/15.woff2",
+    "bytes": 20368
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/150.woff2",
+    "bytes": 40848
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/151.woff2",
+    "bytes": 50652
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/152.woff2",
+    "bytes": 50216
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/153.woff2",
+    "bytes": 38440
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/154.woff2",
+    "bytes": 47840
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/155.woff2",
+    "bytes": 54516
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/156.woff2",
+    "bytes": 49088
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/157.woff2",
+    "bytes": 53092
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/158.woff2",
+    "bytes": 41228
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/159.woff2",
+    "bytes": 45888
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/16.woff2",
+    "bytes": 21424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/160.woff2",
+    "bytes": 42392
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/161.woff2",
+    "bytes": 43964
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/162.woff2",
+    "bytes": 48320
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/163.woff2",
+    "bytes": 49008
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/164.woff2",
+    "bytes": 57480
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/165.woff2",
+    "bytes": 66488
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/166.woff2",
+    "bytes": 47016
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/167.woff2",
+    "bytes": 50832
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/168.woff2",
+    "bytes": 36404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/169.woff2",
+    "bytes": 48620
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/17.woff2",
+    "bytes": 22660
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/170.woff2",
+    "bytes": 54284
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/171.woff2",
+    "bytes": 55352
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/172.woff2",
+    "bytes": 56836
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/173.woff2",
+    "bytes": 47200
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/174.woff2",
+    "bytes": 54036
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/175.woff2",
+    "bytes": 48776
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/176.woff2",
+    "bytes": 44632
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/177.woff2",
+    "bytes": 49124
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/178.woff2",
+    "bytes": 57348
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/179.woff2",
+    "bytes": 53432
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/18.woff2",
+    "bytes": 25028
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/180.woff2",
+    "bytes": 51336
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/181.woff2",
+    "bytes": 61084
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/182.woff2",
+    "bytes": 67116
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/183.woff2",
+    "bytes": 69460
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/184.woff2",
+    "bytes": 72420
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/185.woff2",
+    "bytes": 69040
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/186.woff2",
+    "bytes": 45984
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/187.woff2",
+    "bytes": 17360
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/19.woff2",
+    "bytes": 24988
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/2.woff2",
+    "bytes": 3364
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/20.woff2",
+    "bytes": 26244
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/21.woff2",
+    "bytes": 25948
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/22.woff2",
+    "bytes": 29312
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/23.woff2",
+    "bytes": 31684
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/24.woff2",
+    "bytes": 31788
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/25.woff2",
+    "bytes": 33552
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/26.woff2",
+    "bytes": 35564
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/27.woff2",
+    "bytes": 35152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/28.woff2",
+    "bytes": 36140
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/29.woff2",
+    "bytes": 37120
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/3.woff2",
+    "bytes": 1028
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/30.woff2",
+    "bytes": 38512
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/31.woff2",
+    "bytes": 39516
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/32.woff2",
+    "bytes": 38096
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/33.woff2",
+    "bytes": 41048
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/34.woff2",
+    "bytes": 41404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/35.woff2",
+    "bytes": 41152
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/36.woff2",
+    "bytes": 42932
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/37.woff2",
+    "bytes": 42264
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/38.woff2",
+    "bytes": 42524
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/39.woff2",
+    "bytes": 44296
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/4.woff2",
+    "bytes": 880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/40.woff2",
+    "bytes": 43944
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/41.woff2",
+    "bytes": 46372
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/42.woff2",
+    "bytes": 46424
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/43.woff2",
+    "bytes": 48156
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/44.woff2",
+    "bytes": 48788
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/45.woff2",
+    "bytes": 50376
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/46.woff2",
+    "bytes": 48628
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/47.woff2",
+    "bytes": 30448
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/48.woff2",
+    "bytes": 8112
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/49.woff2",
+    "bytes": 10404
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/5.woff2",
+    "bytes": 956
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/50.woff2",
+    "bytes": 12460
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/51.woff2",
+    "bytes": 13696
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/52.woff2",
+    "bytes": 14428
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/53.woff2",
+    "bytes": 15692
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/54.woff2",
+    "bytes": 16360
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/55.woff2",
+    "bytes": 16764
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/56.woff2",
+    "bytes": 18280
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/57.woff2",
+    "bytes": 18668
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/58.woff2",
+    "bytes": 20048
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/59.woff2",
+    "bytes": 20632
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/6.woff2",
+    "bytes": 1796
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/60.woff2",
+    "bytes": 21476
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/61.woff2",
+    "bytes": 22024
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/62.woff2",
+    "bytes": 22656
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/63.woff2",
+    "bytes": 23340
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/64.woff2",
+    "bytes": 23316
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/65.woff2",
+    "bytes": 24004
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/66.woff2",
+    "bytes": 24936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/67.woff2",
+    "bytes": 25480
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/68.woff2",
+    "bytes": 25132
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/69.woff2",
+    "bytes": 26492
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/7.woff2",
+    "bytes": 6316
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/70.woff2",
+    "bytes": 26444
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/71.woff2",
+    "bytes": 26372
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/72.woff2",
+    "bytes": 27892
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/73.woff2",
+    "bytes": 30956
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/74.woff2",
+    "bytes": 28596
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/75.woff2",
+    "bytes": 17516
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/76.woff2",
+    "bytes": 7876
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/77.woff2",
+    "bytes": 7636
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/78.woff2",
+    "bytes": 2020
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/79.woff2",
+    "bytes": 880
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/8.woff2",
+    "bytes": 936
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/80.woff2",
+    "bytes": 4344
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/81.woff2",
+    "bytes": 3264
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/82.woff2",
+    "bytes": 2392
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/83.woff2",
+    "bytes": 2276
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/84.woff2",
+    "bytes": 5144
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/85.woff2",
+    "bytes": 5436
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/86.woff2",
+    "bytes": 2692
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/87.woff2",
+    "bytes": 4744
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/88.woff2",
+    "bytes": 8016
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/89.woff2",
+    "bytes": 16296
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/9.woff2",
+    "bytes": 1100
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/90.woff2",
+    "bytes": 22264
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/91.woff2",
+    "bytes": 21264
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/92.woff2",
+    "bytes": 18452
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/93.woff2",
+    "bytes": 23932
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/94.woff2",
+    "bytes": 25024
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/95.woff2",
+    "bytes": 30200
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/96.woff2",
+    "bytes": 25256
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/97.woff2",
+    "bytes": 23172
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/98.woff2",
+    "bytes": 25268
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/99.woff2",
+    "bytes": 26200
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/regular/upstream.css.txt",
+    "bytes": 145370
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/source.json",
+    "bytes": 118234
+  },
+  {
+    "path": "fonts/misans-webfont-4.3.1/UPSTREAM-README.md",
+    "bytes": 4816
+  },
+  {
+    "path": "fonts/NOTICE.txt",
+    "bytes": 943
+  },
+  {
+    "path": "icons/app-icon.svg",
+    "bytes": 507
+  },
+  {
+    "path": "icons/apple-touch-icon.png",
+    "bytes": 3667
+  },
+  {
+    "path": "icons/icon-192.png",
+    "bytes": 3939
+  },
+  {
+    "path": "icons/icon-512.png",
+    "bytes": 14610
+  },
+  {
+    "path": "icons/icon-maskable-512.png",
+    "bytes": 14610
+  },
+  {
+    "path": "index.html",
+    "bytes": 3860
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 1084
+  },
+  {
+    "path": "licenses/rolling-number.txt",
+    "bytes": 1089
+  },
+  {
+    "path": "preview.gif",
+    "bytes": 940017
+  },
+  {
+    "path": "preview.jpg",
+    "bytes": 209431
+  },
+  {
+    "path": "project.json",
+    "bytes": 51741
+  },
+  {
+    "path": "THIRD-PARTY-NOTICES.txt",
+    "bytes": 2390
+  }
+]
