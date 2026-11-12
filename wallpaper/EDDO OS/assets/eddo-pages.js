@@ -78,14 +78,14 @@
     });
     window.addEventListener("pointermove", (e) => {
       const d = V3.drag; if (!d) return;
-      if (d.swipe) { V3.page && V3.page.dragMove && V3.page.dragMove(e.clientX - d.x); return; }
+      if (d.swipe) { V3.page && V3.page.dragMove && V3.page.dragMove(e.clientX - d.x, e.clientY - d.y); return; }
       V3.view.theta = d.th - (e.clientX - d.x) * 0.006; V3.view.phi = Math.max(0.35, Math.min(1.45, d.ph - (e.clientY - d.y) * 0.004));
     });
     window.addEventListener("pointerup", (e) => {
       const d = V3.drag; if (!d) return;
       V3.drag = null;
       if (d.swipe) {
-        V3.page && V3.page.dragEnd && V3.page.dragEnd(e.clientX - d.x);
+        V3.page && V3.page.dragEnd && V3.page.dragEnd(e.clientX - d.x, e.clientY - d.y, e);
         if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) { V3.pinned = d.hover || null; V3.confirm = null; drawCard(); }   // a tap on a spool still opens it
         return;
       }
@@ -162,6 +162,7 @@
       (conf ? `<div class="eddo-page-card-confirm"><p>${esc(pk.actions.remove.ask)}</p><button data-pcard-yes>REMOVE</button><button data-pcard-no>CANCEL</button></div>`
         : pk.actions && pk.actions.remove && V3.pinned === key ? `<button class="eddo-page-card-rm" data-pcard-rm>× ${esc(pk.actions.remove.label || "REMOVE")}</button>` : "") +
       (pk.actions && pk.actions.open ? `<button class="eddo-page-card-open" data-pcard-open>${esc(pk.actions.open.label)}</button>` : "") +
+      (pk.actions && pk.actions.more && V3.pinned === key ? pk.actions.more.map((m, i) => `<button class="eddo-page-card-open" data-pcard-more="${i}">${esc(m.label)}</button>`).join("") : "") +
       (V3.pinned === key ? "" : `<em class="eddo-page-card-hint">CLICK TO KEEP OPEN</em>`);
     if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
   }
@@ -171,6 +172,7 @@
     if (e.target.closest("[data-pcard-close]") || e.target.closest("[data-pcard-no]") && !V3.confirm) { V3.pinned = null; V3.confirm = null; }
     else if (e.target.closest("[data-pcard-no]")) V3.confirm = null;
     else if (e.target.closest("[data-pcard-rm]")) V3.confirm = V3.pinned;
+    else if (e.target.closest("[data-pcard-more]") && pk && pk.actions && pk.actions.more) { const m = pk.actions.more[+e.target.closest("[data-pcard-more]").dataset.pcardMore]; V3.pinned = null; m && m.run(); }
     else if (e.target.closest("[data-pcard-open]") && pk && pk.actions && pk.actions.open) { V3.pinned = null; pk.actions.open.run(); }
     else if (e.target.closest("[data-pcard-yes]") && pk && pk.actions && pk.actions.remove) { pk.actions.remove.run(); V3.pinned = null; V3.confirm = null; }
     drawCard();
@@ -1023,6 +1025,24 @@
   async function loadQueue(force) { const it = await loadList(WS.queue, force, "itemsAt"); if (it) WS.items = it; }
   async function loadStock(force) { const it = await loadList(WS.stock, force, "stockAt"); if (it) { WS.stockItems = it; buildShelfSpools(); } }
   const hexOf = (t) => { const m = /#([0-9a-f]{6})/i.exec(String(t || "")); return m ? parseInt(m[1], 16) : null; };
+  // what's left on a spool and which AMS slot it's in live in the list item's description: "… · LEFT 750g · AMS 2"
+  const TOK = /\s*·\s*(LEFT \d+g|AMS \d)/g;
+  function spoolMeta(it) {
+    const d = String(it.description || ""), l = /LEFT (\d+)g/.exec(d), a = /AMS (\d)/.exec(d), kg = /(\d+(?:\.\d+)?)\s*kg/i.exec(it.summary || ""), full = kg ? Math.round(+kg[1] * 1000) : 1000, left = l ? +l[1] : full;
+    return { parts: d.replace(TOK, "").split("·").map((x) => x.trim()), full, left, frac: Math.max(0, Math.min(1, left / full)), tracked: !!l, slot: a ? +a[1] : 0 };
+  }
+  function spoolSave(it, ch) {
+    const m = spoolMeta(it), left = "left" in ch ? ch.left : m.tracked ? m.left : null, slot = "slot" in ch ? ch.slot : m.slot;
+    const d = String(it.description || "").replace(TOK, "") + (left != null ? ` · LEFT ${Math.round(left)}g` : "") + (slot ? ` · AMS ${slot}` : "");
+    it.description = d; WS.shelfKey = ""; buildShelfSpools(); dirty = true;
+    return HA().send({ type: "call_service", domain: "todo", service: "update_item", target: { entity_id: WS.stock }, service_data: { item: it.uid, description: d } }).catch(() => {});
+  }
+  const slotSpool = (n) => WS.stockItems.find((i) => i.status === "needs_action" && spoolMeta(i).slot === n);
+  function loadSlot(it, n) {   // put a shelf spool in AMS slot n (whatever was there comes out)
+    const prev = slotSpool(n); if (prev && prev.uid !== it.uid) spoolSave(prev, { slot: 0 });
+    const m = spoolMeta(it); spoolSave(it, { slot: n, left: m.left }).finally(() => setTimeout(() => loadStock(true), 600)); haptic();
+  }
+  async function loadHist(force) { const it = await loadList(WS.hist, force, "histAt"); if (it) WS.histItems = it; }
   const shortName = (t) => String(t || "").replace(/\([^)]*\)/g, "").replace(/^(PLA|PETG|ABS|TPU|ASA)\s+(Basic|Matte|Silk|Silk Multi-Color|Tough|HF|CF)?\s*/i, "").trim() || String(t || "");
   // a spool: two flanges, the hub, and the wound filament between them; axis "z" faces the camera, "x" sits side-on (in the AMS)
   function spoolPts(ax, cx, cy, cz, r = 1, w = 0.66) {
@@ -1034,14 +1054,14 @@
   }
   const SHELF = { cols: 12, rows: 4, cell: 2.3, w: 11.5, depth: 2.3, x0: -13.2, y0: 0.2 };   // spools stand side-on, 12 to a board
   // a solid spool seen edge-on (axis along x): the wound filament between two grey flanges, shaded per vertex
-  function solidSpool(T, col) {
+  function solidSpool(T, col, frac = 1) {
     const pos = [], colr = [], N = 28, c = new T.Color(col), FL = new T.Color(0x4a4f56);
     const lit = (nx, ny, nz) => { const d = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]); return 0.38 + 0.62 * d + 0.3 * Math.pow(d, 14); };
     const v = (x, y, z, k, cc) => { pos.push(x, y, z); colr.push(Math.min(1, cc.r * k), Math.min(1, cc.g * k), Math.min(1, cc.b * k)); };
     const barrel = (xa, xb, r, cc) => { for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI * 2, a1 = ((i + 1) / N) * Math.PI * 2, y0 = Math.cos(a0), z0 = Math.sin(a0), y1 = Math.cos(a1), z1 = Math.sin(a1), k0 = lit(0, y0, z0), k1 = lit(0, y1, z1);
       v(xa, y0 * r, z0 * r, k0, cc); v(xb, y0 * r, z0 * r, k0, cc); v(xa, y1 * r, z1 * r, k1, cc); v(xa, y1 * r, z1 * r, k1, cc); v(xb, y0 * r, z0 * r, k0, cc); v(xb, y1 * r, z1 * r, k1, cc); } };
     const disc = (x, r, nx, cc) => { const k = lit(nx, 0, 0) * 0.9; for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI * 2, a1 = ((i + 1) / N) * Math.PI * 2; v(x, 0, 0, k, cc); v(x, Math.cos(a0) * r, Math.sin(a0) * r, k, cc); v(x, Math.cos(a1) * r, Math.sin(a1) * r, k, cc); } };
-    barrel(-0.27, 0.27, 0.8, c);
+    barrel(-0.27, 0.27, 0.3, FL); if (frac > 0.01) barrel(-0.27, 0.27, Math.sqrt(0.09 + frac * 0.55), c);
     for (const sx of [-1, 1]) { barrel(sx * 0.27, sx * 0.33, 0.98, FL); disc(sx * 0.33, 0.98, sx, FL); disc(sx * 0.27, 0.98, -sx, FL); }
     const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new T.Float32BufferAttribute(colr, 3));
     return new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, side: T.DoubleSide }));
@@ -1062,8 +1082,10 @@
     const pitch = SHELF.w / SHELF.cols;
     items.forEach((it, n) => {
       const c = n % SHELF.cols, r = Math.floor(n / SHELF.cols), cx = SHELF.x0 + (c + 0.5) * pitch, cy = SHELF.y0 + (SHELF.rows - r - 1) * SHELF.cell + 0.06 + 0.98;
-      const m = solidSpool(T, hexOf(it.description) ?? 0x8fb9c2); m.position.set(cx, cy, 0); m.userData.o = 1;
-      g.add(m); WS.spools.push({ it, m, x: cx, y: cy });
+      const meta = spoolMeta(it), m = solidSpool(T, hexOf(it.description) ?? 0x8fb9c2, meta.frac); m.position.set(cx, cy, 0); m.userData.o = 1;
+      let glow = null;
+      if (meta.tracked && meta.frac <= 0.15) { glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex(T), color: 0xffa23a, transparent: true, opacity: 0.6, blending: T.AdditiveBlending, depthWrite: false })); glow.scale.set(3.4, 3.4, 1); m.add(glow); }
+      g.add(m); WS.spools.push({ it, m, x: cx, y: cy, meta, glow });
     });
   }
   const SHELF_W = () => SHELF.w;
@@ -1141,10 +1163,20 @@
     o.scr.material.map.needsUpdate = true;
   }
   page({
-    id: "workshop", label: "Workshop", pos: 5, view: { dist: 31, ty: 4.1, phi: 1.3, tx: -3.2, theta: 0.1 }, still: true, minDist: 8, maxDist: 48, onSwipe: (d) => shelfPage(d),
-    dragStart(x, y) { const r = shelfRect(); if (!r || (WS.pages || 1) < 2 || x < r.l || x > r.r || y < r.t || y > r.b) return false; WS.dragPx = r.pxPerUnit || 30; WS.dragging = true; return true; },
-    dragMove(dx) { if (!WS.shelf) return; let x = dx / WS.dragPx; const pages = WS.pages || 1; if ((WS.page === 0 && x > 0) || (WS.page >= pages - 1 && x < 0)) x *= 0.3; WS.shelf.position.x = x; },   // resists at the ends
-    dragEnd(dx) { WS.dragging = false; const pages = WS.pages || 1, dir = dx < 0 ? 1 : -1, ok = dir > 0 ? WS.page < pages - 1 : WS.page > 0;
+    id: "workshop", label: "Workshop", pos: 5, view: { dist: 38, ty: 6.3, phi: 1.34, tx: -1.0, theta: 0.08 }, still: true, minDist: 8, maxDist: 60, onSwipe: (d) => shelfPage(d),
+    dragStart(x, y) { const hv = V3.hover, dsp = hv && hv.startsWith("sp:") && (WS.spools || []).find((q) => "sp:" + q.it.uid === hv), r0 = dsp && shelfRect();
+      if (dsp && r0) { WS.dragSp = { sp: dsp, ppu: r0.pxPerUnit || 30, moved: false }; return true; }
+      const r = shelfRect(); if (!r || (WS.pages || 1) < 2 || x < r.l || x > r.r || y < r.t || y > r.b) return false; WS.dragPx = r.pxPerUnit || 30; WS.dragging = true; return true; },
+    dragMove(dx, dy) { if (WS.dragSp) { const D = WS.dragSp; D.moved = D.moved || Math.hypot(dx, dy) > 8; if (D.moved) D.sp.m.position.set(D.sp.x + dx / D.ppu, D.sp.y - dy / D.ppu, 1.8); return; }
+      if (!WS.shelf) return; let x = dx / WS.dragPx; const pages = WS.pages || 1; if ((WS.page === 0 && x > 0) || (WS.page >= pages - 1 && x < 0)) x *= 0.3; WS.shelf.position.x = x; },   // resists at the ends
+    dragEnd(dx, dy, e) {
+      if (WS.dragSp) {   // dropped: on an AMS slot it's loaded there, anywhere else it goes back
+        const D = WS.dragSp, o = WS.obj; WS.dragSp = null; D.sp.m.position.set(D.sp.x, D.sp.y, 0);
+        if (D.moved && o && e) { const r = V3.canvas.getBoundingClientRect(), k = V3.canvas.clientWidth / (r.width || 1), mx = (e.clientX - r.left) * k, my = (e.clientY - r.top) * k; let best = -1, bd = 70;
+          o.amsSp.forEach((a, i) => { const c = toCanvas(a.x, a.y - 1.25, 0); if (!c) return; const dd = Math.hypot(c.x - mx, c.y - my); if (dd < bd) { bd = dd; best = i; } });
+          if (best >= 0) loadSlot(D.sp.it, best + 1); }
+        return; }
+      WS.dragging = false; const pages = WS.pages || 1, dir = dx < 0 ? 1 : -1, ok = dir > 0 ? WS.page < pages - 1 : WS.page > 0;
       if (Math.abs(dx) > 60 && ok) shelfPage(dir, WS.shelf.position.x); else if (WS.shelf) WS.shelf.userData.goal = 0; },
     discover(R) {
       if (!R) return;
@@ -1155,14 +1187,28 @@
         cam: f(/^camera\..*_camera$/), cover: f(/^image\..*cover_image$/), light: f(/^light\..*chamber_light$/) } : null;
       WS.trays = bam.filter((e) => /_ams_\d+_tray_\d+$/.test(e.entity_id) && e.entity_id.startsWith("sensor.")).map((e) => e.entity_id).sort();
       const todo = (re) => (R.allStates.find((s) => s.entity_id.startsWith("todo.") && re.test(s.entity_id + " " + String(s.attributes.friendly_name || "").toLowerCase())) || {}).entity_id || null;
-      WS.queue = todo(/print.?queue|print/); WS.stock = todo(/filament/);
-      watch([...(WS.p ? Object.values(WS.p) : []), ...WS.trays, WS.queue, WS.stock]);
-      loadQueue(true); loadStock(true);
+      WS.queue = todo(/print.?queue/); WS.stock = todo(/filament/); WS.hist = todo(/print.?history/);
+      watch([...(WS.p ? Object.values(WS.p) : []), ...WS.trays, WS.queue, WS.stock, WS.hist]);
+      loadQueue(true); loadStock(true); loadHist(true);
     },
     build(g, T) {
-      g.add(floorGrid(T, 14).translateX(-3.6));
-      const PX = 3.8, s = 3.9, h = 4.6, d = 3.9, F = d / 2;   // P1S: 389 × 458 × 389 mm, 1 unit = 100 mm
-      const P = new T.Group(); P.position.x = PX; g.add(P);
+      g.add(floorGrid(T, 16).translateX(-1));
+      const PX = 3.8, s = 3.9, h = 4.6, d = 3.9, F = d / 2, BY = 3.2;   // P1S: 389 × 458 × 389 mm, 1 unit = 100 mm
+      const P = new T.Group(); P.position.set(PX, BY, 0); g.add(P);
+      // the workbench it stands on (wooden top, dark drawers) and a pegboard behind
+      { const BW = 10.7, BX = 6.25, BD = 4.6, PH = 10.8, at = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
+        at(shadedBox(T, BW, 0.2, BD, 0x7a5c3e, [0.7, 0.5, 1.0, 0.28, 0.82, 0.4]), BX, BY - 0.1, 0);
+        at(shadedBox(T, BW - 0.3, BY - 0.35, BD - 0.3, 0x1e2125), BX, 0.15 + (BY - 0.35) / 2, 0);
+        const dl = []; for (const x of [BX - 1.78, BX + 1.78]) dl.push(x, 0.25, BD / 2 - 0.14, x, BY - 0.3, BD / 2 - 0.14);
+        for (const x of [BX - 3.56, BX, BX + 3.56]) { dl.push(x - 1.6, BY - 1.5, BD / 2 - 0.14, x + 1.6, BY - 1.5, BD / 2 - 0.14); for (const y of [BY - 0.85, BY - 2.2]) at(shadedBox(T, 1.3, 0.08, 0.1, 0x8a9097), x, y, BD / 2 - 0.1); }
+        g.add(segs(T, dl, 0x000000, 0.7));
+        const pc = Object.assign(document.createElement("canvas"), { width: 512, height: 512 }), q = pc.getContext("2d"); q.fillStyle = "#1b1e22"; q.fillRect(0, 0, 512, 512); q.fillStyle = "#0b0d0f";
+        for (let y = 12; y < 512; y += 24) for (let x = 12; x < 512; x += 24) { q.beginPath(); q.arc(x, y, 3, 0, 7); q.fill(); }
+        q.strokeStyle = "#2c3036"; q.lineWidth = 8; q.strokeRect(4, 4, 504, 504);
+        at(new T.Mesh(new T.PlaneGeometry(BW, PH), new T.MeshBasicMaterial({ map: new T.CanvasTexture(pc) })), BX, BY + PH / 2, -BD / 2 + 0.05);
+        const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q2 = c2.getContext("2d"), gr = q2.createRadialGradient(128, 128, 40, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.75)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q2.fillStyle = gr; q2.fillRect(0, 0, 256, 256);
+        const shd = at(new T.Mesh(new T.PlaneGeometry(BW + 3, BD + 2.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })), BX, 0.012, 0); shd.rotation.x = -Math.PI / 2;
+        WS.bench = { BW, BX, BD, PH }; }
       const BODY = 0x23262b, put = (m, x, y, z) => { m.position.set(x, y, z); P.add(m); return m; }, body = [];
       const CH = h - 0.9, CY = 0.6 + CH / 2;   // the chamber, between the base and the top
       body.push(put(shadedBox(T, s, 0.6, d, BODY), 0, 0.3, 0), put(shadedBox(T, s, 0.3, d, BODY), 0, h - 0.15, 0));
@@ -1188,7 +1234,7 @@
       const obj = segs(T, op, COL.cyan, 0.85); P.add(obj);
       // the chamber light: a warm glow inside, and a spill on the floor in front of the door
       const lamp = put(new T.Sprite(new T.SpriteMaterial({ map: glowTex(T), color: 0xffe9c8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 3.3, 0); lamp.scale.set(4.6, 4.4, 1);
-      const spill = put(new T.Mesh(new T.PlaneGeometry(6, 4), new T.MeshBasicMaterial({ map: glowTex(T), color: 0xffe2b8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 0.03, F + 1.6); spill.rotation.x = -Math.PI / 2;
+      const spill = put(new T.Mesh(new T.PlaneGeometry(6, 4), new T.MeshBasicMaterial({ map: glowTex(T), color: 0xffe2b8, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, -BY + 0.03, F + 2.4); spill.rotation.x = -Math.PI / 2;
       // AMS on top: 372 × 218 × 280 mm, a solid base and a smoked lid with the four spools showing through
       const ay = h + 0.02;
       body.push(put(shadedBox(T, 3.72, 0.9, 2.8, BODY), 0, ay + 0.45, 0));
@@ -1198,13 +1244,13 @@
       const amsSp = [];
       for (let k = 0; k < 4; k++) {
         const cx = -1.29 + k * 0.86, { fl, fil } = spoolPts("x", cx, ay + 1.0, -0.1, 0.92, 0.62);
-        const a = segs(T, fl, 0xb8c4c8, 0.3), b = segs(T, fil, COL.edge, 0.85); P.add(a, b); amsSp.push({ a, b, x: PX + cx, y: ay + 2.25 });
+        const a = segs(T, fl, 0xb8c4c8, 0.3), b = segs(T, fil, COL.edge, 0.85); P.add(a, b); amsSp.push({ a, b, x: PX + cx, y: BY + ay + 2.25 });
       }
-      // a soft contact shadow, and the progress ring on the floor
+      // a soft contact shadow, and the progress bar along the bench's front edge
       { const c2 = Object.assign(document.createElement("canvas"), { width: 256, height: 256 }), q = c2.getContext("2d"), gr = q.createRadialGradient(128, 128, 30, 128, 128, 128); gr.addColorStop(0, "rgba(0,0,0,.8)"); gr.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = gr; q.fillRect(0, 0, 256, 256);
-        const sh = put(new T.Mesh(new T.PlaneGeometry(s + 2.4, d + 2.4), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })), 0, 0.012, 0); sh.rotation.x = -Math.PI / 2; }
-      const track = put(new T.Mesh(new T.RingGeometry(3.05, 3.17, 128), new T.MeshBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0, depthWrite: false })), 0, 0.02, 0); track.rotation.x = -Math.PI / 2;
-      const prog = put(new T.Mesh(new T.RingGeometry(3.0, 3.22, 128, 1, -Math.PI / 2, 0.001), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, 0.025, 0); prog.rotation.x = -Math.PI / 2;
+        const sh = put(new T.Mesh(new T.PlaneGeometry(s + 1.2, d + 0.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c2), transparent: true, depthWrite: false })), 0, 0.012, 0); sh.rotation.x = -Math.PI / 2; }
+      const track = put(new T.Mesh(new T.PlaneGeometry(s, 0.1), new T.MeshBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0, depthWrite: false })), 0, -0.1, 2.312);
+      const prog = put(new T.Mesh(new T.PlaneGeometry(s, 0.1), new T.MeshBasicMaterial({ color: COL.ok, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })), 0, -0.1, 2.316);
       // the filament shelf: black steel sides, four wooden boards and a top, a dark back
       const { rows, cell, x0, y0, w, depth } = SHELF, x1 = x0 + w, y1 = y0 + rows * cell, shelfBoards = [];
       const sb = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); shelfBoards.push(m); return m; };
@@ -1216,7 +1262,7 @@
       // the filament path from the feeding AMS slot to the toolhead, drawn through the body like an x-ray
       const feed = segs(T, new Array(24 * 6).fill(0), COL.cyan, 0); feed.material.depthTest = false; feed.frustumCulled = false; P.add(feed);
       WS.shelf = new T.Group(); g.add(WS.shelf); WS.shelfKey = "";
-      WS.obj = { P, body, inner, glass, scr, scrCanvas, bed, head, nozzleGlow, obj, NL, lamp, spill, amsSp, track, prog, shelfBoards, feed, fadeOn: 1, PX, s, h, d, F, GW, CH, CY, pct: -1, fade: 1, lampK: 0, hot: 1 };
+      WS.obj = { P, body, inner, glass, scr, scrCanvas, bed, head, nozzleGlow, obj, NL, lamp, spill, amsSp, track, prog, shelfBoards, feed, fadeOn: 1, BY, PX, s, h, d, F, GW, CH, CY, pct: -1, fade: 1, lampK: 0, hot: 1 };
       buildShelfSpools();
     },
     tick(g, dt, now) {
@@ -1241,13 +1287,13 @@
       o.lamp.material.opacity = 0.5 * o.lampK; o.spill.material.opacity = 0.16 * o.lampK;
       o.inner.material.color.setRGB(0.08 + 0.25 * o.lampK, 0.09 + 0.22 * o.lampK, 0.1 + 0.18 * o.lampK);
       // is the mouse over the printer's front?
-      const corner = (x, y) => toCanvas(o.PX + x, y, o.F + 0.01);
+      const corner = (x, y) => toCanvas(o.PX + x, o.BY + y, o.F + 0.01);
       const q = [corner(-o.GW / 2, o.CY + o.CH / 2), corner(o.GW / 2, o.CY + o.CH / 2), corner(-o.GW / 2, o.CY - o.CH / 2), corner(o.GW / 2, o.CY - o.CH / 2)];
       const facing = q.every(Boolean) && q[1].x > q[0].x + 20;
       let over = false;
       if (V3.mouse && facing) {
         const r = V3.canvas.getBoundingClientRect(), kk = V3.canvas.clientWidth / (r.width || 1), mx = (V3.mouse.x - r.left) * kk, my = (V3.mouse.y - r.top) * kk;
-        const a = toCanvas(o.PX - o.s / 2, o.h + 2.2, o.F), b = toCanvas(o.PX + o.s / 2, 0, o.F);
+        const a = toCanvas(o.PX - o.s / 2, o.BY + o.h + 2.2, o.F), b = toCanvas(o.PX + o.s / 2, o.BY, o.F);
         over = !!(a && b && mx > a.x && mx < b.x && my > a.y && my < b.y);
       }
       WS.overP = over;
@@ -1256,10 +1302,10 @@
       const camOn = !!(P && P.cam && facing && (busy || over || V3.pinned === "printer"));
       wsCam(camOn ? q : null);
       o.glass.material.opacity = camOn ? 0.2 : 0.55;
-      // progress ring on the floor
+      // progress bar on the bench edge
       const pct = busy ? Math.round(k * 200) / 2 : /done|finished/.test(mood) ? 100 : -1;
-      if (pct !== o.pct) { o.pct = pct; o.prog.geometry.dispose(); o.prog.geometry = new V3.T.RingGeometry(3.0, 3.22, 128, 1, -Math.PI / 2, Math.max(0.001, (Math.max(0, pct) / 100) * Math.PI * 2)); }
-      o.track.material.opacity += ((pct >= 0 ? 0.12 : 0) - o.track.material.opacity) * ease(3);
+      if (pct !== o.pct) { o.pct = pct; const kk = Math.max(0.001, Math.max(0, pct) / 100); o.prog.scale.x = kk; o.prog.position.x = -o.s / 2 + (o.s * kk) / 2; }
+      o.track.material.opacity += ((pct >= 0 ? 0.25 : 0) - o.track.material.opacity) * ease(3);
       o.prog.material.color.setHex(mood === "paused" ? COL.warn : COL.ok);
       o.prog.material.opacity += ((busy ? 0.75 + Math.sin(now / 600) * 0.12 : mood === "done" ? 0.6 : mood === "finished" ? 0.18 : 0) - o.prog.material.opacity) * ease(3);
       // the screen on the base
@@ -1270,11 +1316,18 @@
         const t = trays[i], c = t && t.a.color ? parseInt(String(t.a.color).slice(1, 7), 16) : COL.edge, on = !!(t && t.a.active), empty = !t || t.a.empty;
         sp.b.material.color.setHex(c); sp.b.material.opacity = empty ? 0 : on ? 0.95 : 0.75;
         if (on && mood === "printing") { sp.a.rotation.x += dt * 1.2; sp.b.rotation.x += dt * 1.2; }
-        pick("ams" + i, sp.x, sp.y - 1.1, 0, () => `<b>AMS SLOT ${i + 1}${on ? " · FEEDING" : ""}</b><dl><dt>FILAMENT</dt><dd>${esc(empty ? "Empty" : t.a.name || t.s)}</dd><dt>TYPE</dt><dd>${esc((t && t.a.type) || "—")}</dd><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(String((t && t.a.color) || "#555").slice(0, 7))}"></i>${esc(String((t && t.a.color) || "").slice(0, 7))}</dd>${t && t.a.remain >= 0 ? `<dt>LEFT</dt><dd>${t.a.remain}%</dd>` : ""}${t && t.a.nozzle_temp_min ? `<dt>NOZZLE</dt><dd>${esc(t.a.nozzle_temp_min)}–${esc(t.a.nozzle_temp_max)}°</dd>` : ""}</dl>`);
+        pick("ams" + i, sp.x, sp.y - 1.1, 0, () => `<b>AMS SLOT ${i + 1}${on ? " · FEEDING" : ""}</b><dl><dt>FILAMENT</dt><dd>${esc(empty ? "Empty" : t.a.name || t.s)}</dd><dt>TYPE</dt><dd>${esc((t && t.a.type) || "—")}</dd><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(String((t && t.a.color) || "#555").slice(0, 7))}"></i>${esc(String((t && t.a.color) || "").slice(0, 7))}</dd>${t && t.a.remain >= 0 ? `<dt>LEFT</dt><dd>${t.a.remain}%</dd>` : ""}${t && t.a.nozzle_temp_min ? `<dt>NOZZLE</dt><dd>${esc(t.a.nozzle_temp_min)}–${esc(t.a.nozzle_temp_max)}°</dd>` : ""}</dl>${(() => { const sp = slotSpool(i + 1); return sp ? `<dl><dt>SPOOL</dt><dd>${esc(shortName(sp.summary))}</dd><dt>ON IT</dt><dd>${fmt(spoolMeta(sp).left)} g</dd></dl>` : `<em class="eddo-page-card-hint">DRAG A SPOOL FROM THE SHELF ONTO THIS SLOT</em>`; })()}`,
+          (() => { const sp = slotSpool(i + 1); return sp ? { more: [{ label: "TAKE THE SPOOL OUT", run: () => spoolSave(sp, { slot: 0 }).finally(() => setTimeout(() => loadStock(true), 600)) }] } : null; })());
       });
-      tag("ams", o.PX, 7.25, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
+      tag("drop", o.PX, o.BY + 8.1, 0, "<b>DROP ON AN AMS SLOT</b>", !!(WS.dragSp && WS.dragSp.moved), "eddo-page-tag-busy");
+      // the last prints, pinned along the top of the pegboard
+      { const hs = (WS.histItems || []).slice(-5).reverse(), B = WS.bench, base = HA() ? HA().baseUrl() : "";
+        for (let i = 0; i < 5; i++) { const it = hs[i], pp = it ? String(it.description || "").split("·").map((x) => x.trim()) : [];
+          tag("hist" + i, B.BX - B.BW / 2 + 1.25 + i * 2.05, o.BY + 10.3, -2.2, it ? `${/^\/local\//.test(pp[3] || "") ? `<img src="${esc(base + pp[3])}" alt="">` : `<i>◇</i>`}<b>${esc(it.summary)}</b><span>${esc([pp[0], pp[1]].filter(Boolean).join(" · ").toUpperCase())}</span><span>${esc((pp[2] || "").toUpperCase())}</span>` : "", !!it, "eddo-page-tag-hist"); }
+        tag("histh", B.BX, o.BY + 10.3, -2.2, "<b>PRINT HISTORY</b><span>FILLS IN AS PRINTS FINISH</span>", !hs.length && !!WS.hist); }
+      tag("ams", o.PX, o.BY + 7.25, 0, `<b>AMS</b><span class="eddo-ams-row">${o.amsSp.map((sp, i) => { const t = trays[i], c = t && !t.a.empty && t.a.color ? String(t.a.color).slice(0, 7) : "transparent"; return `<i style="background:${esc(c)}"${t && t.a.active ? ' data-on="true"' : ""}></i>`; }).join("")}</span>`, true);
       // the printer itself: hover for its state, click to keep it open and switch the chamber light
-      if (P) pick("printer", o.PX, o.CY, o.F + 0.1, () => `<b>BAMBU LAB P1S</b><dl><dt>STATE</dt><dd>${esc(mood.toUpperCase())}</dd><dt>NOZZLE</dt><dd>${fmt(n(st(P.nozzle)))}°</dd><dt>BED</dt><dd>${fmt(n(st(P.bed)))}°</dd><dt>LIGHT</dt><dd>${lightOn ? "ON" : "OFF"}</dd></dl>`,
+      if (P) pick("printer", o.PX, o.BY + o.CY, o.F + 0.1, () => `<b>BAMBU LAB P1S</b><dl><dt>STATE</dt><dd>${esc(mood.toUpperCase())}</dd><dt>NOZZLE</dt><dd>${fmt(n(st(P.nozzle)))}°</dd><dt>BED</dt><dd>${fmt(n(st(P.bed)))}°</dd><dt>LIGHT</dt><dd>${lightOn ? "ON" : "OFF"}</dd></dl>`,
         P.light ? { open: { label: lightOn ? "CHAMBER LIGHT OFF" : "CHAMBER LIGHT ON", run: () => call("light", lightOn ? "turn_off" : "turn_on", { target: { entity_id: P.light } }) } } : null);
       // the status card beside the printer: big while printing, the last print when idle
       if (P) {
@@ -1285,7 +1338,7 @@
         else if (mood === "done") html = `<b class="big">DONE</b><span>${esc(name.toUpperCase())}</span>${img}<span data-warn="true">CLEAR THE PLATE</span>`;
         else if (mood === "offline") html = `<em>PRINTER OFFLINE</em>`;
         else html = `<em>${mood === "failed" ? "LAST PRINT · FAILED" : "LAST PRINT"}</em>${img}<b>${esc((name || "—").toUpperCase())}</b><span>${w ? fmt(w) + " G · " : ""}${stS && stS.t ? "ENDED " + ago(stS.t).toUpperCase() : ""}</span>${mood === "finished" ? '<span data-warn="true">PLATE MAY STILL BE FULL</span>' : ""}`;
-        tag("holo", o.PX + o.s / 2 + 1.1, 3.4, o.F, `<div class="eddo-ws-holo" data-mood="${mood}">${html}</div>`, true, "eddo-page-tag-left eddo-page-tag-holo");
+        tag("holo", o.PX + o.s / 2 + 1.1, o.BY + 3.0, o.F, `<div class="eddo-ws-holo" data-mood="${mood}">${html}</div>`, true, "eddo-page-tag-left eddo-page-tag-holo");
       }
       // the shelf: slides between pages, steps back while a print runs (unless you point at it)
       if (WS.shelf && !WS.dragging) { const gx = WS.shelf.userData.goal || 0; WS.shelf.position.x += (gx - WS.shelf.position.x) * ease(9); if (Math.abs(WS.shelf.position.x - gx) < 0.01) WS.shelf.position.x = gx; }
@@ -1306,13 +1359,20 @@
           const bz = (t) => B[0].map((_, q) => (1 - t) ** 3 * B[0][q] + 3 * (1 - t) ** 2 * t * B[1][q] + 3 * (1 - t) * t * t * B[2][q] + t ** 3 * B[3][q]);
           for (let i = 0; i < 24; i++) { const a = bz(i / 24), b = bz((i + 1) / 24); arr.set([...a, ...b], i * 6); }
           o.feed.geometry.attributes.position.needsUpdate = true; o.feed.material.color.setHex(act && act.a.color ? parseInt(String(act.a.color).slice(1, 7), 16) : COL.cyan); } }
-      // spools: no labels, hover one for its details
-      (WS.spools || []).forEach((sp) => {
-        const it = sp.it, parts = String(it.description || "").split("·").map((x) => x.trim());
+      // spools: hover one for its details, drag it onto an AMS slot to load it
+      (WS.spools || []).forEach((sp, i) => {
+        const it = sp.it, M = sp.meta, parts = M.parts, key = "sp:" + it.uid;
         const kind = (parts[1] || (/\b(PLA\+?|PETG|ABS\+?|ASA|TPU|PC|PA)\b/i.exec(it.summary) || [""])[0]).toUpperCase();
-        const hot = V3.hover === "sp:" + it.uid || V3.pinned === "sp:" + it.uid; sp.m.position.z += ((hot ? 0.8 : 0) - sp.m.position.z) * ease(10);
-        pick("sp:" + it.uid, sp.x + WS.shelf.position.x, sp.y, 1.0, () => `<b>${esc(shortName(it.summary).toUpperCase())}</b>${kind ? `<span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>` : ""}<dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd>${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>`,
-          { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } } });
+        const hot = V3.hover === key || V3.pinned === key;
+        if (!(WS.dragSp && WS.dragSp.sp === sp && WS.dragSp.moved)) sp.m.position.z += ((hot ? 0.8 : 0) - sp.m.position.z) * ease(10);
+        if (sp.glow) sp.glow.material.opacity = (0.45 + Math.sin(now / 400 + i) * 0.2) * o.fade;
+        tag("ld" + i, sp.x + WS.shelf.position.x, sp.y + 1.02, 1.1, `<b>AMS ${M.slot}</b>`, M.slot > 0 && !WS.shelfOut, "eddo-page-tag-sm eddo-page-tag-busy");
+        const low = M.tracked && M.frac <= 0.2, more = [];
+        if (M.slot) more.push({ label: "TAKE OUT OF THE AMS", run: () => spoolSave(it, { slot: 0 }).finally(() => setTimeout(() => loadStock(true), 600)) });
+        if (low) more.push({ label: "REORDER", run: () => { const q = encodeURIComponent(it.summary); try { window.open(/bambu/i.test(parts.slice(2).join(" ") + it.summary) ? "https://uk.store.bambulab.com/search?q=" + encodeURIComponent(shortName(it.summary)) : "https://www.amazon.co.uk/s?k=" + q, "_blank"); } catch (_) {} } });
+        if (M.tracked && M.frac < 0.6) more.push({ label: "NEW SPOOL · BACK TO FULL", run: () => spoolSave(it, { left: M.full }).finally(() => setTimeout(() => loadStock(true), 600)) });
+        pick(key, sp.x + WS.shelf.position.x, sp.y, 1.0, () => `<b>${esc(shortName(it.summary).toUpperCase())}</b>${kind ? `<span class="eddo-ply" data-k="${esc(kind.split(" ")[0].replace("+", "P"))}">${esc(kind)}</span>` : ""}<dl><dt>COLOUR</dt><dd><i class="eddo-sw" style="background:${esc(parts[0] && /^#/.test(parts[0]) ? parts[0] : "#555")}"></i>${esc(parts[0] || "—")}</dd><dt>LEFT</dt><dd${low ? ' data-warn="true"' : ""}>${M.tracked ? `${fmt(M.left)} g of ${fmt(M.full)}` : "Full (not opened)"}</dd>${M.slot ? `<dt>LOADED</dt><dd>AMS slot ${M.slot}</dd>` : ""}${parts[2] ? `<dt>CODE</dt><dd>${esc(parts[2])}</dd>` : ""}${parts[3] ? `<dt>BOUGHT</dt><dd>${esc(parts.slice(3).join(" · "))}</dd>` : ""}</dl>${M.slot ? "" : `<em class="eddo-page-card-hint">DRAG ONTO AN AMS SLOT TO LOAD IT</em>`}`,
+          { remove: { label: "REMOVE FROM SHELF", ask: `Remove ${it.summary} from the shelf?`, run: () => { HA().send({ type: "call_service", domain: "todo", service: "remove_item", target: { entity_id: WS.stock }, service_data: { item: it.uid } }).catch(() => {}).finally(() => setTimeout(() => loadStock(true), 500)); } }, more });
       });
       const pages = WS.pages || 1;
       tag("shelf", SHELF.x0 + SHELF.w / 2, SHELF.y0 + SHELF.rows * SHELF.cell + 0.7, 0,
@@ -1329,7 +1389,7 @@
       // filament in the AMS
       const trays = WS.trays.map((id) => st(id));
       if (trays.length) h += `<p class="eddo-pg-h">${busy ? "FILAMENT IN USE" : "IN THE AMS"}</p><div class="eddo-ws-ams">${trays.slice(0, 4).map((t, i) => { const empty = !t || t.a.empty, col = t && t.a.color ? String(t.a.color).slice(0, 7) : "transparent";
-        return `<div${t && t.a.active ? ' data-on="true"' : ""}><i style="background:${esc(empty ? "transparent" : col)}"></i><b>${esc(empty ? "EMPTY" : (t.a.type || "—").toUpperCase())}</b><span>${esc(empty ? "Slot " + (i + 1) : t.a.name || t.s)}</span>${t && t.a.remain >= 0 && !empty ? `<em>${t.a.remain}%</em>` : ""}</div>`; }).join("")}</div>`;
+        return `<div${t && t.a.active ? ' data-on="true"' : ""}><i style="background:${esc(empty ? "transparent" : col)}"></i><b>${esc(empty ? "EMPTY" : (t.a.type || "—").toUpperCase())}</b><span>${esc(empty ? "Slot " + (i + 1) : t.a.name || t.s)}</span>${(() => { const sp = slotSpool(i + 1); return sp ? `<em>${fmt(spoolMeta(sp).left)} g left</em>` : !empty ? `<em>not linked</em>` : ""; })()}</div>`; }).join("")}</div>`;
       // the queue
       const items = WS.items.filter((i) => i.status === "needs_action"), doneN = WS.items.length - items.length;
       h += `<p class="eddo-pg-h">PRINT QUEUE ${WS.queue ? `<span>${items.length} TO PRINT${doneN ? ` · ${doneN} DONE` : ""}</span>` : ""}</p>` +
@@ -1351,7 +1411,7 @@
     f.reset();
     HA().send({ type: "call_service", domain: "todo", service: "add_item", target: { entity_id: WS.queue }, service_data: { item: t } }).catch(() => {}).finally(() => setTimeout(() => loadQueue(true), 500));
   });
-  setInterval(() => { if (window.eddoTabs.active() === "workshop") { loadStock(false); loadQueue(false); } }, 30e3);
+  setInterval(() => { if (window.eddoTabs.active() === "workshop") { loadStock(false); loadQueue(false); loadHist(false); } }, 30e3);
 
   // ============================================================ 5. ENERGY — Octopus today vs yesterday, and the biggest users
   const EN = { e: {}, g: {}, power: [], hist: [], histAt: 0 };

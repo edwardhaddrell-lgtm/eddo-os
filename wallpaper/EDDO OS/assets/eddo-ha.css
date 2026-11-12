@@ -1016,3 +1016,9 @@ html.eddo-phone .eddo-docks{grid-template-columns:repeat(2,minmax(0,1fr))}
 .eddo-ws-ams span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .eddo-ws-ams em{font-style:normal}
 .eddo-ws-foot{margin:14px 0 0;padding-top:8px;border-top:1px solid var(--theme-line,#bdb8ad);font-size:9px;letter-spacing:1.4px;color:var(--theme-muted,#77756d)}
+/* Workshop: print history on the pegboard, spool cards */
+.eddo-page-tag-hist{width:84px;gap:1px;white-space:normal;text-align:center}
+.eddo-page-tag-hist img,.eddo-page-tag-hist i{display:grid;place-items:center;width:50px;height:50px;object-fit:contain;margin-bottom:3px;border:1px solid rgba(143,185,194,.35);background:rgba(8,11,13,.85);font-style:normal;color:#5d6a70;box-shadow:0 3px 8px rgba(0,0,0,.6)}
+.eddo-page-tag-hist b{max-width:84px;font-size:8px;letter-spacing:.8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eddo-page-tag-hist span{font-size:7.5px;letter-spacing:.8px}
+.eddo-page-card dd[data-warn=true]{color:#ffb36b}
