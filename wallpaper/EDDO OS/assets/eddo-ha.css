@@ -912,3 +912,16 @@ html.eddo-phone .eddo-gb{--w:84px}
 .eddo-ha-spk-src{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .eddo-ha-spk-src button{padding:3px 7px;border:1px solid var(--theme-line,#a6a49c);font-size:8.5px;letter-spacing:1.1px;cursor:pointer}
 .eddo-ha-spk-src button[aria-pressed=true]{border-color:#8fb9c2;color:#8fb9c2;background:rgba(143,185,194,.1)}
+/* house: who's home, by the front door (like the dashboard's person cards) */
+.eddo-live-people{translate:-50% -100%}
+.eddo-people{display:flex;gap:10px;padding:6px 8px 5px;border:1px solid rgba(143,185,194,.22);background:rgba(6,9,12,.55);border-radius:10px}
+.eddo-person{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px}
+.eddo-person i{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:14px;color:#ece9e2;background:rgba(143,185,194,.18);box-shadow:0 0 0 1.5px rgba(143,224,190,.9)}
+.eddo-person i img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.eddo-person i em{position:absolute;right:-3px;bottom:-3px;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:9px;line-height:1;color:#06100c;background:#5fe0a8;box-shadow:0 0 0 2px rgba(6,9,12,.9)}
+.eddo-person[data-home=false] i{box-shadow:0 0 0 1.5px rgba(154,151,143,.6)}
+.eddo-person[data-home=false] i img{filter:grayscale(1) brightness(.75)}
+.eddo-person[data-home=false] i em{background:#9a978f;color:#111}
+.eddo-person b{font-weight:500;font-size:8.5px;letter-spacing:1.3px;color:var(--theme-ink,#ece9e2)}
+.eddo-person span{font-size:7.5px;letter-spacing:1.2px}
+.eddo-person[data-home=true] span{color:#8fe0be}

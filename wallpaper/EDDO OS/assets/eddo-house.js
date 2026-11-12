@@ -1979,7 +1979,9 @@
     LIVE.bins = allStates.filter((st) => /^(sensor|calendar)\./.test(st.entity_id) && /\b(bins?|waste|recycl\w*|refuse|rubbish|food caddy)\b/.test(text(st)) && live(st)).map((st) => st.entity_id);
     LIVE.parcels = allStates.filter((st) => st.entity_id.startsWith("sensor.") && /parcel|package|deliver/.test(text(st)) && !/delivered|update|last|image|exception|camera/.test(text(st)) && live(st) && Number.isFinite(+st.state)).map((st) => st.entity_id);
     LIVE.needBuild = true;
-    return [...LIVE.doors.flatMap((d) => [...d.ids, d.lockId].filter(Boolean)), ...LIVE.players.flatMap((p) => p.ids), ...LIVE.bins, ...LIVE.parcels];
+    // who's home: the people in Home Assistant (with a phone or a login), like the dashboard's person cards
+    LIVE.people = allStates.filter((st) => st.entity_id.startsWith("person.") && ((st.attributes.device_trackers || []).length || st.attributes.user_id) && !/mqtt|^person\.(admin|guest)/i.test(st.entity_id)).map((st) => st.entity_id);
+    return [...LIVE.doors.flatMap((d) => [...d.ids, d.lockId].filter(Boolean)), ...LIVE.players.flatMap((p) => p.ids), ...LIVE.bins, ...LIVE.parcels, ...LIVE.people];
   }
 
   // where a door sits: hinge point, direction along the wall, and which way is into the room (plan x, z)
@@ -2191,6 +2193,20 @@
     { const g = KIT.bbq, at = KIT.bbqAt, t = g && num(g.temp), pr = g && num(g.probe), tg = g && num(g.target);
       liveTag("bbq", at ? at[0] : 0, at ? at[1] : 0, at ? at[2] : 0, `<b>SEARWOOD${t != null ? ` · ${Math.round(t)}°` : ""}${tg != null ? `<em> → ${Math.round(tg)}°</em>` : ""}</b>${pr != null ? `<span>PROBE ${Math.round(pr)}°</span>` : ""}`,
         !!(at && t != null && (t >= 45 || (tg || 0) > 0)) && !energyMode, "eddo-live-bbq"); }
+    // who's home, just outside the front door: avatar + a badge (home / away / where), as on the dashboard
+    if ((LIVE.people || []).length) {
+      const fd = LIVE.doors.find((d) => /front/i.test(d.name)) || null;
+      let px = 2.2, pz = -0.9, py = 0;
+      if (fd) { const { p, a, n, w } = doorFrame(fd); px = p[0] + a[0] * w / 2 - n[0] * 1.1; pz = p[1] + a[1] * w / 2 - n[1] * 1.1; py = fd.roomRef.y || 0; }
+      const base = HA() && HA().baseUrl ? HA().baseUrl() : "";
+      const ppl = LIVE.people.map((id) => {
+        const st = states.get(id) || { s: "unknown", a: {} }, a = st.a, home = st.s === "home", name = String(a.friendly_name || id.split(".")[1]);
+        const where = home ? "HOME" : st.s === "not_home" ? "AWAY" : /^(unknown|unavailable)$/.test(st.s) ? "—" : String(st.s).replace(/_/g, " ").toUpperCase();
+        const pic = a.entity_picture ? (/^https?:/i.test(a.entity_picture) ? a.entity_picture : base + a.entity_picture) : "";
+        return `<div class="eddo-person" data-home="${home}"><i>${pic ? `<img src="${esc(pic)}" alt="">` : esc(name.slice(0, 1))}<em>${home ? "⌂" : "↗"}</em></i><b>${esc(name.toUpperCase())}</b><span>${esc(where)}</span></div>`;
+      }).join("");
+      liveTag("people", px, py + 0.25, pz, `<div class="eddo-people">${ppl}</div>`, !energyMode && !hiddenFloor(fd ? fd.roomRef.floor : 0), "eddo-live-people");
+    }
     liveTag("parcel", 4.25, 0.9, -0.75, `<b>${LIVE.parcelCount} PARCEL${LIVE.parcelCount === 1 ? "" : "S"} DUE</b>`, LIVE.parcel && LIVE.parcel.visible);
   }
 
