@@ -1605,7 +1605,7 @@
     updateCar(dt, now);
     updateLive(dt, now);
     updateKit(dt, now);
-    updatePad(dt, now);
+    updatePad(dt, now); updatePeople();
     updateStars(dt, now);
     updateSmoke(dt, now);
     pollPlex(now);
@@ -2005,7 +2005,7 @@
     LIVE.root = root;
     LIVE.dyn = new T.Group(); root.add(LIVE.dyn); buildLiveDyn();
     buildLiveStatic(root, maxX, maxZ);
-    buildPad(root);
+    buildPad(root); buildPeople(root, maxX);
   }
   // doors and players depend on what Home Assistant has, so they're rebuilt whenever it (re)connects
   function buildLiveDyn() {
@@ -2194,23 +2194,6 @@
     { const g = KIT.bbq, at = KIT.bbqAt, t = g && num(g.temp), pr = g && num(g.probe), tg = g && num(g.target);
       liveTag("bbq", at ? at[0] : 0, at ? at[1] : 0, at ? at[2] : 0, `<b>SEARWOOD${t != null ? ` · ${Math.round(t)}°` : ""}${tg != null ? `<em> → ${Math.round(tg)}°</em>` : ""}</b>${pr != null ? `<span>PROBE ${Math.round(pr)}°</span>` : ""}`,
         !!(at && t != null && (t >= 45 || (tg || 0) > 0)) && !energyMode, "eddo-live-bbq"); }
-    // who's home, just outside the front door: avatar + a badge (home / away / where), as on the dashboard
-    if ((LIVE.people || []).length) {
-      const fd = LIVE.doors.find((d) => /front/i.test(d.name)) || null;
-      let px = 2.2, pz = -0.9, py = 0;
-      if (fd) { const { p, a, n, w } = doorFrame(fd); px = p[0] + a[0] * w / 2 - n[0] * 1.1; pz = p[1] + a[1] * w / 2 - n[1] * 1.1; py = fd.roomRef.y || 0; }
-      const base = HA() && HA().baseUrl ? HA().baseUrl() : "";
-      const ppl = LIVE.people.map((pp) => {
-        const id = pp.person, st = states.get(id) || { s: "unknown", a: {} }, a = st.a, name = String(pp.name || a.friendly_name || id.split(".")[1]);
-        // home = their phone is on the home Wi-Fi; away shows the Home Assistant zone they're in, if any
-        const wf = pp.wifi && states.get(pp.wifi), home = wf ? wf.s === "home" : st.s === "home";
-        const zone = !/^(home|not_home|unknown|unavailable)$/.test(st.s) ? String(st.s).replace(/_/g, " ").toUpperCase() : "";
-        const where = home ? (wf ? "HOME · ON WI-FI" : "HOME") : zone || (wf ? "AWAY · OFF WI-FI" : st.s === "not_home" ? "AWAY" : "—");
-        const pic = a.entity_picture ? (/^https?:/i.test(a.entity_picture) ? a.entity_picture : base + a.entity_picture) : "";
-        return `<div class="eddo-person" data-home="${home}"><i>${pic ? `<img src="${esc(pic)}" alt="">` : esc(name.slice(0, 1))}<em>${home ? "⌂" : "↗"}</em></i><b>${esc(name.toUpperCase())}</b><span>${esc(where)}</span></div>`;
-      }).join("");
-      liveTag("people", px, py + 0.25, pz, `<div class="eddo-people">${ppl}</div>`, !energyMode && !hiddenFloor(fd ? fd.roomRef.floor : 0), "eddo-live-people");
-    }
     liveTag("parcel", 4.25, 0.9, -0.75, `<b>${LIVE.parcelCount} PARCEL${LIVE.parcelCount === 1 ? "" : "S"} DUE</b>`, LIVE.parcel && LIVE.parcel.visible);
   }
 
@@ -2627,6 +2610,73 @@
       PAD.tiles.push({ m, it, hot: false });
     });
     PAD.g = g;
+  }
+  // ---- who's home: one tile per person, flat on the ground along the right side of the house (mirroring the buttons on the left)
+  const PPL = { g: null, tiles: [], imgs: new Map() };
+  function personInfo(pp) {
+    const id = pp.person, st = states.get(id) || { s: "unknown", a: {} }, a = st.a, name = String(pp.name || a.friendly_name || id.split(".")[1]);
+    // home = their phone is on the home Wi-Fi; away shows the Home Assistant zone they're in, if any
+    const wf = pp.wifi && states.get(pp.wifi), home = wf ? wf.s === "home" : st.s === "home";
+    const zone = !/^(home|not_home|unknown|unavailable)$/.test(st.s) ? String(st.s).replace(/_/g, " ").toUpperCase() : "";
+    const where = home ? (wf ? "HOME · ON WI-FI" : "HOME") : zone || (wf ? "AWAY · OFF WI-FI" : st.s === "not_home" ? "AWAY" : "—");
+    return { name, home, where, pic: a.entity_picture || "" };
+  }
+  // the profile photo, loaded so it can be drawn into a texture (through the PC's bridge, or straight from Home Assistant if it allows it)
+  function personImg(pic) {
+    if (!pic) return null;
+    if (PPL.imgs.has(pic)) return PPL.imgs.get(pic);
+    PPL.imgs.set(pic, null);
+    const url = /^https?:/i.test(pic) ? pic : (HA() && HA().baseUrl ? HA().baseUrl() : "") + pic;
+    const done = (img) => { PPL.imgs.set(pic, img); PPL.tiles.forEach((t) => { t.key = ""; }); };
+    const direct = () => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => done(im); im.onerror = () => {}; im.src = url; };
+    const brg = !window.EDDO_WEB && HA() && HA().bridge;
+    if (brg) fetch(`${brg}/proxy?url=${encodeURIComponent(url)}`).then((r) => { if (!r.ok) throw 0; return r.blob(); }).then((b) => { const im = new Image(); im.onload = () => done(im); im.src = URL.createObjectURL(b); }).catch(direct);
+    else direct();
+    return null;
+  }
+  function personTex(info, img) {
+    const c = document.createElement("canvas"); c.width = 512; c.height = 176; const g = c.getContext("2d");
+    const on = info.home, acc = on ? "#5fe0a8" : "rgba(154,151,143,.8)";
+    g.fillStyle = on ? "rgba(95,224,168,.08)" : "rgba(143,185,194,.05)"; g.fillRect(4, 4, 504, 168);
+    g.strokeStyle = on ? "rgba(95,224,168,.75)" : "rgba(143,185,194,.4)"; g.lineWidth = 3; g.strokeRect(4, 4, 504, 168);
+    g.fillStyle = acc; g.fillRect(498, 4, 10, 168);   // accent bar on the outer edge (the buttons have theirs on the left)
+    const cx = 92, cy = 88, r = 58;
+    g.save(); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.closePath(); g.clip();
+    if (img) { g.filter = on ? "none" : "grayscale(1) brightness(.7)"; const k = Math.max((2 * r) / img.width, (2 * r) / img.height); g.drawImage(img, cx - (img.width * k) / 2, cy - (img.height * k) / 2, img.width * k, img.height * k); g.filter = "none"; }
+    else { g.fillStyle = on ? "rgba(95,224,168,.25)" : "rgba(143,185,194,.18)"; g.fillRect(cx - r, cy - r, 2 * r, 2 * r); g.font = "500 56px MiSans, system-ui, sans-serif"; g.fillStyle = "#ece9e2"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(info.name.slice(0, 1).toUpperCase(), cx, cy + 3); g.textAlign = "left"; }
+    g.restore();
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.strokeStyle = acc; g.lineWidth = 5; g.stroke();
+    // the badge: a house when home, an arrow when out
+    g.beginPath(); g.arc(cx + 42, cy + 42, 21, 0, Math.PI * 2); g.fillStyle = on ? "#5fe0a8" : "#9a978f"; g.fill(); g.lineWidth = 5; g.strokeStyle = "#06090c"; g.stroke();
+    g.font = "600 24px MiSans, system-ui, sans-serif"; g.fillStyle = "#06100c"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(on ? "⌂" : "↗", cx + 42, cy + 43); g.textAlign = "left";
+    g.textBaseline = "middle";
+    g.font = "500 40px MiSans, system-ui, sans-serif"; g.fillStyle = "#ece9e2"; g.fillText(info.name.toUpperCase().split("").join(String.fromCharCode(8202)), 178, 70);
+    g.font = "400 24px MiSans, system-ui, sans-serif"; g.fillStyle = on ? "#8fe0be" : "rgba(160,170,172,.9)"; g.fillText(info.where.split("").join(String.fromCharCode(8202)), 178, 120);
+    const t = new T.CanvasTexture(c); t.anisotropy = 4; return t;
+  }
+  function buildPeople(root, maxX) {
+    const g = new T.Group(); g.scale.z = -1;   // un-mirrored like the buttons, so the text reads the right way round
+    g.position.set((maxX || 7) + 1.95, 0.03, 0.8); root.add(g);   // along the right side of the house, from the front wall back
+    PPL.g = g; PPL.tiles = [];
+  }
+  function updatePeople() {
+    if (!PPL.g) return;
+    const list = LIVE.people || [];
+    if (PPL.tiles.length !== list.length) {   // (re)make one tile per person
+      PPL.tiles.forEach((t) => { PPL.g.remove(t.m); t.m.material.map && t.m.material.map.dispose(); t.m.geometry.dispose(); });
+      PPL.tiles = list.map((pp, i) => {
+        const m = new T.Mesh(new T.PlaneGeometry(2.6, 0.9), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide }));
+        m.rotation.x = -Math.PI / 2; m.position.set(0, 0, -i * 1.15); PPL.g.add(m);
+        return { m, pp, key: "" };
+      });
+    }
+    PPL.tiles.forEach((t, i) => {
+      t.pp = list[i];
+      const info = personInfo(t.pp), img = personImg(info.pic), key = info.home + "|" + info.where + "|" + !!img;
+      if (t.key !== key) { t.key = key; if (t.m.material.map) t.m.material.map.dispose(); t.m.material.map = personTex(info, img); t.m.material.needsUpdate = true; }
+      t.m.material.opacity = PAD.k * (info.home ? 0.95 : 0.7) * LIVE.bootShell;
+      t.m.visible = PAD.k > 0.02;
+    });
   }
   function pickPad(ev) {
     if (!PAD.g || PAD.k < 0.3) return null;
