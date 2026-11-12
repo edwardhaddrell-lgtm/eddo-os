@@ -647,7 +647,10 @@
     const ringN = ringDevs().filter((d) => netPlace(d).on).length;
     g.font = "600 18px MiSans, system-ui"; g.fillStyle = ringN ? "#7fd8ff" : "#555"; g.fillText("● RING", 840, rg.y + rg.h / 2 + 6);
     // NAS vent, lit blue by the fans (brighter when the CPU works harder)
-    const nv = U.nas, cpu = n(st(NET.nas.cpu)) || 10, glow = 0.25 + Math.min(0.6, cpu / 100) + 0.08 * Math.sin(now / 700);
+    // hovered: a heartbeat that beats faster and brighter the harder the CPU works
+    const nk = (RACK.unit && RACK.unit.nas && RACK.unit.nas.k) || 0, cpu = n(st(NET.nas.cpu)) || 10, period = Math.max(260, 1500 - cpu * 12);
+    const beat = Math.pow(Math.max(0, Math.sin((now / period) * Math.PI)), 6);
+    const nv = U.nas, glow = 0.25 + Math.min(0.6, cpu / 100) + 0.08 * Math.sin(now / 700) + nk * (0.15 + 0.55 * beat);
     const bg = g.createRadialGradient(FACE_W / 2, nv.y + nv.h / 2, 10, FACE_W / 2, nv.y + nv.h / 2, 340); bg.addColorStop(0, `rgba(70,110,255,${glow})`); bg.addColorStop(1, "rgba(70,110,255,0)");
     g.fillStyle = bg; g.fillRect(100, nv.y + 20, FACE_W - 200, nv.h - 40);
     for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(4,5,6,.82)"; g.fillRect(150 + i * 28, nv.y + 30, 14, nv.h - 60); }
@@ -662,11 +665,22 @@
   // the patch leads on their own layer, in front of the panels; they wobble when a unit they plug into is hovered
   function drawLeads(now) {
     const c = RACK.wires, g = c.getContext("2d"); g.clearRect(0, 0, FACE_W, FACE_H);
+    const flow = Math.max((RACK.unit && RACK.unit.eero && RACK.unit.eero.k) || 0, (RACK.unit && RACK.unit.switch && RACK.unit.switch.k) || 0);
+    const busy = NET.devs.reduce((t, d) => t + rate(d.dl) + rate(d.ul), 0), speed = 0.35 + Math.min(1.6, busy / 40);
     for (const [i, L] of (RACK.leads || []).entries()) {
       const k = Math.max(0, ...L.units.map((id) => (RACK.unit[id] || { k: 0 }).k)), j = k * 16 * Math.sin(now / 90 + i * 1.7), dim = RACK.any && k < 0.1 ? 0.35 : 1;
       g.globalAlpha = dim; g.strokeStyle = L.col; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.moveTo(L.a[0], L.a[1]);
       g.bezierCurveTo(L.a[0] + j, L.a[1] + L.sag + j * 0.6, L.b[0] - j, L.b[1] - L.sag - j * 0.6, L.b[0], L.b[1]); g.stroke();
       if (k > 0.05) { g.globalAlpha = k * 0.5; g.strokeStyle = "#fff4c8"; g.lineWidth = 2; g.stroke(); }
+      // traffic: dots run along the leads while the eero or the switch is hovered, faster when the network is busy
+      if (flow > 0.02) {
+        const p0 = L.a, p1 = [L.a[0] + j, L.a[1] + L.sag + j * 0.6], p2 = [L.b[0] - j, L.b[1] - L.sag - j * 0.6], p3 = L.b;
+        const at = (t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
+        for (let q = 0; q < 3; q++) {
+          const t = (((now / 1000) * speed + q / 3 + i * 0.13) % 1 + 1) % 1, [x, y] = at(i % 2 ? 1 - t : t);   // alternate directions: up and down the leads
+          g.globalAlpha = flow; g.fillStyle = "#c8f4ff"; g.shadowColor = "#7fd8ff"; g.shadowBlur = 14; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.shadowBlur = 0;
+        }
+      }
     }
     g.globalAlpha = 1; if (RACK.wtex) RACK.wtex.needsUpdate = true;
   }
@@ -713,7 +727,7 @@
     RACK.leaders = segs(T, lp, COL.cyan, 0.35); g.add(RACK.leaders);
   }
   function tickRack(dt, now) {
-    if (now - RACK.drawn > 450) drawFace(now);
+    if (now - RACK.drawn > (RACK.unit && RACK.unit.nas && RACK.unit.nas.k > 0.02 ? 30 : 450)) drawFace(now);
     const focus = String(V3.pinned || V3.hover || "").startsWith("u:") ? String(V3.pinned || V3.hover).slice(2) : null;
     RACK.any = !!focus;
     let wob = false;
@@ -723,7 +737,7 @@
       U.m.position.z = 0.02 + 0.22 * U.k; U.ol.position.z = U.m.position.z + 0.01;
       const c = 1 - 0.62 * U.d; U.m.material.color.setRGB(c, c, c);
       U.ol.material.opacity = U.k * (0.6 + 0.3 * Math.sin(now / 160));
-      if (U.k > 0.02) wob = true;
+      if (U.k > 0.02) wob = true;   // (includes the eero/switch traffic dots)
     }
     if (wob || RACK.wobbled || now - (RACK.ldrawn || 0) > 1000) { drawLeads(now); RACK.ldrawn = now; RACK.wobbled = wob; }
     if (RACK.leaders) RACK.leaders.material.opacity = focus ? 0.12 : 0.35;
