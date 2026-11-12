@@ -1980,8 +1980,9 @@
     LIVE.parcels = allStates.filter((st) => st.entity_id.startsWith("sensor.") && /parcel|package|deliver/.test(text(st)) && !/delivered|update|last|image|exception|camera/.test(text(st)) && live(st) && Number.isFinite(+st.state)).map((st) => st.entity_id);
     LIVE.needBuild = true;
     // who's home: the people in Home Assistant (with a phone or a login), like the dashboard's person cards
-    LIVE.people = allStates.filter((st) => st.entity_id.startsWith("person.") && ((st.attributes.device_trackers || []).length || st.attributes.user_id) && !/mqtt|^person\.(admin|guest)/i.test(st.entity_id)).map((st) => st.entity_id);
-    return [...LIVE.doors.flatMap((d) => [...d.ids, d.lockId].filter(Boolean)), ...LIVE.players.flatMap((p) => p.ids), ...LIVE.bins, ...LIVE.parcels, ...LIVE.people];
+    LIVE.people = (H.people || []).length ? H.people.map((p) => ({ ...p }))
+      : allStates.filter((st) => st.entity_id.startsWith("person.") && ((st.attributes.device_trackers || []).length || st.attributes.user_id) && !/mqtt|^person\.(admin|guest)/i.test(st.entity_id)).map((st) => ({ person: st.entity_id }));
+    return [...LIVE.doors.flatMap((d) => [...d.ids, d.lockId].filter(Boolean)), ...LIVE.players.flatMap((p) => p.ids), ...LIVE.bins, ...LIVE.parcels, ...LIVE.people.flatMap((p) => [p.person, p.wifi].filter(Boolean))];
   }
 
   // where a door sits: hinge point, direction along the wall, and which way is into the room (plan x, z)
@@ -2199,9 +2200,12 @@
       let px = 2.2, pz = -0.9, py = 0;
       if (fd) { const { p, a, n, w } = doorFrame(fd); px = p[0] + a[0] * w / 2 - n[0] * 1.1; pz = p[1] + a[1] * w / 2 - n[1] * 1.1; py = fd.roomRef.y || 0; }
       const base = HA() && HA().baseUrl ? HA().baseUrl() : "";
-      const ppl = LIVE.people.map((id) => {
-        const st = states.get(id) || { s: "unknown", a: {} }, a = st.a, home = st.s === "home", name = String(a.friendly_name || id.split(".")[1]);
-        const where = home ? "HOME" : st.s === "not_home" ? "AWAY" : /^(unknown|unavailable)$/.test(st.s) ? "—" : String(st.s).replace(/_/g, " ").toUpperCase();
+      const ppl = LIVE.people.map((pp) => {
+        const id = pp.person, st = states.get(id) || { s: "unknown", a: {} }, a = st.a, name = String(pp.name || a.friendly_name || id.split(".")[1]);
+        // home = their phone is on the home Wi-Fi; away shows the Home Assistant zone they're in, if any
+        const wf = pp.wifi && states.get(pp.wifi), home = wf ? wf.s === "home" : st.s === "home";
+        const zone = !/^(home|not_home|unknown|unavailable)$/.test(st.s) ? String(st.s).replace(/_/g, " ").toUpperCase() : "";
+        const where = home ? (wf ? "HOME · ON WI-FI" : "HOME") : zone || (wf ? "AWAY · OFF WI-FI" : st.s === "not_home" ? "AWAY" : "—");
         const pic = a.entity_picture ? (/^https?:/i.test(a.entity_picture) ? a.entity_picture : base + a.entity_picture) : "";
         return `<div class="eddo-person" data-home="${home}"><i>${pic ? `<img src="${esc(pic)}" alt="">` : esc(name.slice(0, 1))}<em>${home ? "⌂" : "↗"}</em></i><b>${esc(name.toUpperCase())}</b><span>${esc(where)}</span></div>`;
       }).join("");

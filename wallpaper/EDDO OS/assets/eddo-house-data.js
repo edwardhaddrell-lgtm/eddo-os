@@ -57,6 +57,11 @@ window.EDDO_HOUSE = {
     { name: "Fox's window", room: "fox", wall: "back", at: 0.5, w: 1.0, window: true, entity: "binary_sensor.lumi_lumi_sensor_magnet_aq2_opening_2" },
   ],
   // home server (Unraid): a small box under Ed's desk in the office, with its CPU temperature
+  // who's home: a person counts as home while their phone is on the home Wi-Fi (the eero's tracker for it)
+  people: [
+    { name: "Edward", person: "person.edward_haddrell", wifi: "device_tracker.android_kj2q4o7y_wireless_haddrellwood_android_kj2q4o7y_wireless" },
+    { name: "Juliet", person: "person.julietwood", wifi: "device_tracker.iphone_wireless_haddrellwood_iphone_wireless" },
+  ],
   server: { name: "EDDO-NAS", room: "office", u: 0.9, v: 0.14, w: 0.24, h: 0.42, d: 0.42 },
   boiler: { room: "bath", u: 0.92, v: 0.2, y: 1.3 },   // in the tall cupboard by the bathroom door
   floorHeight: 2.6,
