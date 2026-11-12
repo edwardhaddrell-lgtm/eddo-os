@@ -651,40 +651,82 @@
     const bg = g.createRadialGradient(FACE_W / 2, nv.y + nv.h / 2, 10, FACE_W / 2, nv.y + nv.h / 2, 340); bg.addColorStop(0, `rgba(70,110,255,${glow})`); bg.addColorStop(1, "rgba(70,110,255,0)");
     g.fillStyle = bg; g.fillRect(100, nv.y + 20, FACE_W - 200, nv.h - 40);
     for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(4,5,6,.82)"; g.fillRect(150 + i * 28, nv.y + 30, 14, nv.h - 60); }
-    // leads: yellow from the switch to the patch panel, one to the Hue bridge, purple from the Yellow down to the Ring panel
-    const lead = (a, b, col, sag) => { g.strokeStyle = col; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.moveTo(a[0], a[1]); g.bezierCurveTo(a[0], a[1] + sag, b[0], b[1] - sag, b[0], b[1]); g.stroke(); };
-    lead([128, sy - 6], [ports[0][0], ports[0][1] + 18], "#e8b52a", 60);
-    for (let i = 1; i < 7; i++) lead([ports[i][0], ports[i][1] + 18], [pk[i - 1][0], pk[i - 1][1] + 10], "#e8b52a", 50);
-    lead([940, hy + 10], [785, hy + 10], "#e8b52a", -60);
-    lead([150, ha.y + 50], [660, hy2 + 26], "#8a63d6", 140);
+    RACK.leads = [
+      { a: [128, sy - 6], b: [ports[0][0], ports[0][1] + 18], col: "#e8b52a", sag: 60, units: ["switch"] },
+      ...[1, 2, 3, 4, 5, 6].map((i) => ({ a: [ports[i][0], ports[i][1] + 18], b: [pk[i - 1][0], pk[i - 1][1] + 10], col: "#e8b52a", sag: 50, units: ["switch", "patch"] })),
+      { a: [940, hy + 10], b: [785, hy + 10], col: "#e8b52a", sag: -60, units: ["hue"] },
+      { a: [150, ha.y + 50], b: [660, hy2 + 26], col: "#8a63d6", sag: 140, units: ["ha", "ring"] },
+    ];
     RACK.drawn = now; if (RACK.tex) RACK.tex.needsUpdate = true;
+  }
+  // the patch leads on their own layer, in front of the panels; they wobble when a unit they plug into is hovered
+  function drawLeads(now) {
+    const c = RACK.wires, g = c.getContext("2d"); g.clearRect(0, 0, FACE_W, FACE_H);
+    for (const [i, L] of (RACK.leads || []).entries()) {
+      const k = Math.max(0, ...L.units.map((id) => (RACK.unit[id] || { k: 0 }).k)), j = k * 16 * Math.sin(now / 90 + i * 1.7), dim = RACK.any && k < 0.1 ? 0.35 : 1;
+      g.globalAlpha = dim; g.strokeStyle = L.col; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.moveTo(L.a[0], L.a[1]);
+      g.bezierCurveTo(L.a[0] + j, L.a[1] + L.sag + j * 0.6, L.b[0] - j, L.b[1] - L.sag - j * 0.6, L.b[0], L.b[1]); g.stroke();
+      if (k > 0.05) { g.globalAlpha = k * 0.5; g.strokeStyle = "#fff4c8"; g.lineWidth = 2; g.stroke(); }
+    }
+    g.globalAlpha = 1; if (RACK.wtex) RACK.wtex.needsUpdate = true;
+  }
+  function vents(w, h, cols, rows) {   // a perforated side/back panel texture
+    const c = Object.assign(document.createElement("canvas"), { width: w, height: h }), g = c.getContext("2d");
+    g.fillStyle = "#0f1114"; g.fillRect(0, 0, w, h); g.strokeStyle = "#262a2f"; g.lineWidth = 4; g.strokeRect(2, 2, w - 4, h - 4);
+    for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) { g.fillStyle = "#050607"; g.fillRect(40 + q * ((w - 80) / cols), 50 + r * ((h - 100) / rows), (w - 80) / cols - 14, (h - 100) / rows - 26); }
+    return c;
   }
   function buildRack(g, T) {
     g.add(floorGrid(T, 7));
     RACK.canvas = RACK.canvas || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
+    RACK.wires = RACK.wires || Object.assign(document.createElement("canvas"), { width: FACE_W, height: FACE_H });
     RACK.tex = new T.CanvasTexture(RACK.canvas); RACK.tex.anisotropy = 4;
-    drawFace(performance.now());
-    const face = new T.Mesh(new T.PlaneGeometry(W3, H3), new T.MeshBasicMaterial({ map: RACK.tex, transparent: true, depthWrite: true }));
-    face.position.set(0, Y0 + H3 / 2, 0.02); g.add(face);
+    RACK.wtex = new T.CanvasTexture(RACK.wires); RACK.wtex.anisotropy = 4;
+    drawFace(performance.now()); RACK.unit = {}; drawLeads(performance.now());
+    // each unit is its own slice of the front face, so it can slide out and the others can dim
+    for (const u of RU) {
+      if (u.id === "gap") continue;
+      const h = (H3 * u.h) / FACE_H, geo = new T.PlaneGeometry(W3, h), uv = geo.attributes.uv, v0 = 1 - (u.y + u.h) / FACE_H, v1 = 1 - u.y / FACE_H;
+      for (let q = 0; q < uv.count; q++) uv.setY(q, uv.getY(q) > 0.5 ? v1 : v0);
+      const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: RACK.tex, transparent: true })); m.position.set(0, unitY(u), 0.02); g.add(m);
+      const ol = segs(T, [-W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, -h / 2, 0, W3 / 2, h / 2, 0, W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, h / 2, 0, -W3 / 2, -h / 2, 0], COL.cyan, 0); ol.position.copy(m.position); ol.position.z += 0.01; g.add(ol);
+      RACK.unit[u.id] = { m, ol, k: 0, d: 0 };
+    }
+    RACK.leadPlane = new T.Mesh(new T.PlaneGeometry(W3, H3), new T.MeshBasicMaterial({ map: RACK.wtex, transparent: true, depthWrite: false }));
+    RACK.leadPlane.position.set(0, Y0 + H3 / 2, 0.27); g.add(RACK.leadPlane);
     // the frame: two aluminium uprights each side, top and bottom rails, corner brackets on top
     const L = [], X = W3 / 2 + 0.36, TOP = Y0 + H3 + 0.62, Z0 = 0.05, Z1 = -DEPTH;
     const bx = (x0, x1, y0, y1, z0, z1) => { const c = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; c.forEach(([x, z], k) => { const [nx, nz] = c[(k + 1) % 4]; L.push(x, y0, z, nx, y0, nz, x, y1, z, nx, y1, nz, x, y0, z, x, y1, z); }); };
     for (const sx of [-1, 1]) { bx(sx * X - 0.33, sx * X + 0.0, 0, TOP, Z0 - 0.33, Z0); bx(sx * X - 0.33, sx * X, 0, TOP, Z1, Z1 + 0.33); }
     bx(-X - 0.33, X, TOP - 0.62, TOP, Z0 - 0.33, Z0); bx(-X - 0.33, X, 0, 0.3, Z0 - 0.33, Z0); bx(-X - 0.33, X, TOP - 0.3, TOP, Z1, Z0);
     for (const sx of [-1, 1]) for (const z of [Z0 - 0.16, Z1 + 0.16]) bx(sx * X - 0.3, sx * X - 0.03, TOP, TOP + 0.3, z - 0.14, z + 0.14);   // corner brackets
-    g.add(segs(T, L, 0xd8dde2, 0.55));
-    L.length = 0;
-    // each unit's box behind its panel
-    const U2 = [];
-    for (const u of RU) { if (u.id === "gap") continue; const y1 = Y0 + H3 * (1 - u.y / FACE_H), y0 = Y0 + H3 * (1 - (u.y + u.h) / FACE_H); bx(-W3 / 2 + 0.1, W3 / 2 - 0.1, y0 + 0.05, y1 - 0.05, -0.05, u.id === "nas" ? Z1 + 0.4 : -1.6); }
-    // (bx appended into L above; units drawn fainter)
-    g.add(segs(T, L.splice(0), COL.edge, 0.12));
+    g.add(segs(T, L, 0xd8dde2, 0.55)); L.length = 0;
+    // sides, back and top: dark perforated panels so it reads as a solid box
+    const sideTex = new T.CanvasTexture(vents(512, 768, 3, 9)), backTex = new T.CanvasTexture(vents(768, 768, 4, 9));
+    const skin = (geo, tex, op) => new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x111316, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: true }));
+    const D = Z0 - Z1, Wt = 2 * X + 0.33;
+    for (const sx of [-1, 1]) { const m = skin(new T.PlaneGeometry(D, TOP), sideTex, 0.92); m.rotation.y = Math.PI / 2; m.position.set(sx > 0 ? X : -X - 0.33, TOP / 2, (Z0 + Z1) / 2); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(Wt, TOP), backTex, 0.92); m.position.set(-0.165, TOP / 2, Z1); g.add(m); }
+    { const m = skin(new T.PlaneGeometry(Wt, D), null, 0.9); m.rotation.x = -Math.PI / 2; m.position.set(-0.165, TOP, (Z0 + Z1) / 2); g.add(m); }
     // callout leaders to the right
-    const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.05, y, 0.1, W3 / 2 + 1.0, y, 0.1); }
-    g.add(segs(T, lp, COL.cyan, 0.35));
+    const lp = []; for (const u of RU) { if (!u.name) continue; const y = unitY(u); lp.push(W3 / 2 + 0.4, y, 0.1, W3 / 2 + 1.0, y, 0.1); }
+    RACK.leaders = segs(T, lp, COL.cyan, 0.35); g.add(RACK.leaders);
   }
   function tickRack(dt, now) {
     if (now - RACK.drawn > 450) drawFace(now);
+    const focus = String(V3.pinned || V3.hover || "").startsWith("u:") ? String(V3.pinned || V3.hover).slice(2) : null;
+    RACK.any = !!focus;
+    let wob = false;
+    for (const [id, U] of Object.entries(RACK.unit || {})) {
+      U.k += ((id === focus ? 1 : 0) - U.k) * Math.min(1, dt * 9);
+      U.d += ((focus && id !== focus ? 1 : 0) - U.d) * Math.min(1, dt * 7);
+      U.m.position.z = 0.02 + 0.22 * U.k; U.ol.position.z = U.m.position.z + 0.01;
+      const c = 1 - 0.62 * U.d; U.m.material.color.setRGB(c, c, c);
+      U.ol.material.opacity = U.k * (0.6 + 0.3 * Math.sin(now / 160));
+      if (U.k > 0.02) wob = true;
+    }
+    if (wob || RACK.wobbled || now - (RACK.ldrawn || 0) > 1000) { drawLeads(now); RACK.ldrawn = now; RACK.wobbled = wob; }
+    if (RACK.leaders) RACK.leaders.material.opacity = focus ? 0.12 : 0.35;
     const ip = st(NET.net.ip), down = n(st(NET.net.down)), upl = n(st(NET.net.up)), nst = st(NET.net.status) || st(NET.net.wan), online = !nst || /connected|on|online/.test(nst.s);
     const eh = eeroHub(), hueOn = RK.hue.filter((id) => (st(id) || {}).s === "on").length;
     const ver = st(RK.ha), osu = st(RK.haOs), autosOn = RK.autos.filter((id) => (st(id) || {}).s === "on").length;
@@ -704,8 +746,10 @@
     for (const u of RU) {
       if (!u.name) continue;
       const y = unitY(u), c = C[u.id] || ["", ""];
-      tag("r:" + u.id, W3 / 2 + 1.05, y + 0.32, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
-      pick("u:" + u.id, 0, y, 0.1, () => rackCard(u), u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } } : null);
+      tag("r:" + u.id, W3 / 2 + 1.05, y, 0.1, `<b>${esc(u.name)}</b><span${c[2] ? ' data-warn="true"' : ""}>${esc(c[0])}</span>${c[1] ? `<span>${esc(c[1])}</span>` : ""}`, true, "eddo-page-tag-left");
+      const tg = V3.tags.get("r:" + u.id); if (tg) { tg.dataset.focus = focus === u.id ? "true" : focus ? "dim" : "false"; }
+      const act = u.id === "switch" || u.id === "eero" ? { open: { label: "OPEN THE MESH MAP ›", run: () => netView("mesh") } } : null;
+      for (const q of [0, -1, 1, -2, 2, -3, 3, -4, 4]) pick("u:" + u.id, (q / 4) * (W3 / 2 - 0.3), y, 0.1 + 0.22 * ((RACK.unit[u.id] || { k: 0 }).k), () => rackCard(u), act);   // hover anywhere along the unit
     }
   }
   function rackCard(u) {
@@ -733,7 +777,7 @@
       `${bar("ARRAY", v("array"), v("array") != null ? fmt(v("array")) + "%" : "—", v("array") >= 90)}${N.disks.map((id, i) => bar("DISK " + (i + 1), n(st(id)), n(st(id)) != null ? fmt(n(st(id))) + "%" : "—", n(st(id)) >= 90)).join("")}${bar("CACHE", v("cache"), v("cache") != null ? fmt(v("cache")) + "%" : "—")}` +
       `<p class="eddo-pg-h">DOCKERS <span>${contOn} OF ${RK.cont.length} RUNNING${updN ? ` · ${fmt(updN)} UPDATES` : ""}</span></p><div class="eddo-docks">${dock}</div>` +
       `<p class="eddo-pg-h">HOME ASSISTANT</p><div class="eddo-pg-grid">${card("CORE", ver ? esc(ver.a.installed_version || "—") : "—", ver && ver.s === "on" ? "update ready" : "up to date", ver && ver.s === "on" ? ' data-warn="true"' : "")}${card("AUTOMATIONS", RK.autos.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.autos.length} on`)}${card("HUE", RK.hue.filter((id) => (st(id) || {}).s === "on").length, `of ${RK.hue.length} lights on`)}</div>` +
-      `<div class="eddo-pg-btns eddo-pg-viewbtn"><button class="eddo-pg-btn" data-netview="mesh">OPEN THE MESH MAP ›</button></div>`;
+      "";
   }
   function netView(v) {
     RACK.view = v; dirty = true; V3.pinned = null;
@@ -758,7 +802,7 @@
       if (RACK.g) RACK.g.visible = RACK.view === "rack";
       if (RACK.view === "mesh") this.tickMesh(g, dt, now, T); else tickRack(dt, now);
     },
-    panel() { return RACK.view === "mesh" ? `<div class="eddo-pg-btns eddo-pg-viewbtn"><button class="eddo-pg-btn" data-netview="rack">◀ BACK TO THE RACK</button></div>` + this.panelMesh() : rackPanel(); },
+    panel() { const seg = `<div class="eddo-pg-seg"><button data-netview="rack" aria-pressed="${RACK.view === "rack"}">RACK</button><button data-netview="mesh" aria-pressed="${RACK.view === "mesh"}">MESH MAP</button></div>`; return seg + (RACK.view === "mesh" ? this.panelMesh() : rackPanel()); },
     buildMesh(g, T) {
       g.add(floorGrid(T, 9));
       const core = new T.LineSegments(new T.EdgesGeometry(new T.SphereGeometry(0.75, 10, 6)), lineMat(T, COL.cyan, 0.8)); core.position.y = 2.2; g.add(core);

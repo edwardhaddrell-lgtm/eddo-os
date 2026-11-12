@@ -938,3 +938,21 @@ html.eddo-phone .eddo-gb{--w:84px}
 .eddo-dock[data-on=false]{opacity:.6}
 .eddo-pg-viewbtn{grid-template-columns:1fr}
 html.eddo-phone .eddo-docks{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* extra pages: one spacing rhythm (10 px between blocks, 18 px before a section) */
+.eddo-pg-grid{gap:8px!important;margin:10px 0 0!important}
+.eddo-pg-h{margin:18px 0 8px!important}
+.eddo-pg-grid+.eddo-pg-bar,.eddo-pg-grid+.eddo-pg-alert{margin-top:10px}
+.eddo-pg-bar{padding:4px 0!important}
+.eddo-docks{gap:8px!important}
+.eddo-dock{padding:7px 9px}
+/* RACK | MESH MAP switch */
+.eddo-pg-seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--theme-line,#bdb8ad);margin-bottom:4px}
+.eddo-pg-seg button{padding:7px 0;font-size:10px;letter-spacing:1.8px;color:var(--theme-muted,#9a978f);cursor:pointer;transition:background .2s,color .2s}
+.eddo-pg-seg button+button{border-left:1px solid var(--theme-line,#bdb8ad)}
+.eddo-pg-seg button[aria-pressed=true]{background:rgba(143,185,194,.14);color:var(--theme-ink,#ece9e2)}
+/* rack callouts follow the hover */
+.eddo-page-tag-left{transition:opacity .3s,transform .08s}
+.eddo-page-tag-left[data-focus=dim]{opacity:.28}
+.eddo-page-tag-left[data-focus=true] b{color:#7fd8ff}
+.eddo-page-tag-left[data-focus=true]{text-shadow:0 0 10px rgba(127,216,255,.5),0 1px 4px rgba(0,0,0,.9)}
